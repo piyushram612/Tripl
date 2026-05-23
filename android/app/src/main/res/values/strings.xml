@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TallyTap</string>
+    <string name="shortcut_short_label">Quick Add</string>
+    <string name="shortcut_long_label">Log expense instantly</string>
+</resources>
