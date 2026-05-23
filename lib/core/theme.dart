@@ -7,19 +7,19 @@ class TallyTapTheme {
       useMaterial3: true,
       brightness: Brightness.dark,
       colorScheme: const ColorScheme.dark(
-        background: Color(0xFF0F0F12),
-        primary: Color(0xFF8B5CF6), // Premium Electric Violet
+        background: Color(0xFF060B08),
+        primary: Color(0xFF10B981), // Midnight Emerald
         onPrimary: Colors.white,
         secondary: Color(0xFF10B981), // Emerald
         onSecondary: Colors.white,
-        surface: Color(0xFF1A1A24), // Soft Obsidian Card
+        surface: Color(0xFF0F1A15), // Midnight Emerald Card
         onSurface: Color(0xFFF3F4F6),
-        surfaceVariant: Color(0xFF2E2E3E),
+        surfaceVariant: Color(0xFF1F2A25),
         outline: Color(0xFF4B5563),
       ),
-      scaffoldBackgroundColor: const Color(0xFF0F0F12),
+      scaffoldBackgroundColor: const Color(0xFF060B08),
       cardTheme: CardThemeData(
-        color: const Color(0xFF1A1A24),
+        color: const Color(0xFF0F1A15),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         elevation: 0,
       ),

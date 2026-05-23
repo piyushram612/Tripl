@@ -2,42 +2,102 @@ package com.piyushram612.tallytap.utils
 
 import android.util.Log
 
-class BackTapDetector(private val onDoubleTapTriggered: () -> Unit) {
-    private var lastZValue = 0f
+class BackTapDetector(private val onTripleTapTriggered: () -> Unit) {
     private var lastTapTime = 0L
+    private var tapCount = 0
+    private var lastLinearZ = 0f
+    private var isQuietBetweenTaps = true
     
-    // Increased sensitivity threshold (lowered from 8.0f to 5.5f for extremely effortless double-taps/shakes)
-    private val tapThreshold = 5.5f       
-    private val debounceWindowMs = 120L    // Lowered slightly to allow fast rapid consecutive taps
-    private val doubleTapWindowMinMs = 100L // Minimum duration to recognize separate tap events
-    private val doubleTapWindowMaxMs = 500L // Maximum duration between consecutive taps
+    // Gravity low-pass filter
+    private val gravity = FloatArray(3)
+    private var isGravityInitialized = false
 
-    fun processSensorEvent(zValue: Float) {
+    private val tapThreshold = 2.5f
+    private val jerkThreshold = 2.5f // NEW: Requires sudden acceleration change
+    private val debounceWindowMs = 110L
+    private val tapWindowMinMs = 100L // Reduced to force faster taps and ignore walking
+    private val tapWindowMaxMs = 400L // Reduced to exclude normal walking rhythms
+    private val quietThreshold = 1.0f // NEW: Must fall below this between taps
+
+    fun processSensorEvent(xValue: Float, yValue: Float, zValue: Float) {
         val currentTime = System.currentTimeMillis()
         
-        // Measure rapid acceleration delta in the Z axis (perpendicular to back of device)
-        val deltaZ = Math.abs(zValue - lastZValue)
-        lastZValue = zValue
+        // Alpha is calculated as t / (t + dT)
+        val alpha = 0.8f
 
-        // Verbose logging for all minor impacts
-        if (deltaZ > 2.5f) {
-            Log.d("BackTapDetector", "DeltaZ vibration detected: ${String.format("%.2f", deltaZ)} m/s^2 (Threshold: $tapThreshold)")
+        if (!isGravityInitialized) {
+            gravity[0] = xValue
+            gravity[1] = yValue
+            gravity[2] = zValue
+            isGravityInitialized = true
+        } else {
+            gravity[0] = alpha * gravity[0] + (1 - alpha) * xValue
+            gravity[1] = alpha * gravity[1] + (1 - alpha) * yValue
+            gravity[2] = alpha * gravity[2] + (1 - alpha) * zValue
         }
 
-        if (deltaZ > tapThreshold) {
-            val timeDiff = currentTime - lastTapTime
-            if (timeDiff > debounceWindowMs) {
-                Log.d("BackTapDetector", "VALID TAP SPIKE! DeltaZ: ${String.format("%.2f", deltaZ)} m/s^2, timeDiff: ${timeDiff}ms since last tap")
+        // Linear acceleration (high-pass filter to remove gravity)
+        val linearX = xValue - gravity[0]
+        val linearY = yValue - gravity[1]
+        val linearZ = zValue - gravity[2]
 
-                if (timeDiff in doubleTapWindowMinMs..doubleTapWindowMaxMs) {
-                    Log.d("BackTapDetector", "🏆 DOUBLE BACK TAP DETECTED SUCCESSFULLY!")
-                    onDoubleTapTriggered()
-                    lastTapTime = 0L // Reset
+        val absZ = Math.abs(linearZ)
+        val absX = Math.abs(linearX)
+        val absY = Math.abs(linearY)
+        val jerkZ = Math.abs(linearZ - lastLinearZ)
+        
+        lastLinearZ = linearZ
+
+        // Check if the sensor has settled down (quiet window)
+        if (absZ < quietThreshold) {
+            isQuietBetweenTaps = true
+        }
+
+        if (absZ > 2.5f) {
+            Log.d("BackTapDetector", "Linear Z spike: ${String.format("%.2f", absZ)}, Jerk: ${String.format("%.2f", jerkZ)}")
+        }
+
+        if (absZ > tapThreshold) {
+            // 1. Cross-axis rejection: Check if movement is primarily on Z axis
+            if (absZ > (absX + absY) * 1.2f) {
+                
+                // 2. Jerk rejection: Verify it's a sudden impact, not a smooth swing
+                if (jerkZ > jerkThreshold) {
+                    val timeDiff = currentTime - lastTapTime
+                    if (timeDiff > debounceWindowMs) {
+                        
+                        // 3. Quiet Window Check: Reject continuous vibration
+                        if (tapCount == 0 || isQuietBetweenTaps) {
+                            Log.d("BackTapDetector", "VALID TAP SPIKE! Linear Z: ${String.format("%.2f", absZ)}, timeDiff: ${timeDiff}ms")
+        
+                            if (timeDiff in tapWindowMinMs..tapWindowMaxMs) {
+                                tapCount++
+                                isQuietBetweenTaps = false
+                                if (tapCount >= 3) {
+                                    Log.d("BackTapDetector", "🏆 TRIPLE BACK TAP DETECTED SUCCESSFULLY!")
+                                    onTripleTapTriggered()
+                                    lastTapTime = 0L // Reset
+                                    tapCount = 0
+                                } else {
+                                    lastTapTime = currentTime
+                                }
+                            } else {
+                                // Start of a new tap sequence
+                                tapCount = 1
+                                isQuietBetweenTaps = false
+                                lastTapTime = currentTime
+                            }
+                        } else {
+                            Log.d("BackTapDetector", "Tap ignored: Continuous vibration/noise (not quiet between taps)")
+                        }
+                    } else {
+                        Log.d("BackTapDetector", "Tap ignored: debounced (timeDiff: ${timeDiff}ms <= ${debounceWindowMs}ms)")
+                    }
                 } else {
-                    lastTapTime = currentTime
+                    Log.d("BackTapDetector", "Tap ignored: Low Jerk (smooth movement). Jerk:$jerkZ < $jerkThreshold")
                 }
             } else {
-                Log.d("BackTapDetector", "Tap ignored: debounced (timeDiff: ${timeDiff}ms <= ${debounceWindowMs}ms)")
+                Log.d("BackTapDetector", "Tap ignored: Cross-axis rejection. Too much X/Y movement. Z:$absZ, X:$absX, Y:$absY")
             }
         }
     }

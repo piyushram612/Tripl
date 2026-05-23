@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/platform_service.dart';
 
-// State Provider to manage the state of Double Back Tap
+// State Provider to manage the state of Triple Back Tap
 final backTapEnabledProvider = StateNotifierProvider<BackTapNotifier, bool>((ref) {
   return BackTapNotifier();
 });
@@ -47,14 +47,14 @@ class MainScreen extends ConsumerWidget {
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
-                        colors: [Color(0xFF8B5CF6), Color(0xFFEC4899)],
+                        colors: [Color(0xFF10B981), Color(0xFF059669)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF8B5CF6).withOpacity(0.4),
+                          color: const Color(0xFF10B981).withOpacity(0.4),
                           blurRadius: 16,
                           offset: const Offset(0, 4),
                         ),
@@ -104,7 +104,7 @@ class MainScreen extends ConsumerWidget {
                             gradient: isDark
                                 ? LinearGradient(
                                     colors: [
-                                      const Color(0xFF1E1B4B),
+                                      const Color(0xFF042618),
                                       theme.cardTheme.color!,
                                     ],
                                     begin: Alignment.topLeft,
@@ -161,13 +161,13 @@ class MainScreen extends ConsumerWidget {
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          "Double Back Tap",
+                                          "Triple Back Tap",
                                           style: theme.textTheme.titleMedium?.copyWith(
                                             fontWeight: FontWeight.bold,
                                           ),
                                         ),
                                         Text(
-                                          "Tap the back of phone to trigger",
+                                          "Triple tap the back of phone to trigger",
                                           style: theme.textTheme.bodyMedium,
                                         ),
                                       ],
@@ -222,13 +222,13 @@ class MainScreen extends ConsumerWidget {
                               ),
                               const SizedBox(height: 16),
                               _buildStepTile(
-                                "2. System Double Tap Integration",
+                                "2. System Triple Tap Integration",
                                 "Configure Motorola Gestures or Pixel 'Quick Tap' to trigger this app's 'Quick Add' shortcut activity.",
                               ),
                               const SizedBox(height: 16),
                               _buildStepTile(
                                 "3. Custom Sensor Mode",
-                                "Enable the 'Double Back Tap' toggle above to listen to raw accelerometer impacts, launching the popup when you physically double-tap the back housing.",
+                                "Enable the 'Triple Back Tap' toggle above to listen to raw accelerometer impacts, launching the popup when you physically triple-tap the back housing.",
                               ),
                             ],
                           ),
