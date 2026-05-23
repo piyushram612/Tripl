@@ -38,7 +38,7 @@ class BackTapService : Service(), SensorEventListener {
         detector = BackTapDetector {
             Log.d(TAG, "Back tap gesture triggered! Checking active popup instances...")
             
-            // Toggle Behavior: If the popup is already visible, double back-tap closes it.
+            // Toggle Behavior: If the popup is already visible, triple back-tap closes it.
             // Otherwise, it launches the popup.
             val dismissed = PopupActivity.dismissActiveInstance()
             if (dismissed) {
@@ -86,8 +86,10 @@ class BackTapService : Service(), SensorEventListener {
 
     override fun onSensorChanged(event: SensorEvent?) {
         if (event != null && event.sensor.type == Sensor.TYPE_ACCELEROMETER) {
+            val x = event.values[0]
+            val y = event.values[1]
             val z = event.values[2]
-            detector?.processSensorEvent(z)
+            detector?.processSensorEvent(x, y, z)
         }
     }
 
@@ -96,7 +98,7 @@ class BackTapService : Service(), SensorEventListener {
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val name = "TallyTap Sensor Service"
-            val desc = "Listens for physical double taps on the phone back casing"
+            val desc = "Listens for physical triple taps on the phone back casing"
             val importance = NotificationManager.IMPORTANCE_LOW
             val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
                 description = desc
@@ -127,7 +129,7 @@ class BackTapService : Service(), SensorEventListener {
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("TallyTap Gesture Active")
-            .setContentText("Double tap back of phone to capture expense")
+            .setContentText("Triple tap back of phone to capture expense")
             .setSmallIcon(android.R.drawable.ic_menu_compass)
             .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_LOW)

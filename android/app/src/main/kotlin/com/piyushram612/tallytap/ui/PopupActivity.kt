@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.core.view.WindowCompat
 import com.piyushram612.tallytap.ui.components.PopupCard
 import com.piyushram612.tallytap.ui.theme.TallyTapTheme
 
@@ -32,6 +33,8 @@ class PopupActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         Log.d(TAG, "onCreate: Registering active popup instance")
         activeInstance = this
+        
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         
         // Remove transitions so the card appears instantly on top of the translucent window dim
         overridePendingTransition(0, 0)
