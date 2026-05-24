@@ -35,6 +35,8 @@ class PopupActivity : ComponentActivity() {
         activeInstance = this
         
         WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.statusBarColor = android.graphics.Color.TRANSPARENT
+        window.navigationBarColor = android.graphics.Color.TRANSPARENT
         
         // Remove transitions so the card appears instantly on top of the translucent window dim
         overridePendingTransition(0, 0)
