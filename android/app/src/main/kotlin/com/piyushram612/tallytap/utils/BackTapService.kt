@@ -1,18 +1,22 @@
 package com.piyushram612.tallytap.utils
 
+import android.app.KeyguardManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.piyushram612.tallytap.ui.PopupActivity
@@ -21,6 +25,26 @@ class BackTapService : Service(), SensorEventListener {
     private var sensorManager: SensorManager? = null
     private var accelerometer: Sensor? = null
     private var detector: BackTapDetector? = null
+    private var isSensorRegistered = false
+
+    private val screenStateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.action) {
+                Intent.ACTION_SCREEN_OFF -> {
+                    Log.d(TAG, "Screen went off, pausing sensor to save battery")
+                    unregisterSensor()
+                }
+                Intent.ACTION_USER_PRESENT -> {
+                    Log.d(TAG, "Device unlocked, resuming sensor")
+                    registerSensor()
+                }
+                Intent.ACTION_SCREEN_ON -> {
+                    Log.d(TAG, "Screen turned on, resuming sensor")
+                    registerSensor()
+                }
+            }
+        }
+    }
 
     companion object {
         private const val TAG = "TallyTapService"
@@ -36,6 +60,12 @@ class BackTapService : Service(), SensorEventListener {
         accelerometer = sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
         
         detector = BackTapDetector {
+            val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+            if (keyguardManager.isKeyguardLocked) {
+                Log.d(TAG, "Triple tap detected, but device is locked. Ignoring.")
+                return@BackTapDetector
+            }
+            
             Log.d(TAG, "Back tap gesture triggered! Checking active popup instances...")
             
             // Toggle Behavior: If the popup is already visible, triple back-tap closes it.
@@ -59,15 +89,44 @@ class BackTapService : Service(), SensorEventListener {
 
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, createNotification())
+        
+        // Register Broadcast Receiver for screen/lock state
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_SCREEN_OFF)
+            addAction(Intent.ACTION_SCREEN_ON)
+            addAction(Intent.ACTION_USER_PRESENT)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(screenStateReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(screenStateReceiver, filter)
+        }
+        
+        // Initial check
+        checkAndRegisterSensor()
+    }
+
+    private fun checkAndRegisterSensor() {
+        // We now just register the sensor directly to handle unreliable ACTION_USER_PRESENT broadcasts
         registerSensor()
     }
 
     private fun registerSensor() {
-        accelerometer?.let {
-            val registered = sensorManager?.registerListener(this, it, SensorManager.SENSOR_DELAY_GAME)
-            Log.d(TAG, "registerSensor: Accelerometer registered successfully? $registered")
-        } ?: run {
-            Log.e(TAG, "registerSensor: Accelerometer sensor not found on this device!")
+        if (!isSensorRegistered) {
+            accelerometer?.let {
+                isSensorRegistered = sensorManager?.registerListener(this, it, SensorManager.SENSOR_DELAY_GAME) ?: false
+                Log.d(TAG, "registerSensor: Accelerometer registered successfully? $isSensorRegistered")
+            } ?: run {
+                Log.e(TAG, "registerSensor: Accelerometer sensor not found on this device!")
+            }
+        }
+    }
+    
+    private fun unregisterSensor() {
+        if (isSensorRegistered) {
+            sensorManager?.unregisterListener(this)
+            isSensorRegistered = false
+            Log.d(TAG, "unregisterSensor: Accelerometer unregistered")
         }
     }
 
@@ -78,7 +137,12 @@ class BackTapService : Service(), SensorEventListener {
 
     override fun onDestroy() {
         Log.d(TAG, "onDestroy: Stopping TallyTap Back Tap Service and unregistering sensor")
-        sensorManager?.unregisterListener(this)
+        try {
+            unregisterReceiver(screenStateReceiver)
+        } catch (e: IllegalArgumentException) {
+            Log.e(TAG, "Receiver not registered", e)
+        }
+        unregisterSensor()
         super.onDestroy()
     }
 
