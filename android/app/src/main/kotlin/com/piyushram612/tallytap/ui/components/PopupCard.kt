@@ -39,6 +39,9 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.unit.sp
+import com.piyushram612.tallytap.ui.components.core.*
+import com.piyushram612.tallytap.utils.TransactionManager
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -96,53 +99,10 @@ fun PopupCard(
     onClose: () -> Unit
 ) {
     val context = LocalContext.current
-    val prefs = remember { context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE) }
     
-    val currency = remember(prefs) {
-        prefs.getString("flutter.currency_symbol", "₹") ?: "₹"
-    }
-    
-    // Load categories dynamically from SharedPreferences, bulletproof fallback to defaults if empty
-    val categories = remember(prefs) {
-        val jsonStr = prefs.getString("flutter.categories_json", null)
-        val loadedList = if (jsonStr != null && jsonStr.isNotEmpty()) {
-            try {
-                val arr = JSONArray(jsonStr)
-                List(arr.length()) { arr.getString(it) }
-            } catch (e: Exception) {
-                emptyList()
-            }
-        } else {
-            emptyList()
-        }
-        
-        if (loadedList.isEmpty()) {
-            listOf("Dining", "Commute", "Subscriptions", "Utilities", "Groceries", "Shopping", "Housing", "Health", "Travel", "Other")
-        } else {
-            loadedList
-        }
-    }
-
-    // Load payment sources dynamically from SharedPreferences, bulletproof fallback to defaults if empty
-    val sources = remember(prefs) {
-        val jsonStr = prefs.getString("flutter.sources_json", null)
-        val loadedList = if (jsonStr != null && jsonStr.isNotEmpty()) {
-            try {
-                val arr = JSONArray(jsonStr)
-                List(arr.length()) { arr.getString(it) }
-            } catch (e: Exception) {
-                emptyList()
-            }
-        } else {
-            emptyList()
-        }
-        
-        if (loadedList.isEmpty()) {
-            listOf("Cash", "Bank Account", "Credit Card")
-        } else {
-            loadedList
-        }
-    }
+    val currency = remember(context) { TransactionManager.getGlobalCurrency(context) }
+    val categories = remember(context) { TransactionManager.getCustomCategories(context) }
+    val sources = remember(context) { TransactionManager.getCustomSources(context) }
 
     var visible by remember { mutableStateOf(false) }
     var isExpanded by remember { mutableStateOf(false) }
@@ -514,7 +474,7 @@ fun PopupCard(
                                 .background(GreenPrimary, RoundedCornerShape(100.dp))
                                 .clickable {
                                     if (amount.text.isNotBlank()) {
-                                        saveTransactionToPrefs(
+                                        TransactionManager.saveTransactionToPrefs(
                                             context = context,
                                             titleText = if (title.isNotBlank()) title else "Quick Expense",
                                             amountText = amount.text,
@@ -705,173 +665,3 @@ fun PopupCard(
     }
 }
 
-@Composable
-fun SectionHeader(text: String) {
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start) {
-        Text(
-            text = text,
-            style = TextStyle(
-                fontSize = 11.sp,
-                fontWeight = FontWeight.W800,
-                letterSpacing = 1.0.sp,
-                color = GreenPrimary.copy(alpha = 0.8f)
-            )
-        )
-    }
-    Spacer(modifier = Modifier.height(12.dp))
-}
-
-@Composable
-fun CustomInputField(
-    label: String,
-    value: String,
-    onValueChange: (String) -> Unit = {},
-    icon: ImageVector? = null,
-    placeholder: String = "",
-    onClick: (() -> Unit)? = null
-) {
-    var isFocused by remember { mutableStateOf(false) }
-
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = label,
-            style = TextStyle(
-                fontSize = 11.sp,
-                fontWeight = FontWeight.W800,
-                letterSpacing = 1.0.sp,
-                color = GreenPrimary.copy(alpha = 0.8f)
-            )
-        )
-        Spacer(modifier = Modifier.height(10.dp))
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(52.dp)
-                .then(if (isFocused || (onClick != null && value.isNotEmpty())) Modifier.outerGlow(color = GreenPrimary, radius = 8.dp, alpha = 0.25f, cornerRadius = 14.dp) else Modifier)
-                .background(InactivePill, RoundedCornerShape(14.dp))
-                .border(1.dp, if (isFocused || (onClick != null && value.isNotEmpty())) GreenPrimary else Color.Transparent, RoundedCornerShape(14.dp))
-                .clickable(
-                    enabled = onClick != null,
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null
-                ) { onClick?.invoke() }
-                .padding(horizontal = 16.dp),
-            contentAlignment = Alignment.CenterStart
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (icon != null) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = if (isFocused || (onClick != null && value.isNotEmpty())) GreenPrimary else Color.White.copy(alpha = 0.4f),
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                }
-                if (onClick != null) {
-                    Text(
-                        text = value.ifEmpty { placeholder },
-                        style = TextStyle(
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = if (value.isEmpty()) Color.White.copy(alpha = 0.3f) else Color.White
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                } else {
-                    BasicTextField(
-                        value = value,
-                        onValueChange = onValueChange,
-                        textStyle = TextStyle(
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color.White
-                        ),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .onFocusChanged { isFocused = it.isFocused },
-                        decorationBox = { innerTextField ->
-                            if (value.isEmpty() && placeholder.isNotEmpty()) {
-                                Text(
-                                    text = placeholder,
-                                    style = TextStyle(
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = Color.White.copy(alpha = 0.3f)
-                                    )
-                                )
-                            }
-                            innerTextField()
-                        }
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun ScrollableCategoryCapsule(
-    label: String,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .height(42.dp)
-            .then(if (isSelected) Modifier.outerGlow(color = GreenPrimary, radius = 12.dp, alpha = 0.35f, cornerRadius = 100.dp) else Modifier)
-            .clip(RoundedCornerShape(100.dp))
-            .background(if (isSelected) GreenPrimary.copy(alpha = 0.15f) else InactivePill)
-            .border(
-                width = 1.0.dp,
-                color = if (isSelected) GreenPrimary else Color.Transparent,
-                shape = RoundedCornerShape(100.dp)
-            )
-            .clickable { onClick() }
-            .padding(horizontal = 20.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = label,
-            style = TextStyle(
-                fontSize = 13.sp,
-                fontWeight = FontWeight.W700,
-                color = if (isSelected) GreenPrimary else Color.White.copy(alpha = 0.8f)
-            ),
-            maxLines = 1
-        )
-    }
-}
-
-private fun saveTransactionToPrefs(
-    context: Context,
-    titleText: String,
-    amountText: String,
-    category: String,
-    source: String
-) {
-    try {
-        val prefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-        val transactionsJson = prefs.getString("flutter.transactions_json", "[]") ?: "[]"
-        val jsonArray = JSONArray(transactionsJson)
-
-        val newTx = JSONObject().apply {
-            put("id", UUID.randomUUID().toString())
-            put("amount", amountText.toDoubleOrNull() ?: 0.0)
-            put("merchant", titleText)
-            
-            val df = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
-                timeZone = TimeZone.getTimeZone("UTC")
-            }
-            put("date", df.format(Date()))
-            put("paymentMethod", source)
-            put("category", category)
-        }
-
-        jsonArray.put(newTx)
-        prefs.edit().putString("flutter.transactions_json", jsonArray.toString()).apply()
-        Log.d("PopupCard", "Transaction saved successfully: $newTx")
-    } catch (e: Exception) {
-        Log.e("PopupCard", "Failed to save transaction: ${e.message}", e)
-    }
-}

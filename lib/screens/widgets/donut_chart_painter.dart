@@ -2,12 +2,12 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import '../../core/theme.dart';
 
-class DonutChartCategory {
+class DonutChartItem {
   final String name;
   final double amount;
   final Color color;
 
-  DonutChartCategory({
+  DonutChartItem({
     required this.name,
     required this.amount,
     required this.color,
@@ -15,7 +15,7 @@ class DonutChartCategory {
 }
 
 class DonutChart extends StatelessWidget {
-  final List<DonutChartCategory> categories;
+  final List<DonutChartItem> categories;
   final String currency;
 
   const DonutChart({
@@ -73,7 +73,7 @@ class DonutChart extends StatelessWidget {
 }
 
 class _DonutChartPainter extends CustomPainter {
-  final List<DonutChartCategory> categories;
+  final List<DonutChartItem> categories;
 
   _DonutChartPainter({required this.categories});
 
