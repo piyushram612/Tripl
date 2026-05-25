@@ -7,6 +7,7 @@ class IntentRingGraph extends StatelessWidget {
   final double joyful;
   final double avoidable;
   final double totalSpent;
+  final String currency;
 
   const IntentRingGraph({
     super.key,
@@ -14,6 +15,7 @@ class IntentRingGraph extends StatelessWidget {
     required this.joyful,
     required this.avoidable,
     required this.totalSpent,
+    required this.currency,
   });
 
   @override
@@ -51,7 +53,7 @@ class IntentRingGraph extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               Text(
-                '\$${totalSpent.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}',
+                '$currency${totalSpent.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}',
                 style: const TextStyle(
                   fontSize: 26,
                   color: TallyTapTheme.primaryMint,

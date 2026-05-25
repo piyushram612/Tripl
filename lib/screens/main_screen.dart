@@ -223,6 +223,83 @@ class GlobalBudgetNotifier extends StateNotifier<GlobalBudgetState> {
   }
 }
 
+final currencyProvider = StateNotifierProvider<CurrencyNotifier, String>((ref) {
+  return CurrencyNotifier();
+});
+
+class CurrencyNotifier extends StateNotifier<String> {
+  CurrencyNotifier() : super('₹') {
+    loadCurrency();
+  }
+
+  static const Map<String, double> exchangeRates = {
+    '\$': 1.0,
+    '₹': 95.0,
+    '€': 0.92,
+    '£': 0.79,
+    '¥': 150.0,
+  };
+
+  Future<void> loadCurrency() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.reload();
+    state = prefs.getString('currency_symbol') ?? '₹';
+  }
+
+  Future<void> setCurrency(String newCurrency) async {
+    final prefs = await SharedPreferences.getInstance();
+    final oldCurrency = prefs.getString('currency_symbol') ?? '₹';
+    if (oldCurrency == newCurrency) return;
+
+    final oldRate = exchangeRates[oldCurrency] ?? 95.0;
+    final newRate = exchangeRates[newCurrency] ?? 95.0;
+    final rate = newRate / oldRate;
+
+    // Update transactions
+    final txJsonStr = prefs.getString('transactions_json');
+    if (txJsonStr != null && txJsonStr != '[]') {
+      try {
+        final List<dynamic> decoded = json.decode(txJsonStr);
+        final updated = decoded.map((item) {
+          final tx = ExpenseTransaction.fromMap(item);
+          return ExpenseTransaction(
+            id: tx.id,
+            amount: tx.amount * rate,
+            merchant: tx.merchant,
+            date: tx.date,
+            paymentMethod: tx.paymentMethod,
+            category: tx.category,
+          ).toMap();
+        }).toList();
+        await prefs.setString('transactions_json', json.encode(updated));
+      } catch (_) {}
+    }
+
+    // Update global budget
+    final globalAmount = prefs.getDouble('global_budget_amount') ?? 2000.0;
+    await prefs.setDouble('global_budget_amount', globalAmount * rate);
+
+    // Update category budgets
+    final catsStr = prefs.getString('categories_json');
+    List<String> categories = ['Dining', 'Commute', 'Subscriptions', 'Utilities', 'Groceries', 'Shopping', 'Housing', 'Health', 'Travel', 'Other'];
+    if (catsStr != null && catsStr.isNotEmpty) {
+      try {
+        categories = List<String>.from(json.decode(catsStr));
+      } catch (_) {}
+    }
+    for (final cat in categories) {
+      final key = 'budget_limit_$cat';
+      if (prefs.containsKey(key)) {
+        final limit = prefs.getDouble(key)!;
+        await prefs.setDouble(key, limit * rate);
+      }
+    }
+
+    await prefs.setString('currency_symbol', newCurrency);
+    state = newCurrency;
+  }
+}
+
 
 class MainScreen extends ConsumerStatefulWidget {
   const MainScreen({super.key});
@@ -362,6 +439,21 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
     );
   }
 
+  void _showManageCurrencySheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: TallyTapTheme.obsidianBg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+        side: BorderSide(color: TallyTapTheme.borderGreen, width: 1.0),
+      ),
+      builder: (context) {
+        return const _ManageCurrencySheet();
+      },
+    );
+  }
+
   Widget _buildSettingsTile({
     required IconData icon,
     required String title,
@@ -425,6 +517,7 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
     final transactions = ref.watch(transactionListProvider);
     final categories = ref.watch(categoriesListProvider);
     final globalBudget = ref.watch(globalBudgetProvider);
+    final currency = ref.watch(currencyProvider);
 
     // Dynamic metrics calculation based on overall period (weekly vs monthly)
     double totalSpent = 0.0;
@@ -562,11 +655,11 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
               children: [
                 const TextSpan(text: "You've spent "),
                 TextSpan(
-                  text: '\$${totalSpent.toStringAsFixed(0)}',
+                  text: '$currency${totalSpent.toStringAsFixed(0)}',
                   style: const TextStyle(color: TallyTapTheme.primaryMint, fontWeight: FontWeight.bold),
                 ),
                 TextSpan(
-                  text: ' recently.\nYou\'re on track to stay within your \$${globalBudget.amount.toStringAsFixed(0)} ${globalBudget.period} budget.',
+                  text: ' recently.\nYou\'re on track to stay within your $currency${globalBudget.amount.toStringAsFixed(0)} ${globalBudget.period} budget.',
                 ),
               ],
             ),
@@ -607,7 +700,7 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
                                     textBaseline: TextBaseline.alphabetic,
                                     children: [
                                       Text(
-                                        '\$${totalSpent.toStringAsFixed(0).replaceAllMapped(RegExp(r"(\d{1,3})(?=(\d{3})+(?!\d))"), (Match m) => "${m[1]},")}',
+                                        '$currency${totalSpent.toStringAsFixed(0).replaceAllMapped(RegExp(r"(\d{1,3})(?=(\d{3})+(?!\d))"), (Match m) => "${m[1]},")}',
                                         style: const TextStyle(
                                           fontSize: 34,
                                           fontWeight: FontWeight.w900,
@@ -680,8 +773,8 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               // 1. Centered Octagon Donut chart
-                              Center(
-                                child: DonutChart(categories: dynamicCategories),
+                              Positioned.fill(
+                                child: DonutChart(categories: dynamicCategories, currency: currency),
                               ),
                               const SizedBox(height: 24),
                               // 2. Legends below the chart
@@ -709,6 +802,7 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
                                         cat.name,
                                         cat.amount,
                                         cat.color,
+                                        currency,
                                       ),
                                     );
                                   }).toList(),
@@ -756,7 +850,7 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
                             separatorBuilder: (_, __) => const Divider(color: TallyTapTheme.borderGreen, height: 24, thickness: 0.5),
                             itemBuilder: (context, index) {
                               final tx = transactions[index];
-                              return _buildTransactionItem(tx);
+                              return _buildTransactionItem(tx, currency);
                             },
                           ),
                           const SizedBox(height: 20),
@@ -794,7 +888,7 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
   }
 
   // Helper: Legends
-  Widget _buildLegendRow(String title, double spent, Color color) {
+  Widget _buildLegendRow(String title, double spent, Color color, String currency) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -813,7 +907,7 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
           ],
         ),
         Text(
-          '\$${spent.toStringAsFixed(0)}',
+          '$currency${spent.toStringAsFixed(0)}',
           style: const TextStyle(fontSize: 13, color: TallyTapTheme.textLight, fontWeight: FontWeight.bold),
         ),
       ],
@@ -821,7 +915,7 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
   }
 
   // Helper: Recent Reflections List Item
-  Widget _buildTransactionItem(ExpenseTransaction tx) {
+  Widget _buildTransactionItem(ExpenseTransaction tx, String currency) {
     IconData icon;
     Color iconBg;
     final clean = tx.category.toLowerCase();
@@ -880,7 +974,7 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
           ),
         ),
         Text(
-          '-\$${tx.amount.toStringAsFixed(2)}',
+          '-$currency${tx.amount.toStringAsFixed(2)}',
           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: TallyTapTheme.textLight),
         ),
       ],
@@ -957,6 +1051,7 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
     final transactions = ref.watch(transactionListProvider);
     final budgetLimits = ref.watch(budgetLimitsProvider);
     final globalBudget = ref.watch(globalBudgetProvider);
+    final currency = ref.watch(currencyProvider);
 
     // Calculate dynamic spent per category in the current period
     final Map<String, double> spentPerCategory = {};
@@ -1093,7 +1188,7 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
                       padding: const EdgeInsets.all(20.0),
                       child: Column(
                         children: [
-                          BudgetRingGraph(spent: totalSpent, limit: globalBudget.amount),
+                          BudgetRingGraph(spent: totalSpent, limit: globalBudget.amount, currency: currency),
                           const SizedBox(height: 16),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1119,7 +1214,7 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
                             text: TextSpan(
                               style: const TextStyle(fontSize: 13, color: TallyTapTheme.textLight, height: 1.4),
                               children: [
-                                TextSpan(text: "You are pacing well within your global \$${globalBudget.amount.toStringAsFixed(0)} ${globalBudget.period} limit. Adjust settings in the "),
+                                TextSpan(text: "You are pacing well within your global $currency${globalBudget.amount.toStringAsFixed(0)} ${globalBudget.period} limit. Adjust settings in the "),
                                 const TextSpan(
                                   text: "Manage Limits",
                                   style: TextStyle(fontWeight: FontWeight.bold, color: TallyTapTheme.primaryMint),
@@ -1177,6 +1272,7 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
                       icon: icon,
                       proportion: proportion,
                       progressColor: color,
+                      currency: currency,
                     );
                   }).toList(),
 
@@ -1224,10 +1320,11 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
     required double limit,
     required IconData icon,
     required double proportion,
-    Color? progressColor,
+    required Color progressColor,
+    required String currency,
   }) {
     final percent = (proportion * 100).toStringAsFixed(0);
-    final activeColor = progressColor ?? TallyTapTheme.primaryMint;
+    final activeColor = progressColor;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -1277,11 +1374,11 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
               textBaseline: TextBaseline.alphabetic,
               children: [
                 Text(
-                  '\$${spent.toStringAsFixed(0).replaceAllMapped(RegExp(r"(\d{1,3})(?=(\d{3})+(?!\d))"), (Match m) => "${m[1]},")}',
+                  '$currency${spent.toStringAsFixed(0).replaceAllMapped(RegExp(r"(\d{1,3})(?=(\d{3})+(?!\d))"), (Match m) => "${m[1]},")}',
                   style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: TallyTapTheme.textLight),
                 ),
                 Text(
-                  '/ \$${limit.toStringAsFixed(0).replaceAllMapped(RegExp(r"(\d{1,3})(?=(\d{3})+(?!\d))"), (Match m) => "${m[1]},")}',
+                  '/ $currency${limit.toStringAsFixed(0).replaceAllMapped(RegExp(r"(\d{1,3})(?=(\d{3})+(?!\d))"), (Match m) => "${m[1]},")}',
                   style: const TextStyle(fontSize: 12, color: TallyTapTheme.textGray, fontWeight: FontWeight.w600),
                 ),
               ],
@@ -1315,6 +1412,7 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
   Widget _buildInsightsTab(BuildContext context) {
     final transactions = ref.watch(transactionListProvider);
     final budgetLimits = ref.watch(budgetLimitsProvider);
+    final currency = ref.watch(currencyProvider);
 
     double diningSpent = 0.0;
     double commuteSpent = 0.0;
@@ -1439,6 +1537,7 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
                             joyful: joyful,
                             avoidable: avoidable,
                             totalSpent: totalSpent,
+                            currency: currency,
                           ),
                           const SizedBox(height: 20),
                           // Custom Proportional Legends
@@ -1522,18 +1621,21 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
                             (otherLimit + utilitiesLimit) > 0
                                 ? ((otherSpent + utilitiesSpent) / (otherLimit + utilitiesLimit)).clamp(0.0, 1.0)
                                 : 0.0,
+                            currency,
                           ),
                           const SizedBox(height: 20),
                           _buildCategoryProgressRow(
                             'Food & Dining',
                             diningSpent,
                             diningLimit > 0 ? (diningSpent / diningLimit).clamp(0.0, 1.0) : 0.0,
+                            currency,
                           ),
                           const SizedBox(height: 20),
                           _buildCategoryProgressRow(
                             'Transportation',
                             commuteSpent,
                             commuteLimit > 0 ? (commuteSpent / commuteLimit).clamp(0.0, 1.0) : 0.0,
+                            currency,
                           ),
                         ],
                       ),
@@ -1577,7 +1679,7 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
   }
 
   // Progress Helper
-  Widget _buildCategoryProgressRow(String title, double amount, double proportion) {
+  Widget _buildCategoryProgressRow(String title, double amount, double proportion, String currency) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -1589,7 +1691,7 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
               style: const TextStyle(fontSize: 13, color: TallyTapTheme.textLight, fontWeight: FontWeight.w500),
             ),
             Text(
-              '\$${amount.toStringAsFixed(0).replaceAllMapped(RegExp(r"(\d{1,3})(?=(\d{3})+(?!\d))"), (Match m) => "${m[1]},")}',
+              '$currency${amount.toStringAsFixed(0).replaceAllMapped(RegExp(r"(\d{1,3})(?=(\d{3})+(?!\d))"), (Match m) => "${m[1]},")}',
               style: const TextStyle(fontSize: 13, color: TallyTapTheme.primaryMint, fontWeight: FontWeight.bold),
             ),
           ],
@@ -1619,6 +1721,7 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
 
   Widget _buildTimelineTab(BuildContext context) {
     final transactions = ref.watch(transactionListProvider);
+    final currency = ref.watch(currencyProvider);
 
     // Apply search query and category filters dynamically
     final filtered = transactions.where((tx) {
@@ -1772,7 +1875,7 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
                         child: Column(
                           children: [
                             for (int i = 0; i < todayList.length; i++) ...[
-                              _buildTimelineTransactionItem(todayList[i]),
+                              _buildTimelineTransactionItem(todayList[i], currency),
                               if (i < todayList.length - 1)
                                 const Divider(color: TallyTapTheme.borderGreen, height: 1, thickness: 0.5),
                             ],
@@ -1793,7 +1896,7 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
                         child: Column(
                           children: [
                             for (int i = 0; i < yesterdayList.length; i++) ...[
-                              _buildTimelineTransactionItem(yesterdayList[i]),
+                              _buildTimelineTransactionItem(yesterdayList[i], currency),
                               if (i < yesterdayList.length - 1)
                                 const Divider(color: TallyTapTheme.borderGreen, height: 1, thickness: 0.5),
                             ],
@@ -1814,7 +1917,7 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
                         child: Column(
                           children: [
                             for (int i = 0; i < olderList.length; i++) ...[
-                              _buildTimelineTransactionItem(olderList[i]),
+                              _buildTimelineTransactionItem(olderList[i], currency),
                               if (i < olderList.length - 1)
                                 const Divider(color: TallyTapTheme.borderGreen, height: 1, thickness: 0.5),
                             ],
@@ -1908,7 +2011,7 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
   }
 
   // High-fidelity list item builder matching mockup
-  Widget _buildTimelineTransactionItem(ExpenseTransaction tx) {
+  Widget _buildTimelineTransactionItem(ExpenseTransaction tx, String currency) {
     final isIncome = tx.category.toLowerCase() == 'income';
     final activeColor = isIncome ? const Color(0xFF10B981) : TallyTapTheme.textLight;
 
@@ -1983,7 +2086,7 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '${isIncome ? '+' : '-'} \$${tx.amount.toStringAsFixed(2)}',
+                '${isIncome ? '+' : '-'} $currency${tx.amount.toStringAsFixed(2)}',
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: activeColor),
               ),
               if (isIncome) ...[
@@ -2161,6 +2264,13 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
                       subtitle: 'Configure custom cash or bank accounts',
                       onTap: () => _showManageSourcesSheet(context),
                     ),
+                    const Divider(color: TallyTapTheme.borderGreen, height: 1, indent: 20, endIndent: 20),
+                    _buildSettingsTile(
+                      icon: Icons.monetization_on_rounded,
+                      title: 'Manage Currency',
+                      subtitle: 'Select your preferred global currency',
+                      onTap: () => _showManageCurrencySheet(context),
+                    ),
                   ],
                 ),
               ),
@@ -2309,6 +2419,7 @@ class _ManageBudgetsSheetState extends ConsumerState<_ManageBudgetsSheet> {
   Widget build(BuildContext context) {
     final categories = ref.watch(categoriesListProvider);
     final limits = ref.watch(budgetLimitsProvider);
+    final currency = ref.watch(currencyProvider);
 
     if (_selectedCategory == null && categories.isNotEmpty) {
       _selectedCategory = categories.first;
@@ -2499,7 +2610,7 @@ class _ManageBudgetsSheetState extends ConsumerState<_ManageBudgetsSheet> {
               decoration: InputDecoration(
                 hintText: 'Enter overall limit (e.g. 2000)',
                 hintStyle: const TextStyle(color: TallyTapTheme.textGray),
-                prefixText: '\$ ',
+                prefixText: '$currency ',
                 prefixStyle: const TextStyle(color: TallyTapTheme.primaryMint, fontWeight: FontWeight.bold),
                 filled: true,
                 fillColor: TallyTapTheme.obsidianCard,
@@ -2523,7 +2634,7 @@ class _ManageBudgetsSheetState extends ConsumerState<_ManageBudgetsSheet> {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
-                        'Global $_globalPeriod budget set to \$${limit.toStringAsFixed(0)}!',
+                        'Global $_globalPeriod budget set to $currency${limit.toStringAsFixed(0)}!',
                         style: const TextStyle(fontWeight: FontWeight.bold, color: TallyTapTheme.obsidianBg),
                       ),
                       backgroundColor: TallyTapTheme.primaryMint,
@@ -2607,7 +2718,7 @@ class _ManageBudgetsSheetState extends ConsumerState<_ManageBudgetsSheet> {
               ),
             const SizedBox(height: 20),
             Text(
-              'BUDGET LIMIT (CURRENT: \$${currentLimit.toStringAsFixed(0)})',
+              'BUDGET LIMIT (CURRENT: $currency${currentLimit.toStringAsFixed(0)})',
               style: const TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.w800,
@@ -2623,7 +2734,7 @@ class _ManageBudgetsSheetState extends ConsumerState<_ManageBudgetsSheet> {
               decoration: InputDecoration(
                 hintText: 'Enter limit (e.g. 500)',
                 hintStyle: const TextStyle(color: TallyTapTheme.textGray),
-                prefixText: '\$ ',
+                prefixText: '$currency ',
                 prefixStyle: const TextStyle(color: TallyTapTheme.primaryMint, fontWeight: FontWeight.bold),
                 filled: true,
                 fillColor: TallyTapTheme.obsidianCard,
@@ -2648,7 +2759,7 @@ class _ManageBudgetsSheetState extends ConsumerState<_ManageBudgetsSheet> {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
-                        '$_selectedCategory budget limit updated to \$${limit.toStringAsFixed(0)}!',
+                        '$_selectedCategory budget limit updated to $currency${limit.toStringAsFixed(0)}!',
                         style: const TextStyle(fontWeight: FontWeight.bold, color: TallyTapTheme.obsidianBg),
                       ),
                       backgroundColor: TallyTapTheme.primaryMint,
@@ -3021,6 +3132,140 @@ class _ManageSourcesSheetState extends ConsumerState<_ManageSourcesSheet> {
                 constraints: const BoxConstraints(),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ManageCurrencySheet extends ConsumerWidget {
+  const _ManageCurrencySheet({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currentCurrency = ref.watch(currencyProvider);
+    final currencies = [
+      {'symbol': '₹', 'name': 'Indian Rupee'},
+      {'symbol': '\$', 'name': 'US Dollar'},
+      {'symbol': '€', 'name': 'Euro'},
+      {'symbol': '£', 'name': 'British Pound'},
+      {'symbol': '¥', 'name': 'Japanese Yen'},
+    ];
+
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 24,
+        right: 24,
+        top: 24,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Select Currency',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                  color: TallyTapTheme.primaryMint,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close_rounded, color: TallyTapTheme.textGray),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'GLOBAL CURRENCY (CHANGING THIS WILL CONVERT ALL EXISTING VALUES)',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.5,
+              color: TallyTapTheme.textGray,
+            ),
+          ),
+          const SizedBox(height: 12),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 300),
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: Column(
+                children: currencies.map((currency) {
+                  final isSelected = currentCurrency == currency['symbol'];
+                  return ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(
+                        color: isSelected ? TallyTapTheme.primaryMint : Colors.transparent,
+                        width: 1.0,
+                      ),
+                    ),
+                    tileColor: isSelected ? TallyTapTheme.primaryMint.withOpacity(0.1) : Colors.transparent,
+                    leading: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: isSelected ? TallyTapTheme.primaryMint : TallyTapTheme.obsidianCard,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isSelected ? TallyTapTheme.primaryMint : TallyTapTheme.borderGreen,
+                        ),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        currency['symbol']!,
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: isSelected ? TallyTapTheme.obsidianBg : TallyTapTheme.primaryMint,
+                        ),
+                      ),
+                    ),
+                    title: Text(
+                      currency['name']!,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: isSelected ? TallyTapTheme.primaryMint : TallyTapTheme.textLight,
+                      ),
+                    ),
+                    trailing: isSelected
+                        ? const Icon(Icons.check_circle_rounded, color: TallyTapTheme.primaryMint)
+                        : null,
+                    onTap: () async {
+                      if (!isSelected) {
+                        await ref.read(currencyProvider.notifier).setCurrency(currency['symbol']!);
+                        
+                        // Force a refresh of dependent providers
+                        ref.read(transactionListProvider.notifier).loadTransactions();
+                        ref.read(globalBudgetProvider.notifier).loadGlobalBudget();
+                        ref.read(budgetLimitsProvider.notifier).loadLimits();
+                        
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Currency updated to ${currency['name']} and values converted.'),
+                              duration: const Duration(seconds: 3),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                          Navigator.pop(context);
+                        }
+                      }
+                    },
+                  );
+                }).toList(),
+              ),
+            ),
           ),
         ],
       ),

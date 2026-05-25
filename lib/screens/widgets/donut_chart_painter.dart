@@ -16,10 +16,12 @@ class DonutChartCategory {
 
 class DonutChart extends StatelessWidget {
   final List<DonutChartCategory> categories;
+  final String currency;
 
   const DonutChart({
     super.key,
     required this.categories,
+    required this.currency,
   });
 
   @override
@@ -54,7 +56,7 @@ class DonutChart extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                '\$${total.toStringAsFixed(0).replaceAllMapped(RegExp(r"(\d{1,3})(?=(\d{3})+(?!\d))"), (Match m) => "${m[1]},")}',
+                '$currency${total.toStringAsFixed(0).replaceAllMapped(RegExp(r"(\d{1,3})(?=(\d{3})+(?!\d))"), (Match m) => "${m[1]},")}',
                 style: const TextStyle(
                   fontSize: 18,
                   color: TallyTapTheme.textLight,
