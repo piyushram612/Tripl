@@ -2,12 +2,12 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import '../../core/theme.dart';
 
-class DonutChartCategory {
+class DonutChartItem {
   final String name;
   final double amount;
   final Color color;
 
-  DonutChartCategory({
+  DonutChartItem({
     required this.name,
     required this.amount,
     required this.color,
@@ -15,11 +15,13 @@ class DonutChartCategory {
 }
 
 class DonutChart extends StatelessWidget {
-  final List<DonutChartCategory> categories;
+  final List<DonutChartItem> categories;
+  final String currency;
 
   const DonutChart({
     super.key,
     required this.categories,
+    required this.currency,
   });
 
   @override
@@ -54,7 +56,7 @@ class DonutChart extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                '\$${total.toStringAsFixed(0).replaceAllMapped(RegExp(r"(\d{1,3})(?=(\d{3})+(?!\d))"), (Match m) => "${m[1]},")}',
+                '$currency${total.toStringAsFixed(0).replaceAllMapped(RegExp(r"(\d{1,3})(?=(\d{3})+(?!\d))"), (Match m) => "${m[1]},")}',
                 style: const TextStyle(
                   fontSize: 18,
                   color: TallyTapTheme.textLight,
@@ -71,7 +73,7 @@ class DonutChart extends StatelessWidget {
 }
 
 class _DonutChartPainter extends CustomPainter {
-  final List<DonutChartCategory> categories;
+  final List<DonutChartItem> categories;
 
   _DonutChartPainter({required this.categories});
 

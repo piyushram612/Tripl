@@ -5,11 +5,13 @@ import '../../core/theme.dart';
 class BudgetRingGraph extends StatelessWidget {
   final double spent;
   final double limit;
+  final String currency;
 
   const BudgetRingGraph({
     super.key,
     required this.spent,
     required this.limit,
+    required this.currency,
   });
 
   @override
@@ -45,7 +47,7 @@ class BudgetRingGraph extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                '\$${spent.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}',
+                '$currency${spent.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}',
                 style: const TextStyle(
                   fontSize: 24,
                   color: TallyTapTheme.textLight,
@@ -55,7 +57,7 @@ class BudgetRingGraph extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                'of \$${limit.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}',
+                'of $currency${limit.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}',
                 style: const TextStyle(
                   fontSize: 11,
                   color: TallyTapTheme.textGray,
