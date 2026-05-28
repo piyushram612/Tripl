@@ -13,11 +13,11 @@ class BackTapDetector(private val onTripleTapTriggered: () -> Unit) {
     private var isGravityInitialized = false
 
     private val tapThreshold = 2.5f
-    private val jerkThreshold = 2.5f // NEW: Requires sudden acceleration change
+    private val jerkThreshold = 2.5f
     private val debounceWindowMs = 110L
-    private val tapWindowMinMs = 100L // Reduced to force faster taps and ignore walking
-    private val tapWindowMaxMs = 400L // Reduced to exclude normal walking rhythms
-    private val quietThreshold = 1.0f // NEW: Must fall below this between taps
+    private val tapWindowMinMs = 100L
+    var tapWindowMaxMs = 400L // Configurable via sensitivity slider
+    private val quietThreshold = 1.0f
 
     fun processSensorEvent(xValue: Float, yValue: Float, zValue: Float) {
         val currentTime = System.currentTimeMillis()

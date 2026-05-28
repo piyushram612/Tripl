@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/theme.dart';
-import 'main_screen.dart';
+import 'calibration_screen.dart';
 
 class OnboardingScreen extends StatelessWidget {
   const OnboardingScreen({super.key});
@@ -11,7 +11,7 @@ class OnboardingScreen extends StatelessWidget {
     await prefs.setBool('has_completed_onboarding', true);
     if (context.mounted) {
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const MainScreen()),
+        MaterialPageRoute(builder: (_) => const CalibrationScreen()),
       );
     }
   }
@@ -152,7 +152,7 @@ class OnboardingScreen extends StatelessWidget {
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16.0),
                 child: Text(
-                  'Double tap the back of your phone to log an expense instantly.',
+                  'Triple tap the back of your phone to log an expense instantly.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 16,

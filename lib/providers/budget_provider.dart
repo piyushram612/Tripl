@@ -49,13 +49,29 @@ class BudgetLimitsNotifier extends StateNotifier<Map<String, double>> {
     await prefs.setDouble(key, limit);
     await loadLimits();
   }
+
+  Future<void> setMultipleLimits(Map<String, double> newLimits) async {
+    final prefs = await SharedPreferences.getInstance();
+    for (final entry in newLimits.entries) {
+      final key = 'budget_limit_${entry.key}';
+      await prefs.setDouble(key, entry.value);
+    }
+    await loadLimits();
+  }
 }
 
 class GlobalBudgetState {
-  final double amount;
+  final double monthlyAmount;
+  final double weeklyAmount;
   final String period; // 'monthly' or 'weekly'
 
-  GlobalBudgetState({required this.amount, required this.period});
+  GlobalBudgetState({
+    required this.monthlyAmount,
+    required this.weeklyAmount,
+    required this.period,
+  });
+
+  double get amount => period == 'monthly' ? monthlyAmount : weeklyAmount;
 }
 
 final globalBudgetProvider = StateNotifierProvider<GlobalBudgetNotifier, GlobalBudgetState>((ref) {
@@ -63,22 +79,37 @@ final globalBudgetProvider = StateNotifierProvider<GlobalBudgetNotifier, GlobalB
 });
 
 class GlobalBudgetNotifier extends StateNotifier<GlobalBudgetState> {
-  GlobalBudgetNotifier() : super(GlobalBudgetState(amount: 2000.0, period: 'monthly')) {
+  GlobalBudgetNotifier() : super(GlobalBudgetState(monthlyAmount: 2000.0, weeklyAmount: 500.0, period: 'monthly')) {
     loadGlobalBudget();
   }
 
   Future<void> loadGlobalBudget() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.reload();
-    final amount = prefs.getDouble('global_budget_amount') ?? 2000.0;
+    final monthlyAmount = prefs.getDouble('global_budget_monthly_amount') ?? 2000.0;
+    final weeklyAmount = prefs.getDouble('global_budget_weekly_amount') ?? 500.0;
     final period = prefs.getString('global_budget_period') ?? 'monthly';
-    state = GlobalBudgetState(amount: amount, period: period);
+    state = GlobalBudgetState(
+      monthlyAmount: monthlyAmount,
+      weeklyAmount: weeklyAmount,
+      period: period,
+    );
   }
 
   Future<void> setGlobalBudget(double amount, String period) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setDouble('global_budget_amount', amount);
+    if (period == 'monthly') {
+      await prefs.setDouble('global_budget_monthly_amount', amount);
+    } else {
+      await prefs.setDouble('global_budget_weekly_amount', amount);
+    }
     await prefs.setString('global_budget_period', period);
-    state = GlobalBudgetState(amount: amount, period: period);
+    await loadGlobalBudget();
+  }
+
+  Future<void> setPeriod(String period) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('global_budget_period', period);
+    await loadGlobalBudget();
   }
 }

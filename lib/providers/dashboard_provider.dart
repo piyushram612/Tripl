@@ -74,16 +74,21 @@ final dashboardProvider = Provider<DashboardState>((ref) {
   final now = DateTime.now();
   final List<double> weeklyTrend = List.generate(7, (index) {
     final targetDate = now.subtract(Duration(days: 6 - index));
-    double dayTotal = 0.0;
+    double balance = 0.0;
+    
     for (var tx in transactions) {
-      if (tx.date.year == targetDate.year &&
-          tx.date.month == targetDate.month &&
-          tx.date.day == targetDate.day &&
-          tx.category.toLowerCase() != 'income') {
-        dayTotal += tx.amount;
+      final txDateOnly = DateTime(tx.date.year, tx.date.month, tx.date.day);
+      final targetDateOnly = DateTime(targetDate.year, targetDate.month, targetDate.day);
+      
+      if (txDateOnly.isBefore(targetDateOnly) || txDateOnly.isAtSameMomentAs(targetDateOnly)) {
+        if (tx.category.toLowerCase() == 'income') {
+          balance += tx.amount;
+        } else {
+          balance -= tx.amount;
+        }
       }
     }
-    return dayTotal;
+    return balance;
   });
 
   final dynamicCategories = catSum.entries.map((entry) {

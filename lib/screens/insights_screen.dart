@@ -13,191 +13,176 @@ class InsightsScreen extends ConsumerWidget {
     final currency = ref.watch(currencyProvider);
     final insights = ref.watch(insightsProvider);
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return SafeArea(
+      child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: TallyTapTheme.obsidianCard,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: TallyTapTheme.borderGreen),
-                ),
-                child: const Icon(
-                  Icons.account_balance_wallet_outlined,
-                  color: TallyTapTheme.primaryMint,
-                  size: 20,
-                ),
-              ),
-              const Text(
-                'TallyTap',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w900,
-                  color: TallyTapTheme.textLight,
-                  letterSpacing: -1.0,
-                ),
-              ),
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: TallyTapTheme.borderGreen, width: 1.5),
-                  image: const DecorationImage(
-                    image: NetworkImage('https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'),
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          const Text(
-            'Monthly Intentionality',
-            style: TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.w900,
-              color: TallyTapTheme.primaryMint,
-              letterSpacing: -0.8,
-            ),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'A high-level overview of where your resources flowed this period, categorized by intent.',
-            style: TextStyle(
-              fontSize: 14,
-              color: TallyTapTheme.textGray,
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 20),
-          Expanded(
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              child: Column(
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(20.0),
-                      child: Column(
-                        children: [
-                          IntentRingGraph(
-                            essential: insights.essential,
-                            joyful: insights.joyful,
-                            avoidable: insights.avoidable,
-                            totalSpent: insights.totalSpent,
-                            currency: currency,
-                          ),
-                          const SizedBox(height: 20),
-                          _buildIntentLegendRow('Essential', insights.essentialPercent, TallyTapTheme.primaryMint),
-                          const Divider(color: TallyTapTheme.borderGreen, height: 24, thickness: 0.5),
-                          _buildIntentLegendRow('Joyful', insights.joyfulPercent, const Color(0xFF4B5E55)),
-                          const Divider(color: TallyTapTheme.borderGreen, height: 24, thickness: 0.5),
-                          _buildIntentLegendRow('Avoidable', insights.avoidablePercent, const Color(0xFFFFB5B5)),
-                        ],
-                      ),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: TallyTapTheme.obsidianCard,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: TallyTapTheme.borderGreen),
+                    ),
+                    child: const Icon(
+                      Icons.account_balance_wallet_outlined,
+                      color: TallyTapTheme.primaryMint,
+                      size: 20,
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(20.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Row(
-                            children: [
-                              Icon(Icons.lightbulb_outline_rounded, color: TallyTapTheme.primaryMint, size: 18),
-                              SizedBox(width: 8),
-                              Text(
-                                'INSIGHT OF THE DAY',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 1.5,
-                                  color: TallyTapTheme.primaryMint,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          RichText(
-                            text: const TextSpan(
-                              style: TextStyle(fontSize: 13, color: TallyTapTheme.textLight, height: 1.5),
-                              children: [
-                                TextSpan(text: "Your "),
-                                TextSpan(
-                                  text: "Joyful",
-                                  style: TextStyle(color: Color(0xFF9FB6DF), fontWeight: FontWeight.bold),
-                                ),
-                                TextSpan(text: " spending increased by 12% this month, primarily driven by dining experiences. However, your "),
-                                TextSpan(
-                                  text: "Avoidable",
-                                  style: TextStyle(color: Color(0xFFFFB5B5), fontWeight: FontWeight.bold),
-                                ),
-                                TextSpan(text: " expenses remain low, indicating strong fundamental habits."),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
+                  const Text(
+                    'TallyTap',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w900,
+                      color: TallyTapTheme.textLight,
+                      letterSpacing: -1.0,
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(20.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                  const SizedBox(width: 38), // To balance the left wallet icon container and keep TallyTap centered
+                ],
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'Monthly Intentionality',
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w900,
+                  color: TallyTapTheme.primaryMint,
+                  letterSpacing: -0.8,
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'A high-level overview of where your resources flowed this period, categorized by intent.',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: TallyTapTheme.textGray,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    children: [
+                      IntentRingGraph(
+                        essential: insights.essential,
+                        joyful: insights.joyful,
+                        avoidable: insights.avoidable,
+                        totalSpent: insights.totalSpent,
+                        currency: currency,
+                      ),
+                      const SizedBox(height: 20),
+                      _buildIntentLegendRow('Essential', insights.essentialPercent, TallyTapTheme.primaryMint),
+                      const Divider(color: TallyTapTheme.borderGreen, height: 24, thickness: 0.5),
+                      _buildIntentLegendRow('Joyful', insights.joyfulPercent, const Color(0xFF4B5E55)),
+                      const Divider(color: TallyTapTheme.borderGreen, height: 24, thickness: 0.5),
+                      _buildIntentLegendRow('Avoidable', insights.avoidablePercent, const Color(0xFFFFB5B5)),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
                         children: [
-                          const Text(
-                            'Category Breakdown',
+                          Icon(Icons.lightbulb_outline_rounded, color: TallyTapTheme.primaryMint, size: 18),
+                          SizedBox(width: 8),
+                          Text(
+                            'INSIGHT OF THE DAY',
                             style: TextStyle(
-                              fontSize: 15,
+                              fontSize: 10,
                               fontWeight: FontWeight.w800,
+                              letterSpacing: 1.5,
                               color: TallyTapTheme.primaryMint,
                             ),
                           ),
-                          const SizedBox(height: 20),
-                          _buildCategoryProgressRow(
-                            'Housing & Utilities',
-                            insights.otherSpent + insights.utilitiesSpent,
-                            (insights.otherLimit + insights.utilitiesLimit) > 0
-                                ? ((insights.otherSpent + insights.utilitiesSpent) / (insights.otherLimit + insights.utilitiesLimit)).clamp(0.0, 1.0)
-                                : 0.0,
-                            currency,
-                          ),
-                          const SizedBox(height: 20),
-                          _buildCategoryProgressRow(
-                            'Food & Dining',
-                            insights.diningSpent,
-                            insights.diningLimit > 0 ? (insights.diningSpent / insights.diningLimit).clamp(0.0, 1.0) : 0.0,
-                            currency,
-                          ),
-                          const SizedBox(height: 20),
-                          _buildCategoryProgressRow(
-                            'Transportation',
-                            insights.commuteSpent,
-                            insights.commuteLimit > 0 ? (insights.commuteSpent / insights.commuteLimit).clamp(0.0, 1.0) : 0.0,
-                            currency,
-                          ),
                         ],
                       ),
-                    ),
+                      const SizedBox(height: 12),
+                      RichText(
+                        text: const TextSpan(
+                          style: TextStyle(fontSize: 13, color: TallyTapTheme.textLight, height: 1.5),
+                          children: [
+                            TextSpan(text: "Your "),
+                            TextSpan(
+                              text: "Joyful",
+                              style: TextStyle(color: Color(0xFF9FB6DF), fontWeight: FontWeight.bold),
+                            ),
+                            TextSpan(text: " spending increased by 12% this month, primarily driven by dining experiences. However, your "),
+                            TextSpan(
+                              text: "Avoidable",
+                              style: TextStyle(color: Color(0xFFFFB5B5), fontWeight: FontWeight.bold),
+                            ),
+                            TextSpan(text: " expenses remain low, indicating strong fundamental habits."),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 24),
-                ],
+                ),
               ),
-            ),
+              const SizedBox(height: 16),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Category Breakdown',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: TallyTapTheme.primaryMint,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      _buildCategoryProgressRow(
+                        'Housing & Utilities',
+                        insights.otherSpent + insights.utilitiesSpent,
+                        (insights.otherLimit + insights.utilitiesLimit) > 0
+                            ? ((insights.otherSpent + insights.utilitiesSpent) / (insights.otherLimit + insights.utilitiesLimit)).clamp(0.0, 1.0)
+                            : 0.0,
+                        currency,
+                      ),
+                      const SizedBox(height: 20),
+                      _buildCategoryProgressRow(
+                        'Food & Dining',
+                        insights.diningSpent,
+                        insights.diningLimit > 0 ? (insights.diningSpent / insights.diningLimit).clamp(0.0, 1.0) : 0.0,
+                        currency,
+                      ),
+                      const SizedBox(height: 20),
+                      _buildCategoryProgressRow(
+                        'Transportation',
+                        insights.commuteSpent,
+                        insights.commuteLimit > 0 ? (insights.commuteSpent / insights.commuteLimit).clamp(0.0, 1.0) : 0.0,
+                        currency,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

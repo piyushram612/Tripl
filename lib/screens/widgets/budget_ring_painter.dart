@@ -2,7 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import '../../core/theme.dart';
 
-class BudgetRingGraph extends StatelessWidget {
+class BudgetRingGraph extends StatefulWidget {
   final double spent;
   final double limit;
   final String currency;
@@ -15,8 +15,36 @@ class BudgetRingGraph extends StatelessWidget {
   });
 
   @override
+  State<BudgetRingGraph> createState() => _BudgetRingGraphState();
+}
+
+class _BudgetRingGraphState extends State<BudgetRingGraph> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2200),
+    );
+    _animation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.fastOutSlowIn,
+    );
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final double proportion = limit > 0 ? (spent / limit) : 0.0;
+    final double proportion = widget.limit > 0 ? (widget.spent / widget.limit) : 0.0;
     
     return Container(
       width: 170,
@@ -28,43 +56,54 @@ class BudgetRingGraph extends StatelessWidget {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          CustomPaint(
-            size: const Size(140, 140),
-            painter: _BudgetRingPainter(proportion: proportion),
+          AnimatedBuilder(
+            animation: _animation,
+            builder: (context, child) {
+              return CustomPaint(
+                size: const Size(140, 140),
+                painter: _BudgetRingPainter(proportion: proportion * _animation.value),
+              );
+            },
           ),
           // Center Text Overlay
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text(
-                'SPENT',
-                style: TextStyle(
-                  fontSize: 10,
-                  color: TallyTapTheme.textGray,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.5,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '$currency${spent.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}',
-                style: const TextStyle(
-                  fontSize: 24,
-                  color: TallyTapTheme.textLight,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.5,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                'of $currency${limit.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}',
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: TallyTapTheme.textGray,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
+          AnimatedBuilder(
+            animation: _animation,
+            builder: (context, child) {
+              final animatedSpent = widget.spent * _animation.value;
+              return Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text(
+                    'SPENT',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: TallyTapTheme.textGray,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${widget.currency}${animatedSpent.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}',
+                    style: const TextStyle(
+                      fontSize: 24,
+                      color: TallyTapTheme.textLight,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'of ${widget.currency}${widget.limit.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: TallyTapTheme.textGray,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -82,24 +121,20 @@ class _BudgetRingPainter extends CustomPainter {
     final Rect rect = Rect.fromLTWH(0, 0, size.width, size.height);
     const double strokeWidth = 14.0;
 
-    // 1. Base grey track paint
     final Paint trackPaint = Paint()
-      ..color = const Color(0xFF14241F) // Deep obsidian track
+      ..color = const Color(0xFF14241F)
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth;
 
     canvas.drawCircle(Offset(size.width / 2, size.height / 2), size.width / 2, trackPaint);
 
-    // 2. Active green progress arc paint
     final Paint progressPaint = Paint()
       ..color = TallyTapTheme.primaryMint
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.round; // Beautiful rounded end caps
+      ..strokeCap = StrokeCap.round;
 
-    // Start drawing from -pi / 2 (12 o'clock position)
     const double startAngle = -pi / 2;
-    // Map proportion to radians
     final double sweepAngle = proportion * 2 * pi;
 
     if (sweepAngle > 0) {

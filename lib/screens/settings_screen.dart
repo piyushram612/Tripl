@@ -5,9 +5,11 @@ import '../providers/app_state_provider.dart';
 import '../providers/category_provider.dart';
 import '../providers/source_provider.dart';
 import '../services/platform_service.dart';
+import 'calibration_screen.dart';
 import 'sheets/manage_categories_sheet.dart';
 import 'sheets/manage_sources_sheet.dart';
 import 'sheets/manage_currency_sheet.dart';
+import 'sheets/manage_profile_sheet.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -45,6 +47,26 @@ class SettingsScreen extends ConsumerWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) => const ManageCurrencySheet(),
+    );
+  }
+
+  void _showManageProfileSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: TallyTapTheme.obsidianBg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => const ManageProfileSheet(),
+    );
+  }
+
+  void _showCalibrationScreen(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const CalibrationScreen(fromSettings: true),
+      ),
     );
   }
 
@@ -136,12 +158,12 @@ class SettingsScreen extends ConsumerWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Double Back Tap',
+                                'Triple Back Tap',
                                 style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: TallyTapTheme.textLight),
                               ),
                               SizedBox(height: 4),
                               Text(
-                                'Tap phone casing back or double-shake to trigger',
+                                'Triple tap the back of your phone to trigger',
                                 style: TextStyle(fontSize: 12, color: TallyTapTheme.textGray),
                               ),
                             ],
@@ -189,6 +211,31 @@ class SettingsScreen extends ConsumerWidget {
                         ],
                       ),
                     ),
+                    const SizedBox(height: 12),
+                    // Re-calibrate button
+                    OutlinedButton(
+                      onPressed: () => _showCalibrationScreen(context),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: TallyTapTheme.primaryMint,
+                        side: BorderSide(
+                          color: TallyTapTheme.primaryMint.withOpacity(0.5),
+                          width: 1.2,
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.touch_app_rounded, size: 18),
+                          SizedBox(width: 8),
+                          Text(
+                            'Re-calibrate Triple Tap',
+                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -214,6 +261,13 @@ class SettingsScreen extends ConsumerWidget {
                         ),
                       ),
                     ),
+                    _buildSettingsTile(
+                      icon: Icons.person_rounded,
+                      title: 'Customize Profile',
+                      subtitle: 'Change your dashboard username',
+                      onTap: () => _showManageProfileSheet(context),
+                    ),
+                    const Divider(color: TallyTapTheme.borderGreen, height: 1, indent: 20, endIndent: 20),
                     _buildSettingsTile(
                       icon: Icons.category_rounded,
                       title: 'Manage Categories',

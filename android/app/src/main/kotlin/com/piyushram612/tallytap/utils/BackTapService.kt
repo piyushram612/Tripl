@@ -24,7 +24,7 @@ import com.piyushram612.tallytap.ui.PopupActivity
 class BackTapService : Service(), SensorEventListener {
     private var sensorManager: SensorManager? = null
     private var accelerometer: Sensor? = null
-    private var detector: BackTapDetector? = null
+    var detector: BackTapDetector? = null
     private var isSensorRegistered = false
 
     private val screenStateReceiver = object : BroadcastReceiver() {
@@ -50,42 +50,70 @@ class BackTapService : Service(), SensorEventListener {
         private const val TAG = "TallyTapService"
         private const val CHANNEL_ID = "tallytap_back_tap"
         private const val NOTIFICATION_ID = 8800
+        const val DEFAULT_SENSITIVITY_MS = 400L
+
+        // Live reference so MainActivity can update the detector window at runtime
+        var instance: BackTapService? = null
+
+        fun updateSensitivity(ms: Long) {
+            instance?.detector?.tapWindowMaxMs = ms
+            android.util.Log.d(TAG, "Sensitivity updated live to ${ms}ms")
+        }
     }
 
     override fun onCreate() {
         super.onCreate()
+        instance = this
         Log.d(TAG, "onCreate: Initializing TallyTap Back Tap Service")
-        
+
+        // Load saved sensitivity from SharedPreferences
+        val savedMs = try {
+            val prefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            val raw = prefs.getInt("flutter.tap_sensitivity_ms", DEFAULT_SENSITIVITY_MS.toInt())
+            // Clamp to valid range to guard against corrupted values
+            raw.toLong().coerceIn(200L, 1000L)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to load tap sensitivity, using default: ${e.message}")
+            DEFAULT_SENSITIVITY_MS
+        }
+        Log.d(TAG, "Loaded tap sensitivity: ${savedMs}ms")
+
         sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
         accelerometer = sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
-        
+
         detector = BackTapDetector {
             val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
             if (keyguardManager.isKeyguardLocked) {
                 Log.d(TAG, "Triple tap detected, but device is locked. Ignoring.")
                 return@BackTapDetector
             }
-            
-            Log.d(TAG, "Back tap gesture triggered! Checking active popup instances...")
-            
-            // Toggle Behavior: If the popup is already visible, triple back-tap closes it.
-            // Otherwise, it launches the popup.
-            val dismissed = PopupActivity.dismissActiveInstance()
-            if (dismissed) {
-                Log.d(TAG, "Active popup instance successfully dismissed via re-trigger gesture")
-            } else {
-                Log.d(TAG, "No active popup found. Launching fresh PopupActivity...")
-                try {
-                    val popupIntent = Intent(this, PopupActivity::class.java).apply {
-                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+
+            Log.d(TAG, "Back tap gesture triggered!")
+
+            // Always notify MainActivity (used by calibration event stream)
+            Log.d("TallyTapCalib", "BackTapService: triple tap complete, notifying MainActivity. calibrationMode=${com.piyushram612.tallytap.MainActivity.calibrationMode}")
+            com.piyushram612.tallytap.MainActivity.onBackTapDetected()
+
+            // Only launch/dismiss popup when NOT in calibration mode
+            if (!com.piyushram612.tallytap.MainActivity.calibrationMode) {
+                val dismissed = PopupActivity.dismissActiveInstance()
+                if (dismissed) {
+                    Log.d(TAG, "Active popup dismissed via re-trigger gesture")
+                } else {
+                    Log.d(TAG, "Launching fresh PopupActivity...")
+                    try {
+                        val popupIntent = Intent(this, PopupActivity::class.java).apply {
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                        }
+                        startActivity(popupIntent)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to launch PopupActivity: ${e.message}", e)
                     }
-                    startActivity(popupIntent)
-                    Log.d(TAG, "PopupActivity startActivity call finished successfully")
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to launch PopupActivity from background: ${e.message}", e)
                 }
             }
         }
+
+        detector?.tapWindowMaxMs = savedMs
 
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, createNotification())
@@ -137,6 +165,7 @@ class BackTapService : Service(), SensorEventListener {
 
     override fun onDestroy() {
         Log.d(TAG, "onDestroy: Stopping TallyTap Back Tap Service and unregistering sensor")
+        instance = null
         try {
             unregisterReceiver(screenStateReceiver)
         } catch (e: IllegalArgumentException) {

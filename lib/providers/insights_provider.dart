@@ -77,9 +77,9 @@ final insightsProvider = Provider<InsightsState>((ref) {
   final double avoidable = subSpent;
   final double totalSpent = essential + joyful + avoidable;
 
-  final String essentialPercent = totalSpent > 0 ? '\${(essential / totalSpent * 100).toStringAsFixed(0)}%' : '0%';
-  final String joyfulPercent = totalSpent > 0 ? '\${(joyful / totalSpent * 100).toStringAsFixed(0)}%' : '0%';
-  final String avoidablePercent = totalSpent > 0 ? '\${(avoidable / totalSpent * 100).toStringAsFixed(0)}%' : '0%';
+  final String essentialPercent = totalSpent > 0 ? '${(essential / totalSpent * 100).toStringAsFixed(0)}%' : '0%';
+  final String joyfulPercent = totalSpent > 0 ? '${(joyful / totalSpent * 100).toStringAsFixed(0)}%' : '0%';
+  final String avoidablePercent = totalSpent > 0 ? '${(avoidable / totalSpent * 100).toStringAsFixed(0)}%' : '0%';
 
   return InsightsState(
     essential: essential,

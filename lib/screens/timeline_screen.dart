@@ -88,18 +88,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                   letterSpacing: -1.0,
                 ),
               ),
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: TallyTapTheme.borderGreen, width: 1.5),
-                  image: const DecorationImage(
-                    image: NetworkImage('https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'),
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              ),
+              const SizedBox(width: 38), // To balance the left wallet icon container and keep TallyTap centered
             ],
           ),
           const SizedBox(height: 24),
@@ -226,17 +215,6 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                     ),
                     const SizedBox(height: 60),
                   ],
-                  const SizedBox(height: 12),
-                  const Center(
-                    child: SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.0,
-                        valueColor: AlwaysStoppedAnimation<Color>(TallyTapTheme.primaryMint),
-                      ),
-                    ),
-                  ),
                   const SizedBox(height: 32),
                 ],
               ),

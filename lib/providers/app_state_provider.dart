@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/platform_service.dart';
 
 // State Provider to manage active bottom navigation tab
@@ -21,5 +22,68 @@ class BackTapNotifier extends StateNotifier<bool> {
   Future<void> toggle(bool val) async {
     state = val;
     await PlatformService.setBackTapEnabled(val);
+  }
+}
+
+// ─── Calibration Completed Provider ───────────────────────────────────────────
+
+final calibrationCompletedProvider =
+    StateNotifierProvider<CalibrationCompletedNotifier, bool>((ref) {
+  return CalibrationCompletedNotifier();
+});
+
+class CalibrationCompletedNotifier extends StateNotifier<bool> {
+  static const _key = 'calibration_completed';
+
+  CalibrationCompletedNotifier() : super(false) {
+    _init();
+  }
+
+  Future<void> _init() async {
+    final prefs = await SharedPreferences.getInstance();
+    state = prefs.getBool(_key) ?? false;
+  }
+
+  Future<void> markCompleted() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_key, true);
+    state = true;
+  }
+
+  static Future<bool> readOnce() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_key) ?? false;
+  }
+}
+
+// ─── Tap Sensitivity Provider (ms window between first and last tap) ──────────
+
+final tapSensitivityProvider =
+    StateNotifierProvider<TapSensitivityNotifier, int>((ref) {
+  return TapSensitivityNotifier();
+});
+
+class TapSensitivityNotifier extends StateNotifier<int> {
+  static const _key = 'tap_sensitivity_ms';
+  static const defaultMs = 500;
+
+  TapSensitivityNotifier() : super(defaultMs) {
+    _init();
+  }
+
+  Future<void> _init() async {
+    final prefs = await SharedPreferences.getInstance();
+    state = prefs.getInt(_key) ?? defaultMs;
+  }
+
+  Future<void> setSensitivity(int ms) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_key, ms);
+    state = ms;
+  }
+
+  static Future<int> readOnce() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_key) ?? defaultMs;
   }
 }

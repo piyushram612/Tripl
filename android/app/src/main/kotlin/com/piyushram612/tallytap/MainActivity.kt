@@ -8,6 +8,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 import android.provider.Settings
 import android.net.Uri
@@ -17,10 +18,33 @@ import com.piyushram612.tallytap.utils.BackTapService
 
 class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.piyushram612.tallytap/popup"
+    private val EVENT_CHANNEL = "com.piyushram612.tallytap/backtap_events"
+
+    companion object {
+        // When true, back taps go to the event stream (calibration) instead of PopupActivity
+        var calibrationMode = false
+        var backTapEventSink: EventChannel.EventSink? = null
+
+        fun onBackTapDetected() {
+            android.util.Log.d("TallyTapCalib", "onBackTapDetected: calibrationMode=$calibrationMode sink=$backTapEventSink")
+            if (calibrationMode) {
+                // EventSink.success() must be called on the main thread
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    if (backTapEventSink != null) {
+                        android.util.Log.d("TallyTapCalib", "Sending tap event to Flutter event channel")
+                        backTapEventSink?.success("tap")
+                    } else {
+                        android.util.Log.w("TallyTapCalib", "Sink is null! Flutter has not subscribed to the event channel yet.")
+                    }
+                }
+            }
+        }
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        
+
+        // ── Method Channel ──
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
                 "showPopup" -> {
@@ -35,10 +59,56 @@ class MainActivity : FlutterActivity() {
                     toggleBackTapService(enabled)
                     result.success(null)
                 }
-                else -> {
-                    result.notImplemented()
+                "setCalibrationMode" -> {
+                    val enabled = call.argument<Boolean>("enabled") ?: false
+                    calibrationMode = enabled
+                    if (enabled) {
+                        // Always start the sensor service during calibration so the
+                        // accelerometer is guaranteed to be listening, even if the
+                        // user hasn't toggled back tap on in Settings yet.
+                        startBackTapService()
+                    } else {
+                        // When calibration ends, stop the service only if the user
+                        // hasn't permanently enabled back tap in Settings.
+                        val prefs = getSharedPreferences("FlutterSharedPreferences", android.content.Context.MODE_PRIVATE)
+                        val userEnabled = prefs.getBoolean("flutter.back_tap_enabled", false)
+                        if (!userEnabled) {
+                            stopService(Intent(this, BackTapService::class.java))
+                        }
+                    }
+                    result.success(null)
                 }
+                "setSensitivity" -> {
+                    val ms = (call.argument<Int>("ms") ?: BackTapService.DEFAULT_SENSITIVITY_MS.toInt()).toLong()
+                    // Update the running detector immediately
+                    BackTapService.updateSensitivity(ms)
+                    // Also persist so next service start picks it up
+                    val prefs = getSharedPreferences("FlutterSharedPreferences", android.content.Context.MODE_PRIVATE)
+                    prefs.edit().putInt("flutter.tap_sensitivity_ms", ms.toInt()).apply()
+                    result.success(null)
+                }
+                else -> result.notImplemented()
             }
+        }
+
+        // ── Event Channel (streams back tap signals to Flutter) ──
+        EventChannel(flutterEngine.dartExecutor.binaryMessenger, EVENT_CHANNEL)
+            .setStreamHandler(object : EventChannel.StreamHandler {
+                override fun onListen(arguments: Any?, sink: EventChannel.EventSink?) {
+                    backTapEventSink = sink
+                }
+                override fun onCancel(arguments: Any?) {
+                    backTapEventSink = null
+                }
+            })
+    }
+
+    private fun startBackTapService() {
+        val serviceIntent = Intent(this, BackTapService::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(serviceIntent)
+        } else {
+            startService(serviceIntent)
         }
     }
 
@@ -60,15 +130,9 @@ class MainActivity : FlutterActivity() {
                 startActivity(intent)
             }
             
-            val serviceIntent = Intent(this, BackTapService::class.java)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(serviceIntent)
-            } else {
-                startService(serviceIntent)
-            }
+            startBackTapService()
         } else {
-            val serviceIntent = Intent(this, BackTapService::class.java)
-            stopService(serviceIntent)
+            stopService(Intent(this, BackTapService::class.java))
         }
     }
 
