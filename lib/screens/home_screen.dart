@@ -11,6 +11,7 @@ import '../providers/profile_provider.dart';
 import '../services/transaction_service.dart';
 import 'widgets/donut_chart_painter.dart';
 import 'widgets/weekly_trend_painter.dart';
+import 'transaction_details_screen.dart';
 
 final homeSummaryPeriodProvider = StateProvider<String>((ref) => 'weekly');
 final homeBreakdownPeriodProvider = StateProvider<String>((ref) => 'weekly');
@@ -127,7 +128,7 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildTransactionItem(ExpenseTransaction tx, String currency) {
+  Widget _buildTransactionItem(BuildContext context, ExpenseTransaction tx, String currency) {
     IconData icon;
     Color iconBg;
     final clean = tx.category.toLowerCase();
@@ -154,42 +155,56 @@ class HomeScreen extends ConsumerWidget {
             ? 'Yesterday'
             : 'Mon, Oct 12'; // Mocking standard timeline labels matching mockup
 
-    return Row(
-      children: [
-        Container(
-          width: 42,
-          height: 42,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: iconBg,
-            border: Border.all(color: TallyTapTheme.borderGreen, width: 0.5),
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => TransactionDetailsScreen(transaction: tx),
           ),
-          child: Icon(icon, color: TallyTapTheme.textLight, size: 18),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                tx.merchant,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: TallyTapTheme.textLight),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+        );
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: iconBg,
+                border: Border.all(color: TallyTapTheme.borderGreen, width: 0.5),
               ),
-              const SizedBox(height: 4),
-              Text(
-                '$formattedDate • ${tx.paymentMethod}',
-                style: const TextStyle(fontSize: 12, color: TallyTapTheme.textGray),
+              child: Icon(icon, color: TallyTapTheme.textLight, size: 18),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    tx.merchant,
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: TallyTapTheme.textLight),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '$formattedDate • ${tx.paymentMethod}',
+                    style: const TextStyle(fontSize: 12, color: TallyTapTheme.textGray),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+            Text(
+              '-$currency${tx.amount.toStringAsFixed(2)}',
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: TallyTapTheme.textLight),
+            ),
+          ],
         ),
-        Text(
-          '-$currency${tx.amount.toStringAsFixed(2)}',
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: TallyTapTheme.textLight),
-        ),
-      ],
+      ),
     );
   }
 
@@ -811,7 +826,7 @@ class HomeScreen extends ConsumerWidget {
                             separatorBuilder: (_, __) => const Divider(color: TallyTapTheme.borderGreen, height: 24, thickness: 0.5),
                             itemBuilder: (context, index) {
                               final tx = transactions[index];
-                              return _buildTransactionItem(tx, currency);
+                              return _buildTransactionItem(context, tx, currency);
                             },
                           ),
                           const SizedBox(height: 20),

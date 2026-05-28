@@ -29,6 +29,16 @@ class TransactionListNotifier extends StateNotifier<List<ExpenseTransaction>> {
     await loadTransactions();
   }
 
+  Future<void> updateTransaction(ExpenseTransaction tx) async {
+    await _service.updateTransaction(tx);
+    await loadTransactions();
+  }
+
+  Future<void> deleteTransaction(String id) async {
+    await _service.deleteTransaction(id);
+    await loadTransactions();
+  }
+
   Future<void> clearTransactions() async {
     await _service.clearAll();
     await loadTransactions();
@@ -68,6 +78,23 @@ class TransactionService {
     final prefs = await SharedPreferences.getInstance();
     final list = await getTransactions();
     list.add(tx);
+    await prefs.setString(_key, json.encode(list.map((e) => e.toMap()).toList()));
+  }
+
+  Future<void> updateTransaction(ExpenseTransaction updatedTx) async {
+    final prefs = await SharedPreferences.getInstance();
+    final list = await getTransactions();
+    final index = list.indexWhere((tx) => tx.id == updatedTx.id);
+    if (index != -1) {
+      list[index] = updatedTx;
+      await prefs.setString(_key, json.encode(list.map((e) => e.toMap()).toList()));
+    }
+  }
+
+  Future<void> deleteTransaction(String id) async {
+    final prefs = await SharedPreferences.getInstance();
+    final list = await getTransactions();
+    list.removeWhere((tx) => tx.id == id);
     await prefs.setString(_key, json.encode(list.map((e) => e.toMap()).toList()));
   }
 

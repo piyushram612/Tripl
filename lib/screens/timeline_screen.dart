@@ -4,6 +4,7 @@ import '../core/theme.dart';
 import '../models/transaction_model.dart';
 import '../providers/currency_provider.dart';
 import '../services/transaction_service.dart';
+import 'transaction_details_screen.dart';
 
 class TimelineScreen extends ConsumerStatefulWidget {
   const TimelineScreen({super.key});
@@ -305,65 +306,75 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
 
     final formattedTime = "${tx.date.hour.toString().padLeft(2, '0')}:${tx.date.minute.toString().padLeft(2, '0')} ${tx.date.hour >= 12 ? 'PM' : 'AM'}";
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: iconBg,
-              border: Border.all(color: TallyTapTheme.borderGreen, width: 0.5),
-            ),
-            child: Icon(icon, color: iconColor, size: 18),
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => TransactionDetailsScreen(transaction: tx),
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        );
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: iconBg,
+                border: Border.all(color: TallyTapTheme.borderGreen, width: 0.5),
+              ),
+              child: Icon(icon, color: iconColor, size: 18),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    tx.merchant,
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: TallyTapTheme.textLight),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '$formattedTime • ${tx.paymentMethod}',
+                    style: const TextStyle(fontSize: 12, color: TallyTapTheme.textGray),
+                  ),
+                ],
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  tx.merchant,
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: TallyTapTheme.textLight),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  '${isIncome ? '+' : '-'} $currency${tx.amount.toStringAsFixed(2)}',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: activeColor),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  '$formattedTime • ${tx.paymentMethod}',
-                  style: const TextStyle(fontSize: 12, color: TallyTapTheme.textGray),
-                ),
+                if (isIncome) ...[
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0F2B20),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: const Color(0xFF144D37), width: 0.5),
+                    ),
+                    child: const Text(
+                      'Income',
+                      style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF10B981)),
+                    ),
+                  ),
+                ],
               ],
             ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                '${isIncome ? '+' : '-'} $currency${tx.amount.toStringAsFixed(2)}',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: activeColor),
-              ),
-              if (isIncome) ...[
-                const SizedBox(height: 4),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF0F2B20),
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: const Color(0xFF144D37), width: 0.5),
-                  ),
-                  child: const Text(
-                    'Income',
-                    style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF10B981)),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
