@@ -48,47 +48,6 @@ class _TransactionDetailsScreenState extends ConsumerState<TransactionDetailsScr
     super.dispose();
   }
 
-  Color _getColorForCategory(String cat) {
-    final clean = cat.trim().toLowerCase();
-    if (clean.contains('dining') || clean.contains('food') || clean.contains('dinner')) {
-      return TallyTapTheme.primaryMint; // #4EDEA3
-    } else if (clean.contains('commute') || clean.contains('transport')) {
-      return TallyTapTheme.primaryViolet; // #3A41C7
-    } else if (clean.contains('sub') || clean.contains('entertainment')) {
-      return TallyTapTheme.primarySlate; // #9FB6DF
-    } else if (clean.contains('utility') || clean.contains('bill')) {
-      return const Color(0xFFF59E0B); // Amber
-    } else if (clean.contains('grocer')) {
-      return const Color(0xFF10B981); // Emerald Green
-    } else if (clean.contains('shop')) {
-      return const Color(0xFFEC4899); // Pink
-    } else if (clean.contains('house') || clean.contains('rent')) {
-      return const Color(0xFF8B5CF6); // Purple
-    } else if (clean.contains('health') || clean.contains('medical')) {
-      return const Color(0xFFEF4444); // Red
-    } else if (clean.contains('travel') || clean.contains('flight')) {
-      return const Color(0xFF06B6D4); // Cyan
-    } else if (clean.contains('salary') || clean.contains('income')) {
-      return const Color(0xFF22C55E); // Green
-    }
-    return TallyTapTheme.primaryMint;
-  }
-
-  IconData _getIconForCategory(String cat, bool isIncome) {
-    if (isIncome) return Icons.arrow_downward_rounded;
-    final clean = cat.toLowerCase();
-    if (clean.contains('dining') || clean.contains('food') || clean.contains('dinner') || clean.contains('restaurant')) {
-      return Icons.local_cafe_outlined;
-    } else if (clean.contains('commute') || clean.contains('transport') || clean.contains('car') || clean.contains('cab')) {
-      return Icons.directions_transit_filled_outlined;
-    } else if (clean.contains('sub') || clean.contains('subscriptions') || clean.contains('entertainment')) {
-      return Icons.subscriptions_outlined;
-    } else if (clean.contains('utility') || clean.contains('bill') || clean.contains('electricity')) {
-      return Icons.bolt_outlined;
-    } else {
-      return Icons.local_mall_outlined;
-    }
-  }
 
   Future<void> _selectDateTime(BuildContext context) async {
     final DateTime? pickedDate = await showDatePicker(
@@ -256,7 +215,7 @@ class _TransactionDetailsScreenState extends ConsumerState<TransactionDetailsScr
     final sources = ref.watch(sourcesListProvider);
 
     final isIncome = _selectedCategory.toLowerCase() == 'income';
-    final accentColor = _getColorForCategory(_selectedCategory);
+    final accentColor = TallyTapTheme.getColorForCategory(_selectedCategory);
     final formattedDate = DateFormat('EEEE, MMMM d, y').format(_selectedDate);
     final formattedTime = DateFormat('h:mm a').format(_selectedDate);
     final shortFormattedDate = DateFormat('MMM d, y').format(_selectedDate);
@@ -346,7 +305,7 @@ class _TransactionDetailsScreenState extends ConsumerState<TransactionDetailsScr
                                 border: Border.all(color: accentColor.withOpacity(0.2), width: 1.0),
                               ),
                               child: Icon(
-                                _getIconForCategory(_selectedCategory, isIncome),
+                                TallyTapTheme.getIconForCategory(_selectedCategory, isIncome),
                                 color: accentColor,
                                 size: 36,
                               ),
@@ -448,6 +407,8 @@ class _TransactionDetailsScreenState extends ConsumerState<TransactionDetailsScr
                                 valueWidget: _isEditing
                                     ? DropdownButtonFormField<String>(
                                         value: _selectedCategory,
+                                        isExpanded: true,
+                                        borderRadius: BorderRadius.circular(16),
                                         dropdownColor: TallyTapTheme.obsidianCard,
                                         style: const TextStyle(color: TallyTapTheme.textLight, fontSize: 14, fontWeight: FontWeight.bold),
                                         decoration: const InputDecoration(
@@ -459,7 +420,10 @@ class _TransactionDetailsScreenState extends ConsumerState<TransactionDetailsScr
                                         items: dropdownCategories.map((String cat) {
                                           return DropdownMenuItem<String>(
                                             value: cat,
-                                            child: Text(cat),
+                                            child: Align(
+                                              alignment: Alignment.centerRight,
+                                              child: Text(cat),
+                                            ),
                                           );
                                         }).toList(),
                                         onChanged: (val) {
@@ -498,6 +462,8 @@ class _TransactionDetailsScreenState extends ConsumerState<TransactionDetailsScr
                                 valueWidget: _isEditing
                                     ? DropdownButtonFormField<String>(
                                         value: _selectedPaymentMethod,
+                                        isExpanded: true,
+                                        borderRadius: BorderRadius.circular(16),
                                         dropdownColor: TallyTapTheme.obsidianCard,
                                         style: const TextStyle(color: TallyTapTheme.textLight, fontSize: 14, fontWeight: FontWeight.bold),
                                         decoration: const InputDecoration(
@@ -509,7 +475,10 @@ class _TransactionDetailsScreenState extends ConsumerState<TransactionDetailsScr
                                         items: dropdownSources.map((String src) {
                                           return DropdownMenuItem<String>(
                                             value: src,
-                                            child: Text(src),
+                                            child: Align(
+                                              alignment: Alignment.centerRight,
+                                              child: Text(src),
+                                            ),
                                           );
                                         }).toList(),
                                         onChanged: (val) {
@@ -593,50 +562,7 @@ class _TransactionDetailsScreenState extends ConsumerState<TransactionDetailsScr
                           ),
                         ),
                       ),
-                      const SizedBox(height: 24),
 
-                      // Premium insight or context card if viewing
-                      if (!_isEditing) ...[
-                        Card(
-                          child: Padding(
-                            padding: const EdgeInsets.all(20.0),
-                            child: Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(10),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF0F2B20),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: const Color(0xFF144D37)),
-                                  ),
-                                  child: const Icon(
-                                    Icons.lightbulb_outline_rounded,
-                                    color: TallyTapTheme.primaryMint,
-                                    size: 20,
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-                                const Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Reflected instantly!',
-                                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: TallyTapTheme.textLight),
-                                      ),
-                                      SizedBox(height: 4),
-                                      Text(
-                                        'All edits sync dynamically with internal widgets, budget lines, and active insights.',
-                                        style: TextStyle(fontSize: 11, color: TallyTapTheme.textGray, height: 1.3),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
                     ],
                   ),
                 ),

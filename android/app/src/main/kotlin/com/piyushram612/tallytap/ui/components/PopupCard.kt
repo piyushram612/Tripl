@@ -1,6 +1,7 @@
 package com.piyushram612.tallytap.ui.components
 
 import android.content.Context
+import android.content.Intent
 import android.util.Log
 import android.widget.Toast
 import org.json.JSONArray
@@ -145,6 +146,7 @@ fun PopupCard(
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .imePadding()
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null
@@ -157,8 +159,8 @@ fun PopupCard(
         ) {
             Card(
                 modifier = Modifier
-                    .padding(top = 80.dp) // Fixed gap on top
-                    .then(if (isExpanded) Modifier.fillMaxWidth() else Modifier.fillMaxWidth(0.92f))
+                    .padding(top = 56.dp) // Shifted a tiny bit lower for premium gap
+                    .then(if (isExpanded) Modifier.fillMaxWidth() else Modifier.fillMaxWidth(0.96f)) // Made a bit wider
                     .then(if (isExpanded) Modifier.fillMaxHeight() else Modifier.wrapContentHeight())
                     .animateContentSize()
                     .clickable(
@@ -186,8 +188,7 @@ fun PopupCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .verticalScroll(rememberScrollState())
-                            .imePadding()
-                            .padding(start = 24.dp, end = 24.dp, top = 28.dp, bottom = 48.dp),
+                            .padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 48.dp), // Reduced height/top padding
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         // 1. TITLE INPUT FIELD
@@ -226,7 +227,7 @@ fun PopupCard(
                             modifier = Modifier.fillMaxWidth()
                         )
 
-                        Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
 
                         // 2. AMOUNT INPUT FIELD
                         BasicTextField(
@@ -284,7 +285,7 @@ fun PopupCard(
                                 .focusRequester(focusRequester)
                         )
 
-                        Spacer(modifier = Modifier.height(28.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
 
                         // 3. CATEGORY HEADER & CAPSULES ROW
                         SectionHeader("CATEGORY")
@@ -303,7 +304,7 @@ fun PopupCard(
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(24.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
 
                         // 4. SOURCE HEADER & CAPSULES ROW
                         SectionHeader("SOURCE")
@@ -325,7 +326,7 @@ fun PopupCard(
                         // EXPANDED CONTENT
                         AnimatedVisibility(visible = isExpanded) {
                             Column(modifier = Modifier.fillMaxWidth()) {
-                                Spacer(modifier = Modifier.height(28.dp))
+                                Spacer(modifier = Modifier.height(16.dp))
                                 
                                 // TYPE
                                 SectionHeader("TYPE")
@@ -368,7 +369,7 @@ fun PopupCard(
                                     }
                                 }
 
-                                Spacer(modifier = Modifier.height(24.dp))
+                                Spacer(modifier = Modifier.height(16.dp))
 
                                 // DATE & TIME
                                 Row(
@@ -393,7 +394,7 @@ fun PopupCard(
                                     }
                                 }
 
-                                Spacer(modifier = Modifier.height(24.dp))
+                                Spacer(modifier = Modifier.height(16.dp))
 
                                 // PAID TO / BY
                                 CustomInputField(
@@ -404,7 +405,7 @@ fun PopupCard(
                                     placeholder = "Enter name or organization"
                                 )
 
-                                Spacer(modifier = Modifier.height(24.dp))
+                                Spacer(modifier = Modifier.height(16.dp))
 
                                 // FINISH LATER CHECKBOX
                                 Row(
@@ -436,7 +437,7 @@ fun PopupCard(
 
                                 AnimatedVisibility(visible = finishLater) {
                                     Column {
-                                        Spacer(modifier = Modifier.height(24.dp))
+                                        Spacer(modifier = Modifier.height(16.dp))
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
                                             horizontalArrangement = Arrangement.spacedBy(16.dp)
@@ -463,7 +464,7 @@ fun PopupCard(
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(36.dp))
+                        Spacer(modifier = Modifier.height(24.dp))
 
                         // 5. MAIN LOG EXPENSE BUTTON CTA
                         Box(
@@ -525,6 +526,44 @@ fun PopupCard(
                                 .height(5.dp)
                                 .background(Color.White.copy(alpha = 0.25f), CircleShape)
                         )
+                    }
+
+                    // OPEN IN APP BUTTON (INCREASED SIZE)
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(top = 16.dp, end = 16.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(BorderDark)
+                            .clickable {
+                                val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)?.apply {
+                                    flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                                    putExtra("navigate", "create_transaction")
+                                }
+                                context.startActivity(launchIntent)
+                                onClose()
+                            }
+                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.OpenInNew,
+                                contentDescription = "Open in app",
+                                tint = GreenPrimary,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Text(
+                                text = "Open in App",
+                                style = TextStyle(
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White.copy(alpha = 0.9f)
+                                )
+                            )
+                        }
                     }
                 }
             }

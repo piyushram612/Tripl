@@ -50,4 +50,31 @@ class SourcesListNotifier extends StateNotifier<List<String>> {
     await prefs.setString('sources_json', json.encode(updated));
     state = updated;
   }
+
+  Future<void> updateSource(String oldName, String newName) async {
+    final trimmed = newName.trim();
+    if (trimmed.isEmpty || state.contains(trimmed)) return;
+    final updated = List<String>.from(state);
+    final index = updated.indexOf(oldName);
+    if (index != -1) {
+      updated[index] = trimmed;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('sources_json', json.encode(updated));
+      state = updated;
+    }
+  }
+
+  Future<void> reorderSources(int oldIndex, int newIndex) async {
+    if (newIndex > oldIndex) {
+      newIndex -= 1;
+    }
+    final List<String> updated = List<String>.from(state);
+    if (oldIndex >= 0 && oldIndex < updated.length && newIndex >= 0 && newIndex < updated.length) {
+      final item = updated.removeAt(oldIndex);
+      updated.insert(newIndex, item);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('sources_json', json.encode(updated));
+      state = updated;
+    }
+  }
 }

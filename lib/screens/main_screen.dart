@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
+import 'dart:ui';
 
 import '../core/theme.dart';
 import '../providers/app_state_provider.dart';
@@ -15,6 +16,7 @@ import 'budgets_screen.dart';
 import 'insights_screen.dart';
 import 'timeline_screen.dart';
 import 'settings_screen.dart';
+import 'create_transaction_screen.dart';
 
 class MainScreen extends ConsumerStatefulWidget {
   const MainScreen({super.key});
@@ -29,6 +31,20 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     
+    // Listen for native navigation requests
+    const MethodChannel('com.piyushram612.tallytap/popup').setMethodCallHandler((call) async {
+      if (call.method == 'navigate' && call.arguments == 'create_transaction') {
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const CreateTransactionScreen(),
+            ),
+          );
+        }
+      }
+    });
+
     // Initial data load
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(transactionListProvider.notifier).loadTransactions();
@@ -62,6 +78,7 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
     final currentIndex = ref.watch(activeTabProvider);
 
     return Scaffold(
+      extendBody: true,
       backgroundColor: TallyTapTheme.obsidianBg,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
@@ -82,60 +99,196 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
           ],
         ),
       ),
+      floatingActionButton: (currentIndex == 0 || currentIndex == 3)
+          ? Container(
+              height: 56,
+              width: 56,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const LinearGradient(
+                  colors: [TallyTapTheme.primaryMint, Color(0xFF33C28A)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: TallyTapTheme.primaryMint.withOpacity(0.35),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: FloatingActionButton(
+                onPressed: () {
+                  HapticFeedback.mediumImpact();
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const CreateTransactionScreen(),
+                    ),
+                  );
+                },
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                highlightElevation: 0,
+                child: const Icon(Icons.add_rounded, color: TallyTapTheme.obsidianBg, size: 28),
+              ),
+            )
+          : null,
       bottomNavigationBar: _buildBottomNavBar(context),
     );
   }
 
   Widget _buildBottomNavBar(BuildContext context) {
     final currentIndex = ref.watch(activeTabProvider);
+    final double screenWidth = MediaQuery.of(context).size.width;
+    
+    final double horizontalMargin = 12.0;
+    final double navBarHeight = 72.0;
+    final double paddingHorizontal = 22.0;
+    final double activeWidth = screenWidth - (horizontalMargin * 2) - (paddingHorizontal * 2);
+    final double itemWidth = activeWidth / 5;
+    
+    final double pillWidth = 56.0;
+    final double pillHeight = 48.0;
+    
+    double pillLeftPosition = (currentIndex * itemWidth) + (itemWidth - pillWidth) / 2;
+    if (currentIndex == 4) {
+      pillLeftPosition -= 2.0;
+    } else if (currentIndex == 2) {
+      pillLeftPosition -= 1.0;
+    }
 
-    return Container(
-      height: 72,
-      decoration: const BoxDecoration(
-        color: TallyTapTheme.obsidianBg,
-        border: Border(
-          top: BorderSide(color: TallyTapTheme.borderGreen, width: 1.0),
+    return SafeArea(
+      top: false,
+      child: Container(
+        margin: EdgeInsets.only(
+          left: horizontalMargin,
+          right: horizontalMargin,
+          bottom: MediaQuery.of(context).padding.bottom > 0 ? 10.0 : 20.0,
         ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildNavBarItem(0, Icons.home_filled, 'Home', currentIndex == 0),
-          _buildNavBarItem(1, Icons.account_balance_wallet, 'Budgets', currentIndex == 1),
-          _buildNavBarItem(2, Icons.analytics_outlined, 'Insights', currentIndex == 2),
-          _buildNavBarItem(3, Icons.history_toggle_off, 'Timeline', currentIndex == 3),
-          _buildNavBarItem(4, Icons.settings, 'Settings', currentIndex == 4),
-        ],
+        height: navBarHeight,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.4),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(28),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: paddingHorizontal),
+              decoration: BoxDecoration(
+                color: TallyTapTheme.obsidianCard.withOpacity(0.72),
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(
+                  color: TallyTapTheme.borderGreen.withOpacity(0.8),
+                  width: 1.2,
+                ),
+              ),
+              child: Stack(
+                children: [
+                  AnimatedPositioned(
+                    duration: const Duration(milliseconds: 320),
+                    curve: Curves.fastOutSlowIn,
+                    left: pillLeftPosition,
+                    top: (navBarHeight - pillHeight) / 2 - 1,
+                    child: Container(
+                      width: pillWidth,
+                      height: pillHeight,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        gradient: LinearGradient(
+                          colors: [
+                            TallyTapTheme.primaryMint.withOpacity(0.24),
+                            TallyTapTheme.primaryMint.withOpacity(0.04),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        border: Border.all(
+                          color: TallyTapTheme.primaryMint.withOpacity(0.25),
+                          width: 1.0,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: TallyTapTheme.primaryMint.withOpacity(0.12),
+                            blurRadius: 10,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Positioned.fill(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _buildNavBarItem(0, Icons.home_filled, 'Home', currentIndex == 0),
+                        _buildNavBarItem(1, Icons.account_balance_wallet, 'Budgets', currentIndex == 1),
+                        _buildNavBarItem(2, Icons.analytics_outlined, 'Insights', currentIndex == 2),
+                        _buildNavBarItem(3, Icons.history_toggle_off, 'Timeline', currentIndex == 3),
+                        _buildNavBarItem(4, Icons.settings, 'Settings', currentIndex == 4),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
 
   Widget _buildNavBarItem(int index, IconData icon, String label, bool isActive) {
-    return InkWell(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        ref.read(activeTabProvider.notifier).state = index;
-      },
-      highlightColor: Colors.transparent,
-      splashColor: Colors.transparent,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            icon,
-            color: isActive ? TallyTapTheme.primaryMint : TallyTapTheme.textGray,
-            size: 24,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: isActive ? FontWeight.w800 : FontWeight.w500,
-              color: isActive ? TallyTapTheme.primaryMint : TallyTapTheme.textGray,
+    return Expanded(
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.lightImpact();
+          ref.read(activeTabProvider.notifier).state = index;
+        },
+        highlightColor: Colors.transparent,
+        splashColor: Colors.transparent,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 280),
+              curve: Curves.fastOutSlowIn,
+              top: isActive ? 13 : 25,
+              child: Icon(
+                icon,
+                color: isActive ? TallyTapTheme.primaryMint : TallyTapTheme.textGray,
+                size: 22,
+              ),
             ),
-          ),
-        ],
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 280),
+              curve: Curves.fastOutSlowIn,
+              bottom: isActive ? 12 : 2,
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 200),
+                opacity: isActive ? 1.0 : 0.0,
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: isActive ? FontWeight.w900 : FontWeight.w500,
+                    color: isActive ? TallyTapTheme.primaryMint : TallyTapTheme.textGray,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

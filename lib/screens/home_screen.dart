@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/theme.dart';
-import '../models/transaction_model.dart';
 import '../providers/app_state_provider.dart';
 import '../providers/budget_provider.dart';
 import '../providers/category_provider.dart';
@@ -11,7 +10,7 @@ import '../providers/profile_provider.dart';
 import '../services/transaction_service.dart';
 import 'widgets/donut_chart_painter.dart';
 import 'widgets/weekly_trend_painter.dart';
-import 'transaction_details_screen.dart';
+import 'widgets/transaction_item.dart';
 
 final homeSummaryPeriodProvider = StateProvider<String>((ref) => 'weekly');
 final homeBreakdownPeriodProvider = StateProvider<String>((ref) => 'weekly');
@@ -66,41 +65,6 @@ class HomeScreen extends ConsumerWidget {
     return "${months[referenceDate.month - 1]} ${referenceDate.year}";
   }
 
-  Color _getColorForCategory(String cat, int index) {
-    final clean = cat.trim().toLowerCase();
-    if (clean.contains('dining') || clean.contains('food') || clean.contains('dinner')) {
-      return TallyTapTheme.primaryMint; // #4EDEA3
-    } else if (clean.contains('commute') || clean.contains('transport')) {
-      return TallyTapTheme.primaryViolet; // #3A41C7
-    } else if (clean.contains('sub') || clean.contains('entertainment')) {
-      return TallyTapTheme.primarySlate; // #9FB6DF
-    } else if (clean.contains('utility') || clean.contains('bill')) {
-      return const Color(0xFFF59E0B); // Amber
-    } else if (clean.contains('grocer')) {
-      return const Color(0xFF10B981); // Emerald Green
-    } else if (clean.contains('shop')) {
-      return const Color(0xFFEC4899); // Pink
-    } else if (clean.contains('house') || clean.contains('rent')) {
-      return const Color(0xFF8B5CF6); // Purple
-    } else if (clean.contains('health') || clean.contains('medical')) {
-      return const Color(0xFFEF4444); // Red
-    } else if (clean.contains('travel') || clean.contains('flight')) {
-      return const Color(0xFF06B6D4); // Cyan
-    } else if (clean.contains('salary') || clean.contains('income')) {
-      return const Color(0xFF22C55E); // Green
-    }
-    final colors = [
-      TallyTapTheme.primaryMint,
-      TallyTapTheme.primaryViolet,
-      TallyTapTheme.primarySlate,
-      const Color(0xFFF59E0B),
-      const Color(0xFFEC4899),
-      const Color(0xFF8B5CF6),
-      const Color(0xFF06B6D4),
-      const Color(0xFF10B981),
-    ];
-    return colors[index % colors.length];
-  }
 
   Widget _buildLegendRow(String title, double spent, Color color, String currency) {
     return Row(
@@ -128,85 +92,6 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildTransactionItem(BuildContext context, ExpenseTransaction tx, String currency) {
-    IconData icon;
-    Color iconBg;
-    final clean = tx.category.toLowerCase();
-    if (clean.contains('dining') || clean.contains('food') || clean.contains('dinner') || clean.contains('restaurant')) {
-      icon = Icons.local_cafe_outlined;
-      iconBg = const Color(0xFF261D4C); // Deep purple tint
-    } else if (clean.contains('commute') || clean.contains('transport') || clean.contains('car') || clean.contains('cab')) {
-      icon = Icons.directions_transit_filled_outlined;
-      iconBg = const Color(0xFF1E284C); // Deep blue tint
-    } else if (clean.contains('sub') || clean.contains('subscriptions') || clean.contains('entertainment')) {
-      icon = Icons.subscriptions_outlined;
-      iconBg = const Color(0xFF1B2B3A); // Slate tint
-    } else if (clean.contains('utility') || clean.contains('bill') || clean.contains('electricity')) {
-      icon = Icons.bolt_outlined;
-      iconBg = const Color(0xFF332A15); // Amber tint
-    } else {
-      icon = Icons.local_mall_outlined;
-      iconBg = const Color(0xFF142B24); // Mint tint
-    }
-
-    final formattedDate = tx.date.difference(DateTime.now()).inDays.abs() == 0
-        ? 'Today, 8:42 AM'
-        : tx.date.difference(DateTime.now()).inDays.abs() == 1
-            ? 'Yesterday'
-            : 'Mon, Oct 12'; // Mocking standard timeline labels matching mockup
-
-    return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => TransactionDetailsScreen(transaction: tx),
-          ),
-        );
-      },
-      borderRadius: BorderRadius.circular(16),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
-        child: Row(
-          children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: iconBg,
-                border: Border.all(color: TallyTapTheme.borderGreen, width: 0.5),
-              ),
-              child: Icon(icon, color: TallyTapTheme.textLight, size: 18),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    tx.merchant,
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: TallyTapTheme.textLight),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '$formattedDate • ${tx.paymentMethod}',
-                    style: const TextStyle(fontSize: 12, color: TallyTapTheme.textGray),
-                  ),
-                ],
-              ),
-            ),
-            Text(
-              '-$currency${tx.amount.toStringAsFixed(2)}',
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: TallyTapTheme.textLight),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -392,7 +277,7 @@ class HomeScreen extends ConsumerWidget {
 
     int catIdx = 0;
     final dynamicCategories = catSum.entries.map((entry) {
-      final color = _getColorForCategory(entry.key, catIdx++);
+      final color = TallyTapTheme.getColorForCategory(entry.key, catIdx++);
       return DonutChartItem(
         name: entry.key,
         amount: entry.value,
@@ -826,7 +711,16 @@ class HomeScreen extends ConsumerWidget {
                             separatorBuilder: (_, __) => const Divider(color: TallyTapTheme.borderGreen, height: 24, thickness: 0.5),
                             itemBuilder: (context, index) {
                               final tx = transactions[index];
-                              return _buildTransactionItem(context, tx, currency);
+                              final formattedDate = tx.date.difference(DateTime.now()).inDays.abs() == 0
+                                  ? 'Today, 8:42 AM'
+                                  : tx.date.difference(DateTime.now()).inDays.abs() == 1
+                                      ? 'Yesterday'
+                                      : 'Mon, Oct 12';
+                              return TransactionItem(
+                                transaction: tx,
+                                currency: currency,
+                                subtitle: '$formattedDate • ${tx.paymentMethod}',
+                              );
                             },
                           ),
                           const SizedBox(height: 20),

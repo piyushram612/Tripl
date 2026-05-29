@@ -24,6 +24,7 @@ class MainActivity : FlutterActivity() {
         // When true, back taps go to the event stream (calibration) instead of PopupActivity
         var calibrationMode = false
         var backTapEventSink: EventChannel.EventSink? = null
+        var flutterEngineInstance: FlutterEngine? = null
 
         fun onBackTapDetected() {
             android.util.Log.d("TallyTapCalib", "onBackTapDetected: calibrationMode=$calibrationMode sink=$backTapEventSink")
@@ -41,8 +42,31 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    override fun onCreate(savedInstanceState: android.os.Bundle?) {
+        super.onCreate(savedInstanceState)
+        handleIntent(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(intent: Intent?) {
+        if (intent != null && intent.getStringExtra("navigate") == "create_transaction") {
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                flutterEngineInstance?.let { engine ->
+                    android.util.Log.d("MainActivity", "Invoking navigate/create_transaction channel call to Flutter")
+                    MethodChannel(engine.dartExecutor.binaryMessenger, CHANNEL)
+                        .invokeMethod("navigate", "create_transaction")
+                }
+            }, 600) // 600ms delay to ensure Flutter app state is active
+        }
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        flutterEngineInstance = flutterEngine
 
         // ── Method Channel ──
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
