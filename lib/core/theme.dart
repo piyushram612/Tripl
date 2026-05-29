@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 
 class TallyTapTheme {
+  // Mappings for user customizations
+  static Map<String, Color> customCategoryColors = {};
+  static Map<String, IconData> customCategoryIcons = {};
+  static Map<String, Color> customSourceColors = {};
+
   // Mockup forest-obsidian dark theme colors
   static const Color obsidianBg = Color(0xFF08100E);
   static const Color obsidianCard = Color(0xFF111C18);
@@ -67,7 +72,11 @@ class TallyTapTheme {
   static ThemeData get lightTheme => darkTheme; // Enforce obsidian mode as default for ultimate premium styling
 
   static Color getColorForCategory(String cat, [int index = 0]) {
-    final clean = cat.trim().toLowerCase();
+    final trimmed = cat.trim();
+    if (customCategoryColors.containsKey(trimmed)) {
+      return customCategoryColors[trimmed]!;
+    }
+    final clean = trimmed.toLowerCase();
     if (clean.contains('dining') || clean.contains('food') || clean.contains('dinner')) {
       return primaryMint; // #4EDEA3
     } else if (clean.contains('commute') || clean.contains('transport')) {
@@ -103,8 +112,12 @@ class TallyTapTheme {
   }
 
   static IconData getIconForCategory(String cat, [bool isIncome = false]) {
-    if (isIncome || cat.trim().toLowerCase() == 'income') return Icons.arrow_downward_rounded;
-    final clean = cat.toLowerCase();
+    final trimmed = cat.trim();
+    if (customCategoryIcons.containsKey(trimmed)) {
+      return customCategoryIcons[trimmed]!;
+    }
+    if (isIncome || trimmed.toLowerCase() == 'income') return Icons.arrow_downward_rounded;
+    final clean = trimmed.toLowerCase();
     if (clean.contains('dining') || clean.contains('food') || clean.contains('dinner') || clean.contains('restaurant')) {
       return Icons.local_cafe_outlined;
     } else if (clean.contains('commute') || clean.contains('transport') || clean.contains('car') || clean.contains('cab')) {
@@ -119,8 +132,12 @@ class TallyTapTheme {
   }
 
   static Color getIconBgForCategory(String cat, [bool isIncome = false]) {
-    if (isIncome || cat.trim().toLowerCase() == 'income') return const Color(0xFF0F2B20); // Green tint
-    final clean = cat.toLowerCase();
+    final trimmed = cat.trim();
+    if (customCategoryColors.containsKey(trimmed)) {
+      return customCategoryColors[trimmed]!.withOpacity(0.15);
+    }
+    if (isIncome || trimmed.toLowerCase() == 'income') return const Color(0xFF0F2B20); // Green tint
+    final clean = trimmed.toLowerCase();
     if (clean.contains('dining') || clean.contains('food') || clean.contains('dinner') || clean.contains('restaurant')) {
       return const Color(0xFF261D4C);
     } else if (clean.contains('commute') || clean.contains('transport') || clean.contains('car') || clean.contains('cab')) {
@@ -132,5 +149,23 @@ class TallyTapTheme {
     } else {
       return const Color(0xFF142B24);
     }
+  }
+
+  static Color getColorForSource(String src, [int index = 0]) {
+    final trimmed = src.trim();
+    if (customSourceColors.containsKey(trimmed)) {
+      return customSourceColors[trimmed]!;
+    }
+    final colors = [
+      primaryMint,
+      primaryViolet,
+      primarySlate,
+      const Color(0xFFF59E0B),
+      const Color(0xFFEC4899),
+      const Color(0xFF8B5CF6),
+      const Color(0xFF06B6D4),
+      const Color(0xFF10B981),
+    ];
+    return colors[index % colors.length];
   }
 }
