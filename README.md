@@ -1,93 +1,105 @@
-# TallyTap (First Prototype)
+# 📱 TallyTap
 
-TallyTap is an ultra-fast, privacy-first expense logging utility built with a hybrid Flutter and Kotlin architecture. The goal of this prototype is to validate a near-zero friction capture flow using launcher app shortcuts, native overlays, and sensor-based gesture detection.
+TallyTap is an ultra-fast, privacy-first expense logging utility built with a hybrid Flutter and Kotlin architecture. The application is designed to validate a near-zero friction capture flow using launcher app shortcuts, native overlays, and sensor-based gesture detection, paired with a gorgeous, high-fidelity liquid-glass user interface.
 
 ---
 
 ## 🌟 Core Philosophy
-- **Frictionless Capture**: Reduce logs to under 2 seconds.
-- **Local-First & Privacy-Focused**: No cloud sync, no tracking, and no external integrations.
-- **Lightweight Architecture**: No splash screens, no load states, and instant autofocus.
+
+- **Instantaneous Frictionless Capture**: Reduce expense logging down to under 2 seconds.
+- **Local-First & Privacy-Focused**: No cloud sync, no tracker analytics, and no external data telemetry.
+- **Premium Fluid Aesthetics**: Vibrant dark-themed HSL tailored accents, frosted glassmorphic layers, custom-drawn vector charts, and responsive micro-animations.
+- **Lightweight Native Performance**: Zero-overhead boot, immediate focus, and responsive system service integration.
+
+---
+
+## 🎨 Premium Visual Features
+
+TallyTap features a state-of-the-art custom design system:
+- **Liquid Glass Bottom Navigation**: A floating glassmorphic nav bar suspended above the content fold using backdrop blur filters (`sigma: 14`) and a highly translucent Obsidian card mask (`opacity: 0.10`). It has an active indicator neon-mint pill that glides fluidly using spring curve micro-animations, while hiding label text on inactive items to minimize clutter.
+- **Custom Vector Graphics**: 100% custom-painted Canvas widgets including:
+  - `WeeklyTrendPainter`: Smooth bezier curves and gradients showing daily spend momentum.
+  - `DonutChartPainter`: Dynamic radial distribution breakdown for categories.
+  - `BudgetRingPainter` & `IntentRingPainter`: Clean circular progress trackers for budget margins.
+- **Unified Style Tokens**: Harmonized neon mints, warm ambers, obsidian fields, and premium gradients defined under `TallyTapTheme`.
 
 ---
 
 ## 🛠️ Hybrid Architecture
 
-TallyTap uses a **Hybrid Architecture** to achieve high-fidelity system integrations:
+TallyTap utilizes a dual-engine architecture to blend the flexibility of cross-platform components with deep system hooks:
 
-### 1. Frontend Shell (Flutter + Material 3)
-- Located in `lib/`.
-- Manages branding presentation, step-by-step guides, settings storage, and future budget dashboarding.
-- Provides a "Test Quick Popup" button communicating over custom MethodChannels.
+```mermaid
+graph TD
+    A[Flutter App Shell] -->|Method Channels| B[Android System Integration]
+    A --> C[Sleek UI Screens]
+    C --> D[Home Dashboard]
+    C --> E[Budgets Screen]
+    C --> F[Insights Graphs]
+    C --> G[Timeline Log]
+    C --> H[Hardware Calibration]
+    B --> I[PopupComposeActivity]
+    B --> J[QuickActionActivity Launcher Target]
+    B --> K[BackTapService Accelerator Listener]
+```
+
+### 1. Frontend Shell (Flutter + Riverpod State Management)
+- **`lib/screens/home_screen.dart`**: Dashboard showing total cash flow balance, category breakdowns, budget alerts, and recent items.
+- **`lib/screens/budgets_screen.dart`**: Complete budget dashboard supporting category limits, custom recurring structures, and intent tracking.
+- **`lib/screens/insights_screen.dart`**: Full analytics suite showcasing weekly spending trendlines, categories, and payment channels.
+- **`lib/screens/timeline_screen.dart`**: chronological historical transaction register.
+- **`lib/screens/calibration_screen.dart`**: Hardware accelerometer calibration UI to customize threshold impulses.
 
 ### 2. Native System Integration (Kotlin + Jetpack Compose)
-- Located in `android/app/src/main/kotlin/com/piyushram612/tallytap/`.
-- **`PopupActivity`**: A dialog-themed, translucent Jetpack Compose activity that loads instantly, autofocuses input fields, presents quick selector categories, and dismisses on outside clicks.
-- **`QuickActionActivity`**: An invisible, fast-redirect launcher target.
-- **`BackTapService`**: A foreground service listening to `Sensor.TYPE_ACCELEROMETER` values. It processes Z-axis delta spikes through a high-frequency filter (`BackTapDetector`) to detect physical taps on the rear housing of the device.
+- **`PopupActivity`**: An instantly loaded, dialog-themed translucent Compose card that launches directly over any app overlay to capture amount inputs with immediate virtual keyboard focus.
+- **`QuickActionActivity`**: An invisible, fast-redirect launcher utility mapping static app shortcuts directly to logging services.
+- **`BackTapService`**: A foreground service listening to high-frequency raw `Sensor.TYPE_ACCELEROMETER` data.
+- **`BackTapDetector`**: Processes Z-axis delta spikes through a high-frequency filter to recognize when a user physical taps the back case of their phone.
 
 ---
 
 ## 🚀 How to Run the Project
 
 ### Prerequisites
-- **Flutter SDK**: Installed and in your system PATH.
-- **Android SDK (API 29+) & Emulator / Physical Device**: Enabled.
-- **Java JDK (17+)**: Configured (`JAVA_HOME`).
+- **Flutter SDK**: Active environment path (`flutter --version`).
+- **Android SDK (API 29+) & Emulator / Physical Device**: Connected over developer bridge (`adb`).
+- **Java JDK (17+)**: Configured on terminal paths (`JAVA_HOME`).
 
 ### Build & Deploy
-1. Start your Android Emulator or connect a physical device.
-2. Run package resolutions:
+1. Connect your Android device or spin up an emulator.
+2. Resolve dependencies:
    ```bash
    flutter pub get
    ```
-3. Run the application:
+3. Run the development build:
    ```bash
    flutter run
    ```
 
 ---
 
-## 🧪 How to Test Triggers
+## 🧪 How to Test Capture Triggers
 
-### Trigger Method 1: The Flutter Button
-- Launch TallyTap from the application drawer.
-- Press **"Test Quick Popup"**.
-- The translucent Kotlin Jetpack Compose card will pop up instantly over a dimmed background. Type an amount and click **"Tap to Log"** or tap outside to dismiss.
+### Trigger Method 1: Interactive App Flow
+- Open the TallyTap dashboard from your launcher.
+- Press the floating Neon Mint `+` button in the Bottom Navigation Bar.
+- The screen will transition seamlessly to the Create Transaction view. Fill out the details and click **"Add Transaction"**.
 
 ### Trigger Method 2: Launcher App Shortcut
-- Go to your home screen or application drawer.
-- Long-press the **TallyTap** icon.
-- Tap **"Quick Add"** from the static shortcuts menu.
-- The translucent Compose card will render instantly without starting the main app shell first.
+- Long-press the **TallyTap** app icon on your home screen drawer.
+- Select the **"Quick Add"** static shortcut.
+- The translucent Compose logging overlay card will popup instantly on top of your home screen.
 
 ### Trigger Method 3: Built-in Double Back Tap (Hardware Gesture)
-- Launch the main TallyTap app shell.
-- Turn on **"Double Back Tap"** toggle switch.
-- Double-tap the physical back housing of your phone with your finger (impact on the case).
-- The accelerometer detects Z-axis impulse spikes and opens the transparent popup immediately, even when looking at other apps.
+- Launch the TallyTap application.
+- Navigate to **Settings** -> select **"Double Back Tap"** to enable the foreground background service.
+- Firmly double-tap the back casing of your phone.
+- The accelerometer recognizes the impulse signature and displays the translucent compose overlay instantly.
 
 ---
 
-## 📱 OEM & Gesture Configurations
+## ⚠️ System & Sensitivity Notes
 
-### 1. Google Pixel "Quick Tap"
-- Open Android Settings -> **System** -> **Gestures** -> **Quick Tap**.
-- Toggle it **On**.
-- Select **Open App** -> tap the Gear settings icon next to TallyTap -> choose the **Quick Add** shortcut.
-- Now, double-tapping the back of your Pixel triggers TallyTap instantly from anywhere in the OS.
+- **Background Execution**: Custom Android systems frequently terminate background sensor listeners to preserve battery. To guarantee robust physical tap recognition in the background, navigate to **App Info** -> **Battery** -> select **"Unrestricted"** for TallyTap.
+- **Sensor Calibration**: Accelerometer sensitivities fluctuate across different device builds and physical casings (metal, plastic, carbon fiber, or glass). Go to **Settings** -> **Double Back Tap Calibration** inside the app to dial in your device's physical casing impulse threshold.
 
-### 2. Motorola Gesture Systems
-- Open the Moto app -> select **Gestures** / **Actions**.
-- Search for "Quick Launch" or custom tap actions.
-- Bind the action to launch TallyTap's **Quick Add** shortcut activity.
-
-### 3. Third-Party Apps (e.g. TapTap)
-- For generic Android models lacking native gesture mapping, download the open-source **[TapTap](https://github.com/KieronQuinn/TapTap)** utility.
-- Add a new Double Tap Action -> select **Launch Intent** -> map to target activity `com.piyushram612.tallytap.native.QuickActionActivity`.
-
----
-
-## ⚠️ Known OEM Limitations
-- **Background Aggression**: OEMs like Xiaomi, OnePlus, and Samsung run aggressive power-saving tasks that terminate long-running sensors. To maintain robust gesture capture, go to App Info -> Battery -> **Disable Battery Optimization** / set to **Unrestricted** for TallyTap.
-- **Sensor Calibration**: Accelerometer sensitivites vary between glass, plastic, and metal backs. In `BackTapDetector.kt`, the parameter `tapThreshold` is set to `14.0f` by default. You can increase or decrease this value to optimize trigger sensitivity for your specific physical casing.
