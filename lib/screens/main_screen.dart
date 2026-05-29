@@ -185,7 +185,7 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
             child: Container(
               padding: EdgeInsets.symmetric(horizontal: paddingHorizontal),
               decoration: BoxDecoration(
-                color: TallyTapTheme.obsidianCard.withOpacity(0.72),
+                color: TallyTapTheme.obsidianCard.withOpacity(0.10),
                 borderRadius: BorderRadius.circular(28),
                 border: Border.all(
                   color: TallyTapTheme.borderGreen.withOpacity(0.8),
