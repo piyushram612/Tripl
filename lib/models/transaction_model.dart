@@ -7,6 +7,7 @@ class ExpenseTransaction {
   final DateTime date;
   final String paymentMethod;
   final String category; // String to support dynamic categories
+  final String notes;    // Optional user notes
 
   ExpenseTransaction({
     required this.id,
@@ -15,6 +16,7 @@ class ExpenseTransaction {
     required this.date,
     required this.paymentMethod,
     required this.category,
+    this.notes = '',
   });
 
   Map<String, dynamic> toMap() {
@@ -25,6 +27,7 @@ class ExpenseTransaction {
       'date': date.toIso8601String(),
       'paymentMethod': paymentMethod,
       'category': category,
+      'notes': notes,
     };
   }
 
@@ -36,10 +39,12 @@ class ExpenseTransaction {
       date: DateTime.parse(map['date']),
       paymentMethod: map['paymentMethod'] ?? '',
       category: map['category'] ?? 'Other',
+      notes: map['notes'] ?? '',
     );
   }
 
   String toJson() => json.encode(toMap());
 
-  factory ExpenseTransaction.fromJson(String source) => ExpenseTransaction.fromMap(json.decode(source));
+  factory ExpenseTransaction.fromJson(String source) =>
+      ExpenseTransaction.fromMap(json.decode(source));
 }

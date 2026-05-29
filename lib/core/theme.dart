@@ -168,4 +168,23 @@ class TallyTapTheme {
     ];
     return colors[index % colors.length];
   }
+
+  static IconData getIconForSource(String src) {
+    final clean = src.trim().toLowerCase();
+    if (clean.contains('cash') || clean.contains('wallet')) {
+      return Icons.account_balance_wallet_outlined;
+    } else if (clean.contains('bank') || clean.contains('account') || clean.contains('savings')) {
+      return Icons.account_balance_outlined;
+    } else if (clean.contains('credit') || clean.contains('card') || clean.contains('debit')) {
+      return Icons.credit_card_outlined;
+    } else if (clean.contains('paypal') || clean.contains('online') || clean.contains('digital')) {
+      return Icons.language_outlined;
+    } else if (clean.contains('upi') || clean.contains('gpay') || clean.contains('phonepe') || clean.contains('paytm')) {
+      return Icons.qr_code_scanner_outlined;
+    } else if (clean.contains('invest') || clean.contains('stock') || clean.contains('mutual')) {
+      return Icons.trending_up_outlined;
+    } else {
+      return Icons.payments_outlined;
+    }
+  }
 }
