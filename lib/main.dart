@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -34,6 +35,26 @@ class _TallyTapAppState extends State<TallyTapApp> {
 
   static Future<_AppStartState> _resolveStartState() async {
     final prefs = await SharedPreferences.getInstance();
+
+    // Proactively load custom category colors/icons and source colors
+    final catColorsStr = prefs.getString('custom_category_colors') ?? '{}';
+    try {
+      final Map<String, dynamic> decoded = json.decode(catColorsStr);
+      TallyTapTheme.customCategoryColors = decoded.map((k, v) => MapEntry(k, Color(v as int)));
+    } catch (_) {}
+
+    final catIconsStr = prefs.getString('custom_category_icons') ?? '{}';
+    try {
+      final Map<String, dynamic> decoded = json.decode(catIconsStr);
+      TallyTapTheme.customCategoryIcons = decoded.map((k, v) => MapEntry(k, IconData(v as int, fontFamily: 'MaterialIcons')));
+    } catch (_) {}
+
+    final srcColorsStr = prefs.getString('custom_source_colors') ?? '{}';
+    try {
+      final Map<String, dynamic> decoded = json.decode(srcColorsStr);
+      TallyTapTheme.customSourceColors = decoded.map((k, v) => MapEntry(k, Color(v as int)));
+    } catch (_) {}
+
     final onboarded = prefs.getBool('has_completed_onboarding') ?? false;
     final calibrated = prefs.getBool('calibration_completed') ?? false;
 

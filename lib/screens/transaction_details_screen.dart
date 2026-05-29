@@ -18,15 +18,18 @@ class TransactionDetailsScreen extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<TransactionDetailsScreen> createState() => _TransactionDetailsScreenState();
+  ConsumerState<TransactionDetailsScreen> createState() =>
+      _TransactionDetailsScreenState();
 }
 
-class _TransactionDetailsScreenState extends ConsumerState<TransactionDetailsScreen> {
+class _TransactionDetailsScreenState
+    extends ConsumerState<TransactionDetailsScreen> {
   bool _isEditing = false;
   final _formKey = GlobalKey<FormState>();
 
   late TextEditingController _merchantController;
   late TextEditingController _amountController;
+  late TextEditingController _notesController;
   late DateTime _selectedDate;
   late String _selectedCategory;
   late String _selectedPaymentMethod;
@@ -34,8 +37,12 @@ class _TransactionDetailsScreenState extends ConsumerState<TransactionDetailsScr
   @override
   void initState() {
     super.initState();
-    _merchantController = TextEditingController(text: widget.transaction.merchant);
-    _amountController = TextEditingController(text: widget.transaction.amount.toStringAsFixed(2));
+    _merchantController =
+        TextEditingController(text: widget.transaction.merchant);
+    _amountController = TextEditingController(
+        text: widget.transaction.amount.toStringAsFixed(2));
+    _notesController =
+        TextEditingController(text: widget.transaction.notes);
     _selectedDate = widget.transaction.date;
     _selectedCategory = widget.transaction.category;
     _selectedPaymentMethod = widget.transaction.paymentMethod;
@@ -45,168 +52,133 @@ class _TransactionDetailsScreenState extends ConsumerState<TransactionDetailsScr
   void dispose() {
     _merchantController.dispose();
     _amountController.dispose();
+    _notesController.dispose();
     super.dispose();
   }
 
+  // ── helpers ───────────────────────────────────────────────────────────────
 
-  Future<void> _selectDateTime(BuildContext context) async {
-    final DateTime? pickedDate = await showDatePicker(
+  Future<void> _pickDate(BuildContext context) async {
+    final darkScheme = const ColorScheme.dark(
+      primary: TallyTapTheme.primaryMint,
+      onPrimary: TallyTapTheme.obsidianBg,
+      surface: TallyTapTheme.obsidianCard,
+      onSurface: TallyTapTheme.textLight,
+    );
+    final picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
       firstDate: DateTime(2020),
       lastDate: DateTime(2101),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: TallyTapTheme.primaryMint,
-              onPrimary: TallyTapTheme.obsidianBg,
-              surface: TallyTapTheme.obsidianCard,
-              onSurface: TallyTapTheme.textLight,
-            ),
-          ),
-          child: child!,
-        );
-      },
+      builder: (ctx, child) =>
+          Theme(data: Theme.of(ctx).copyWith(colorScheme: darkScheme), child: child!),
     );
-
-    if (pickedDate != null) {
-      final TimeOfDay? pickedTime = await showTimePicker(
-        context: context,
-        initialTime: TimeOfDay.fromDateTime(_selectedDate),
-        builder: (context, child) {
-          return Theme(
-            data: Theme.of(context).copyWith(
-              colorScheme: const ColorScheme.dark(
-                primary: TallyTapTheme.primaryMint,
-                onPrimary: TallyTapTheme.obsidianBg,
-                surface: TallyTapTheme.obsidianCard,
-                onSurface: TallyTapTheme.textLight,
-              ),
-            ),
-            child: child!,
-          );
-        },
-      );
-
-      if (pickedTime != null) {
-        setState(() {
-          _selectedDate = DateTime(
-            pickedDate.year,
-            pickedDate.month,
-            pickedDate.day,
-            pickedTime.hour,
-            pickedTime.minute,
-          );
-        });
-      }
-    }
+    if (picked == null || !mounted) return;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_selectedDate),
+      builder: (ctx, child) =>
+          Theme(data: Theme.of(ctx).copyWith(colorScheme: darkScheme), child: child!),
+    );
+    if (time == null) return;
+    setState(() {
+      _selectedDate = DateTime(
+          picked.year, picked.month, picked.day, time.hour, time.minute);
+    });
   }
 
   void _saveChanges() {
-    if (_formKey.currentState!.validate()) {
-      final double? parsedAmount = double.tryParse(_amountController.text);
-      if (parsedAmount == null || parsedAmount <= 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please enter a valid amount'),
-            backgroundColor: Color(0xFFEF4444),
+    if (!_formKey.currentState!.validate()) return;
+    final amount = double.tryParse(_amountController.text);
+    if (amount == null || amount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Please enter a valid amount'),
+        backgroundColor: Color(0xFFEF4444),
+      ));
+      return;
+    }
+    ref.read(transactionListProvider.notifier).updateTransaction(
+          ExpenseTransaction(
+            id: widget.transaction.id,
+            amount: amount,
+            merchant: _merchantController.text.trim(),
+            date: _selectedDate,
+            paymentMethod: _selectedPaymentMethod,
+            category: _selectedCategory,
+            notes: _notesController.text.trim(),
           ),
         );
-        return;
-      }
-
-      final updatedTx = ExpenseTransaction(
-        id: widget.transaction.id,
-        amount: parsedAmount,
-        merchant: _merchantController.text.trim(),
-        date: _selectedDate,
-        paymentMethod: _selectedPaymentMethod,
-        category: _selectedCategory,
-      );
-
-      ref.read(transactionListProvider.notifier).updateTransaction(updatedTx);
-      
-      setState(() {
-        _isEditing = false;
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Transaction updated successfully'),
-          backgroundColor: TallyTapTheme.primaryMint,
-        ),
-      );
-    }
+    setState(() => _isEditing = false);
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      content: Text('Transaction updated successfully'),
+      backgroundColor: TallyTapTheme.primaryMint,
+    ));
   }
 
   void _confirmDelete() {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: TallyTapTheme.obsidianCard,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-            side: const BorderSide(color: TallyTapTheme.borderGreen, width: 1.0),
+      builder: (ctx) => AlertDialog(
+        backgroundColor: TallyTapTheme.obsidianCard,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+          side: const BorderSide(color: TallyTapTheme.borderGreen),
+        ),
+        title: const Text(
+          'Delete Transaction?',
+          style: TextStyle(
+            fontWeight: FontWeight.w900,
+            color: TallyTapTheme.textLight,
+            fontSize: 20,
+            fontFamily: 'Outfit',
           ),
-          title: const Text(
-            'Delete Transaction?',
-            style: TextStyle(
-              fontWeight: FontWeight.w900,
-              color: TallyTapTheme.textLight,
-              fontSize: 20,
-              fontFamily: 'Outfit',
-            ),
-          ),
-          content: const Text(
-            'Are you sure you want to permanently delete this transaction? This action cannot be undone.',
-            style: TextStyle(color: TallyTapTheme.textGray, fontSize: 14),
-          ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text(
-                'Cancel',
+        ),
+        content: const Text(
+          'Are you sure you want to permanently delete this transaction? This action cannot be undone.',
+          style: TextStyle(color: TallyTapTheme.textGray, fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel',
                 style: TextStyle(
-                  color: TallyTapTheme.primaryMint,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
+                    color: TallyTapTheme.primaryMint,
+                    fontWeight: FontWeight.w700)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFEF4444),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              ),
-              onPressed: () {
-                ref.read(transactionListProvider.notifier).deleteTransaction(widget.transaction.id);
-                Navigator.of(context).pop(); // Close dialog
-                Navigator.of(this.context).pop(); // Back to list screen
-                
-                ScaffoldMessenger.of(this.context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Transaction deleted successfully'),
-                    backgroundColor: Color(0xFFEF4444),
-                  ),
-                );
-              },
-              child: const Text(
-                'Delete',
-                style: TextStyle(fontWeight: FontWeight.w800),
-              ),
-            ),
-          ],
-        );
-      },
+            onPressed: () {
+              ref
+                  .read(transactionListProvider.notifier)
+                  .deleteTransaction(widget.transaction.id);
+              Navigator.of(ctx).pop();
+              Navigator.of(context).pop();
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text('Transaction deleted'),
+                backgroundColor: Color(0xFFEF4444),
+              ));
+            },
+            child: const Text('Delete',
+                style: TextStyle(fontWeight: FontWeight.w800)),
+          ),
+        ],
+      ),
     );
   }
+
+  bool _isToday(DateTime d) {
+    final n = DateTime.now();
+    return d.year == n.year && d.month == n.month && d.day == n.day;
+  }
+
+  // ── build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -215,12 +187,15 @@ class _TransactionDetailsScreenState extends ConsumerState<TransactionDetailsScr
     final sources = ref.watch(sourcesListProvider);
 
     final isIncome = _selectedCategory.toLowerCase() == 'income';
+    final activeColor =
+        isIncome ? const Color(0xFF10B981) : TallyTapTheme.primaryMint;
     final accentColor = TallyTapTheme.getColorForCategory(_selectedCategory);
-    final formattedDate = DateFormat('EEEE, MMMM d, y').format(_selectedDate);
+    final formattedDate =
+        DateFormat('EEEE, MMMM d, y').format(_selectedDate);
     final formattedTime = DateFormat('h:mm a').format(_selectedDate);
-    final shortFormattedDate = DateFormat('MMM d, y').format(_selectedDate);
+    final shortDate = DateFormat('MMM d, y').format(_selectedDate);
 
-    // If active categories/sources do not contain current selected, temporarily add to avoid dropdown errors
+    // Make sure dropdowns don't throw if category/source was deleted
     final dropdownCategories = List<String>.from(categories);
     if (!dropdownCategories.contains(_selectedCategory)) {
       dropdownCategories.add(_selectedCategory);
@@ -230,13 +205,18 @@ class _TransactionDetailsScreenState extends ConsumerState<TransactionDetailsScr
       dropdownSources.add(_selectedPaymentMethod);
     }
 
+    final dateLabel = _isToday(_selectedDate)
+        ? 'Today, $shortDate'
+        : DateFormat('EEE, MMM d, y').format(_selectedDate);
+
     return Scaffold(
       backgroundColor: TallyTapTheme.obsidianBg,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: TallyTapTheme.textLight, size: 20),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              color: TallyTapTheme.textLight, size: 20),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
@@ -251,7 +231,9 @@ class _TransactionDetailsScreenState extends ConsumerState<TransactionDetailsScr
         actions: [
           IconButton(
             icon: Icon(
-              _isEditing ? Icons.close_rounded : Icons.edit_note_rounded,
+              _isEditing
+                  ? Icons.close_rounded
+                  : Icons.edit_note_rounded,
               color: TallyTapTheme.primaryMint,
               size: _isEditing ? 24 : 28,
             ),
@@ -259,9 +241,10 @@ class _TransactionDetailsScreenState extends ConsumerState<TransactionDetailsScr
               HapticFeedback.mediumImpact();
               setState(() {
                 if (_isEditing) {
-                  // Reset form inputs to original values on cancel
                   _merchantController.text = widget.transaction.merchant;
-                  _amountController.text = widget.transaction.amount.toStringAsFixed(2);
+                  _amountController.text =
+                      widget.transaction.amount.toStringAsFixed(2);
+                  _notesController.text = widget.transaction.notes;
                   _selectedDate = widget.transaction.date;
                   _selectedCategory = widget.transaction.category;
                   _selectedPaymentMethod = widget.transaction.paymentMethod;
@@ -271,7 +254,8 @@ class _TransactionDetailsScreenState extends ConsumerState<TransactionDetailsScr
             },
           ),
           IconButton(
-            icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFFEF4444)),
+            icon: const Icon(Icons.delete_outline_rounded,
+                color: Color(0xFFEF4444)),
             onPressed: () {
               HapticFeedback.vibrate();
               _confirmDelete();
@@ -281,367 +265,778 @@ class _TransactionDetailsScreenState extends ConsumerState<TransactionDetailsScr
         ],
       ),
       body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
-                child: Form(
-                  key: _formKey,
+        child: Form(
+          key: _formKey,
+          child: Column(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const SizedBox(height: 16),
-                      // Header Section with Giant Amount
-                      Center(
-                        child: Column(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: accentColor.withOpacity(0.08),
-                                shape: BoxShape.circle,
-                                border: Border.all(color: accentColor.withOpacity(0.2), width: 1.0),
-                              ),
-                              child: Icon(
-                                TallyTapTheme.getIconForCategory(_selectedCategory, isIncome),
-                                color: accentColor,
-                                size: 36,
-                              ),
+                      // ── AMOUNT CARD ────────────────────────────────────
+                      _AmountCard(
+                        currency: currency,
+                        isEditing: _isEditing,
+                        isIncome: isIncome,
+                        accentColor: accentColor,
+                        activeColor: activeColor,
+                        amountController: _amountController,
+                        merchantController: _merchantController,
+                        selectedCategory: _selectedCategory,
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // ── MERCHANT FIELD (edit mode) ─────────────────────
+                      if (_isEditing) ...[
+                        _SectionLabel(label: 'Merchant / Title'),
+                        const SizedBox(height: 10),
+                        TextFormField(
+                          controller: _merchantController,
+                          style: const TextStyle(
+                            color: TallyTapTheme.textLight,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          textCapitalization: TextCapitalization.words,
+                          decoration: InputDecoration(
+                            hintText: 'e.g. Starbucks, Salary, Rent...',
+                            hintStyle: const TextStyle(
+                                color: TallyTapTheme.textGray, fontSize: 14),
+                            filled: true,
+                            fillColor: TallyTapTheme.obsidianCard,
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 16),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: const BorderSide(
+                                  color: TallyTapTheme.borderGreen),
                             ),
-                            const SizedBox(height: 16),
-                            if (!_isEditing) ...[
-                              Text(
-                                '${isIncome ? '+' : '-'} $currency${double.tryParse(_amountController.text)?.toStringAsFixed(2) ?? widget.transaction.amount.toStringAsFixed(2)}',
-                                style: TextStyle(
-                                  fontSize: 42,
-                                  fontWeight: FontWeight.w900,
-                                  color: isIncome ? const Color(0xFF10B981) : TallyTapTheme.textLight,
-                                  letterSpacing: -1.5,
-                                  fontFamily: 'Outfit',
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                _merchantController.text.isNotEmpty
-                                    ? _merchantController.text
-                                    : 'Unknown Merchant',
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w700,
-                                  color: TallyTapTheme.textGray,
-                                ),
-                              ),
-                            ] else ...[
-                              // Editable Merchant & Amount fields
-                              TextFormField(
-                                controller: _amountController,
-                                style: const TextStyle(
-                                  fontSize: 32,
-                                  fontWeight: FontWeight.w900,
-                                  color: TallyTapTheme.textLight,
-                                  fontFamily: 'Outfit',
-                                ),
-                                textAlign: TextAlign.center,
-                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                decoration: InputDecoration(
-                                  prefixText: '$currency ',
-                                  prefixStyle: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: TallyTapTheme.primaryMint),
-                                  hintText: '0.00',
-                                  hintStyle: TextStyle(color: TallyTapTheme.textGray.withOpacity(0.4)),
-                                  contentPadding: EdgeInsets.zero,
-                                  border: InputBorder.none,
-                                ),
-                                validator: (val) {
-                                  if (val == null || val.trim().isEmpty) return 'Required';
-                                  if (double.tryParse(val) == null) return 'Invalid number';
-                                  return null;
-                                },
-                              ),
-                              const SizedBox(height: 8),
-                              SizedBox(
-                                width: 220,
-                                child: TextFormField(
-                                  controller: _merchantController,
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
-                                    color: TallyTapTheme.textLight,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                  decoration: InputDecoration(
-                                    hintText: 'Merchant Name',
-                                    hintStyle: TextStyle(color: TallyTapTheme.textGray.withOpacity(0.5)),
-                                    border: InputBorder.none,
-                                    isDense: true,
-                                    focusedBorder: const UnderlineInputBorder(
-                                      borderSide: BorderSide(color: TallyTapTheme.primaryMint, width: 1.0),
-                                    ),
-                                    enabledBorder: UnderlineInputBorder(
-                                      borderSide: BorderSide(color: TallyTapTheme.borderGreen.withOpacity(0.5), width: 1.0),
-                                    ),
-                                  ),
-                                  validator: (val) {
-                                    if (val == null || val.trim().isEmpty) return 'Merchant is required';
-                                    return null;
-                                  },
-                                ),
-                              ),
-                            ],
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide:
+                                  BorderSide(color: activeColor, width: 1.5),
+                            ),
+                          ),
+                          validator: (val) {
+                            if (val == null || val.trim().isEmpty) {
+                              return 'Merchant is required';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 24),
+                      ],
+
+                      // ── CATEGORY SECTION ───────────────────────────────
+                      if (!isIncome) ...[
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            _SectionLabel(label: 'Category'),
+                            if (!_isEditing)
+                              _CategoryPill(
+                                  category: _selectedCategory,
+                                  color: accentColor),
                           ],
                         ),
+                        if (_isEditing) ...[
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            height: 84,
+                            child: ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              physics: const BouncingScrollPhysics(),
+                              itemCount: dropdownCategories
+                                  .where((c) =>
+                                      c.toLowerCase() != 'income')
+                                  .length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(width: 12),
+                              itemBuilder: (ctx, i) {
+                                final cat = dropdownCategories
+                                    .where((c) =>
+                                        c.toLowerCase() != 'income')
+                                    .toList()[i];
+                                final selected = cat == _selectedCategory;
+                                final color =
+                                    TallyTapTheme.getColorForCategory(cat);
+                                return GestureDetector(
+                                  onTap: () {
+                                    HapticFeedback.selectionClick();
+                                    setState(() => _selectedCategory = cat);
+                                  },
+                                  child: AnimatedContainer(
+                                    duration:
+                                        const Duration(milliseconds: 200),
+                                    width: 72,
+                                    decoration: BoxDecoration(
+                                      color: selected
+                                          ? color.withOpacity(0.15)
+                                          : TallyTapTheme.obsidianCard,
+                                      borderRadius:
+                                          BorderRadius.circular(18),
+                                      border: Border.all(
+                                        color: selected
+                                            ? color
+                                            : TallyTapTheme.borderGreen,
+                                        width: selected ? 1.8 : 1.0,
+                                      ),
+                                      boxShadow: selected
+                                          ? [
+                                              BoxShadow(
+                                                color:
+                                                    color.withOpacity(0.25),
+                                                blurRadius: 10,
+                                                offset: const Offset(0, 4),
+                                              )
+                                            ]
+                                          : null,
+                                    ),
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Container(
+                                          width: 40,
+                                          height: 40,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: selected
+                                                ? color.withOpacity(0.2)
+                                                : TallyTapTheme.obsidianBg
+                                                    .withOpacity(0.5),
+                                          ),
+                                          child: Icon(
+                                            TallyTapTheme.getIconForCategory(
+                                                cat, false),
+                                            color: selected
+                                                ? color
+                                                : TallyTapTheme.textGray,
+                                            size: 20,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          cat,
+                                          textAlign: TextAlign.center,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700,
+                                            color: selected
+                                                ? color
+                                                : TallyTapTheme.textGray,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 24),
+                      ],
+
+                      // ── PAYMENT SOURCE SECTION ─────────────────────────
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          _SectionLabel(
+                              label: isIncome
+                                  ? 'Deposit Destination'
+                                  : 'Payment Source'),
+                          if (!_isEditing)
+                            _SourcePill(
+                              source: _selectedPaymentMethod,
+                              color: TallyTapTheme.getColorForSource(
+                                  _selectedPaymentMethod),
+                            ),
+                        ],
                       ),
-                      const SizedBox(height: 40),
+                      if (_isEditing) ...[
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          height: 110,
+                          child: ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            physics: const BouncingScrollPhysics(),
+                            itemCount: dropdownSources.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(width: 12),
+                            itemBuilder: (ctx, i) {
+                              final src = dropdownSources[i];
+                              final selected =
+                                  src == _selectedPaymentMethod;
+                              final srcColor =
+                                  TallyTapTheme.getColorForSource(src);
+                              return GestureDetector(
+                                onTap: () {
+                                  HapticFeedback.selectionClick();
+                                  setState(
+                                      () => _selectedPaymentMethod = src);
+                                },
+                                child: AnimatedContainer(
+                                  duration:
+                                      const Duration(milliseconds: 200),
+                                  width: 148,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: selected
+                                        ? srcColor.withOpacity(0.12)
+                                        : TallyTapTheme.obsidianCard,
+                                    borderRadius: BorderRadius.circular(18),
+                                    border: Border.all(
+                                      color: selected
+                                          ? srcColor
+                                          : TallyTapTheme.borderGreen,
+                                      width: selected ? 1.8 : 1.0,
+                                    ),
+                                    boxShadow: selected
+                                        ? [
+                                            BoxShadow(
+                                              color:
+                                                  srcColor.withOpacity(0.2),
+                                              blurRadius: 12,
+                                              offset: const Offset(0, 4),
+                                            )
+                                          ]
+                                        : null,
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.start,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(6),
+                                        decoration: BoxDecoration(
+                                          color:
+                                              srcColor.withOpacity(0.15),
+                                          borderRadius:
+                                              BorderRadius.circular(10),
+                                        ),
+                                        child: Icon(
+                                          TallyTapTheme.getIconForSource(
+                                              src),
+                                          color: srcColor,
+                                          size: 18,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        src,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w700,
+                                          color: selected
+                                              ? TallyTapTheme.textLight
+                                              : TallyTapTheme.textGray,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
 
-                      // Details Block Card
-                      Card(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 24.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                      // ── DATE ROW ───────────────────────────────────────
+                      const SizedBox(height: 24),
+                      GestureDetector(
+                        onTap: _isEditing
+                            ? () => _pickDate(context)
+                            : null,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 14),
+                          decoration: BoxDecoration(
+                            color: TallyTapTheme.obsidianCard,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                                color: TallyTapTheme.borderGreen),
+                          ),
+                          child: Row(
                             children: [
-                              // CATEGORY row
-                              _buildMetaRow(
-                                label: 'Category',
-                                valueWidget: _isEditing
-                                    ? DropdownButtonFormField<String>(
-                                        value: _selectedCategory,
-                                        isExpanded: true,
-                                        borderRadius: BorderRadius.circular(16),
-                                        dropdownColor: TallyTapTheme.obsidianCard,
-                                        style: const TextStyle(color: TallyTapTheme.textLight, fontSize: 14, fontWeight: FontWeight.bold),
-                                        decoration: const InputDecoration(
-                                          border: InputBorder.none,
-                                          isDense: true,
-                                          contentPadding: EdgeInsets.zero,
-                                        ),
-                                        iconEnabledColor: TallyTapTheme.primaryMint,
-                                        items: dropdownCategories.map((String cat) {
-                                          return DropdownMenuItem<String>(
-                                            value: cat,
-                                            child: Align(
-                                              alignment: Alignment.centerRight,
-                                              child: Text(cat),
-                                            ),
-                                          );
-                                        }).toList(),
-                                        onChanged: (val) {
-                                          if (val != null) {
-                                            setState(() {
-                                              _selectedCategory = val;
-                                            });
-                                          }
-                                        },
-                                      )
-                                    : Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Container(
-                                            width: 8,
-                                            height: 8,
-                                            decoration: BoxDecoration(shape: BoxShape.circle, color: accentColor),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            _selectedCategory,
-                                            style: const TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w800,
-                                              color: TallyTapTheme.textLight,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                              ),
-                              const Divider(color: TallyTapTheme.borderGreen, height: 32, thickness: 0.5),
-
-                              // PAYMENT METHOD row
-                              _buildMetaRow(
-                                label: 'Source',
-                                valueWidget: _isEditing
-                                    ? DropdownButtonFormField<String>(
-                                        value: _selectedPaymentMethod,
-                                        isExpanded: true,
-                                        borderRadius: BorderRadius.circular(16),
-                                        dropdownColor: TallyTapTheme.obsidianCard,
-                                        style: const TextStyle(color: TallyTapTheme.textLight, fontSize: 14, fontWeight: FontWeight.bold),
-                                        decoration: const InputDecoration(
-                                          border: InputBorder.none,
-                                          isDense: true,
-                                          contentPadding: EdgeInsets.zero,
-                                        ),
-                                        iconEnabledColor: TallyTapTheme.primaryMint,
-                                        items: dropdownSources.map((String src) {
-                                          return DropdownMenuItem<String>(
-                                            value: src,
-                                            child: Align(
-                                              alignment: Alignment.centerRight,
-                                              child: Text(src),
-                                            ),
-                                          );
-                                        }).toList(),
-                                        onChanged: (val) {
-                                          if (val != null) {
-                                            setState(() {
-                                              _selectedPaymentMethod = val;
-                                            });
-                                          }
-                                        },
-                                      )
-                                    : Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          const Icon(Icons.account_balance_wallet_outlined, color: TallyTapTheme.textGray, size: 14),
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            _selectedPaymentMethod,
-                                            style: const TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w800,
-                                              color: TallyTapTheme.textLight,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                              ),
-                              const Divider(color: TallyTapTheme.borderGreen, height: 32, thickness: 0.5),
-
-                              // DATE & TIME row
-                              _buildMetaRow(
-                                label: 'Date & Time',
-                                valueWidget: _isEditing
-                                    ? InkWell(
-                                        onTap: () => _selectDateTime(context),
-                                        borderRadius: BorderRadius.circular(8),
-                                        child: Padding(
-                                          padding: const EdgeInsets.symmetric(vertical: 4.0),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              const Icon(Icons.calendar_month_outlined, color: TallyTapTheme.primaryMint, size: 16),
-                                              const SizedBox(width: 8),
-                                              Flexible(
-                                                child: Text(
-                                                  '$shortFormattedDate, $formattedTime',
-                                                  style: const TextStyle(
-                                                    fontSize: 13,
-                                                    fontWeight: FontWeight.w800,
-                                                    color: TallyTapTheme.primaryMint,
-                                                  ),
-                                                  overflow: TextOverflow.ellipsis,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
+                              Icon(Icons.calendar_today_outlined,
+                                  color: activeColor, size: 18),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _isEditing
+                                    ? Text(
+                                        dateLabel,
+                                        style: TextStyle(
+                                          color: activeColor,
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 14,
                                         ),
                                       )
                                     : Column(
-                                        crossAxisAlignment: CrossAxisAlignment.end,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Text(
                                             formattedDate,
                                             style: const TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w800,
-                                              color: TallyTapTheme.textLight,
+                                              color:
+                                                  TallyTapTheme.textLight,
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 13,
                                             ),
                                           ),
                                           const SizedBox(height: 2),
                                           Text(
                                             formattedTime,
                                             style: const TextStyle(
+                                              color:
+                                                  TallyTapTheme.textGray,
                                               fontSize: 12,
-                                              color: TallyTapTheme.textGray,
                                             ),
                                           ),
                                         ],
                                       ),
                               ),
+                              if (_isEditing)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 14, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: TallyTapTheme.borderGreen
+                                        .withOpacity(0.4),
+                                    borderRadius:
+                                        BorderRadius.circular(20),
+                                  ),
+                                  child: const Text(
+                                    'Change',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: TallyTapTheme.textLight,
+                                    ),
+                                  ),
+                                ),
                             ],
                           ),
                         ),
                       ),
+                      const SizedBox(height: 24),
 
+                      // ── NOTES SECTION ─────────────────────────────────
+                      _SectionLabel(
+                          label: _isEditing
+                              ? 'Notes (optional)'
+                              : 'Notes'),
+                      const SizedBox(height: 10),
+                      if (_isEditing)
+                        TextField(
+                          controller: _notesController,
+                          style: const TextStyle(
+                            color: TallyTapTheme.textLight,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          maxLines: 4,
+                          minLines: 2,
+                          textCapitalization: TextCapitalization.sentences,
+                          decoration: InputDecoration(
+                            hintText:
+                                'Add a note about this transaction...',
+                            hintStyle: const TextStyle(
+                                color: TallyTapTheme.textGray,
+                                fontSize: 14),
+                            filled: true,
+                            fillColor: TallyTapTheme.obsidianCard,
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 16),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: const BorderSide(
+                                  color: TallyTapTheme.borderGreen),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide(
+                                  color: activeColor, width: 1.5),
+                            ),
+                            prefixIcon: const Padding(
+                              padding:
+                                  EdgeInsets.only(left: 16, right: 8),
+                              child: Icon(
+                                Icons.notes_rounded,
+                                color: TallyTapTheme.textGray,
+                                size: 18,
+                              ),
+                            ),
+                            prefixIconConstraints: const BoxConstraints(
+                                minWidth: 0, minHeight: 0),
+                          ),
+                        )
+                      else
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 16),
+                          decoration: BoxDecoration(
+                            color: TallyTapTheme.obsidianCard,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                                color: TallyTapTheme.borderGreen),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(Icons.notes_rounded,
+                                  color: TallyTapTheme.textGray, size: 16),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  _notesController.text.isNotEmpty
+                                      ? _notesController.text
+                                      : 'No notes added.',
+                                  style: TextStyle(
+                                    color: _notesController.text.isNotEmpty
+                                        ? TallyTapTheme.textLight
+                                        : TallyTapTheme.textGray,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                    fontStyle:
+                                        _notesController.text.isEmpty
+                                            ? FontStyle.italic
+                                            : FontStyle.normal,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      const SizedBox(height: 8),
                     ],
                   ),
                 ),
               ),
-            ),
 
-            // Floating Bottom Button in Edit Mode
-            if (_isEditing)
-              Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    gradient: const LinearGradient(
-                      colors: [TallyTapTheme.primaryMint, Color(0xFF33C28A)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+              // ── SAVE BUTTON (edit mode only) ───────────────────────────
+              if (_isEditing)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                  child: Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(18),
+                      gradient: const LinearGradient(
+                        colors: [
+                          TallyTapTheme.primaryMint,
+                          Color(0xFF33C28A)
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: TallyTapTheme.primaryMint.withOpacity(0.35),
+                          blurRadius: 16,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: TallyTapTheme.primaryMint.withOpacity(0.3),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        foregroundColor: TallyTapTheme.obsidianBg,
+                        shadowColor: Colors.transparent,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18)),
+                        padding: const EdgeInsets.symmetric(vertical: 18),
                       ),
-                    ],
-                  ),
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.transparent,
-                      foregroundColor: TallyTapTheme.obsidianBg,
-                      shadowColor: Colors.transparent,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                      icon: const Icon(Icons.check_circle_outline_rounded,
+                          size: 22),
+                      label: const Text(
+                        'Save Changes',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.5,
+                        ),
                       ),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    onPressed: () {
-                      HapticFeedback.lightImpact();
-                      _saveChanges();
-                    },
-                    child: const Text(
-                      'SAVE CHANGES',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 1.0,
-                      ),
+                      onPressed: () {
+                        HapticFeedback.lightImpact();
+                        _saveChanges();
+                      },
                     ),
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
+}
 
-  Widget _buildMetaRow({required String label, required Widget valueWidget}) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 13,
-            color: TallyTapTheme.textGray,
-            fontWeight: FontWeight.w600,
-          ),
+// ── Sub-widgets ───────────────────────────────────────────────────────────────
+
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel({required this.label});
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Text(
+        label,
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+          color: TallyTapTheme.textGray,
         ),
-        const SizedBox(width: 24),
-        Expanded(
-          child: Align(
-            alignment: Alignment.centerRight,
-            child: valueWidget,
+      );
+}
+
+class _CategoryPill extends StatelessWidget {
+  const _CategoryPill({required this.category, required this.color});
+  final String category;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withOpacity(0.4)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 7,
+            height: 7,
+            decoration: BoxDecoration(shape: BoxShape.circle, color: color),
           ),
-        ),
-      ],
+          const SizedBox(width: 6),
+          Text(
+            category,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SourcePill extends StatelessWidget {
+  const _SourcePill({required this.source, required this.color});
+  final String source;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withOpacity(0.4)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(TallyTapTheme.getIconForSource(source), color: color, size: 13),
+          const SizedBox(width: 6),
+          Text(
+            source,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AmountCard extends StatelessWidget {
+  const _AmountCard({
+    required this.currency,
+    required this.isEditing,
+    required this.isIncome,
+    required this.accentColor,
+    required this.activeColor,
+    required this.amountController,
+    required this.merchantController,
+    required this.selectedCategory,
+  });
+
+  final String currency;
+  final bool isEditing;
+  final bool isIncome;
+  final Color accentColor;
+  final Color activeColor;
+  final TextEditingController amountController;
+  final TextEditingController merchantController;
+  final String selectedCategory;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+      decoration: BoxDecoration(
+        color: TallyTapTheme.obsidianCard,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: TallyTapTheme.borderGreen),
+        boxShadow: [
+          BoxShadow(
+            color: accentColor.withOpacity(0.06),
+            blurRadius: 20,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text(
+            'TRANSACTION AMOUNT',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.8,
+              color: TallyTapTheme.textGray,
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Amount row
+          if (isEditing)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(
+                  currency,
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w900,
+                    color: activeColor,
+                    fontFamily: 'Outfit',
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: IntrinsicWidth(
+                    child: TextFormField(
+                      controller: amountController,
+                      style: const TextStyle(
+                        fontSize: 48,
+                        fontWeight: FontWeight.w900,
+                        color: TallyTapTheme.textLight,
+                        fontFamily: 'Outfit',
+                        letterSpacing: -2,
+                      ),
+                      textAlign: TextAlign.left,
+                      keyboardType:
+                          const TextInputType.numberWithOptions(decimal: true),
+                      decoration: InputDecoration(
+                        hintText: '0.00',
+                        hintStyle: TextStyle(
+                          fontSize: 48,
+                          fontWeight: FontWeight.w900,
+                          color: TallyTapTheme.textGray.withOpacity(0.25),
+                          fontFamily: 'Outfit',
+                          letterSpacing: -2,
+                        ),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.zero,
+                        isDense: true,
+                      ),
+                      validator: (val) {
+                        if (val == null || val.trim().isEmpty) return 'Required';
+                        if (double.tryParse(val) == null) return 'Invalid';
+                        return null;
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            )
+          else
+            Text(
+              '${isIncome ? '+' : '-'} $currency${double.tryParse(amountController.text)?.toStringAsFixed(2) ?? '0.00'}',
+              style: TextStyle(
+                fontSize: 42,
+                fontWeight: FontWeight.w900,
+                color: isIncome
+                    ? const Color(0xFF10B981)
+                    : TallyTapTheme.textLight,
+                letterSpacing: -1.5,
+                fontFamily: 'Outfit',
+              ),
+            ),
+
+          const SizedBox(height: 6),
+
+          // Merchant label (view mode only)
+          if (!isEditing)
+            Text(
+              merchantController.text.isNotEmpty
+                  ? merchantController.text
+                  : 'Unknown Merchant',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: TallyTapTheme.textGray,
+              ),
+            ),
+
+          const SizedBox(height: 12),
+
+          // Category + icon badge
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: accentColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: accentColor.withOpacity(0.25)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  TallyTapTheme.getIconForCategory(selectedCategory, isIncome),
+                  color: accentColor,
+                  size: 14,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  selectedCategory,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: accentColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
