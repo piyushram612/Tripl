@@ -30,6 +30,7 @@ class _TransactionDetailsScreenState
   late TextEditingController _merchantController;
   late TextEditingController _amountController;
   late TextEditingController _notesController;
+  late TextEditingController _paidToController;
   late DateTime _selectedDate;
   late String _selectedCategory;
   late String _selectedPaymentMethod;
@@ -43,6 +44,8 @@ class _TransactionDetailsScreenState
         text: widget.transaction.amount.toStringAsFixed(2));
     _notesController =
         TextEditingController(text: widget.transaction.notes);
+    _paidToController =
+        TextEditingController(text: widget.transaction.paidTo);
     _selectedDate = widget.transaction.date;
     _selectedCategory = widget.transaction.category;
     _selectedPaymentMethod = widget.transaction.paymentMethod;
@@ -53,6 +56,7 @@ class _TransactionDetailsScreenState
     _merchantController.dispose();
     _amountController.dispose();
     _notesController.dispose();
+    _paidToController.dispose();
     super.dispose();
   }
 
@@ -106,6 +110,7 @@ class _TransactionDetailsScreenState
             paymentMethod: _selectedPaymentMethod,
             category: _selectedCategory,
             notes: _notesController.text.trim(),
+            paidTo: _paidToController.text.trim(),
           ),
         );
     setState(() => _isEditing = false);
@@ -245,6 +250,7 @@ class _TransactionDetailsScreenState
                   _amountController.text =
                       widget.transaction.amount.toStringAsFixed(2);
                   _notesController.text = widget.transaction.notes;
+                  _paidToController.text = widget.transaction.paidTo;
                   _selectedDate = widget.transaction.date;
                   _selectedCategory = widget.transaction.category;
                   _selectedPaymentMethod = widget.transaction.paymentMethod;
@@ -327,6 +333,75 @@ class _TransactionDetailsScreenState
                             return null;
                           },
                         ),
+                        const SizedBox(height: 24),
+                      ],
+
+                      // ── PAID TO / PAID BY SECTION ──────────────────────
+                      if (_isEditing || _paidToController.text.isNotEmpty) ...[
+                        _SectionLabel(
+                            label: isIncome
+                                ? 'Paid By'
+                                : 'Paid To'),
+                        const SizedBox(height: 10),
+                        if (_isEditing)
+                          TextFormField(
+                            controller: _paidToController,
+                            style: const TextStyle(
+                              color: TallyTapTheme.textLight,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            textCapitalization: TextCapitalization.words,
+                            decoration: InputDecoration(
+                              hintText: isIncome
+                                  ? 'e.g. Employer, Client...'
+                                  : 'e.g. Landlord, Store Name...',
+                              hintStyle: const TextStyle(
+                                  color: TallyTapTheme.textGray, fontSize: 14),
+                              filled: true,
+                              fillColor: TallyTapTheme.obsidianCard,
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 20, vertical: 16),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                borderSide: const BorderSide(
+                                    color: TallyTapTheme.borderGreen),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                borderSide: BorderSide(
+                                    color: activeColor, width: 1.5),
+                              ),
+                            ),
+                          )
+                        else
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 16),
+                            decoration: BoxDecoration(
+                              color: TallyTapTheme.obsidianCard,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                  color: TallyTapTheme.borderGreen),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.storefront_rounded,
+                                    color: TallyTapTheme.textGray, size: 16),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    _paidToController.text,
+                                    style: const TextStyle(
+                                      color: TallyTapTheme.textLight,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         const SizedBox(height: 24),
                       ],
 

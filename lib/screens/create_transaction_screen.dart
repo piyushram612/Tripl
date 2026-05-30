@@ -27,6 +27,7 @@ class _CreateTransactionScreenState
   final TextEditingController _merchantController = TextEditingController();
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _notesController = TextEditingController();
+  final TextEditingController _paidToController = TextEditingController();
 
   DateTime _selectedDate = DateTime.now();
   bool _isIncome = false;
@@ -58,6 +59,7 @@ class _CreateTransactionScreenState
     _merchantController.dispose();
     _amountController.dispose();
     _notesController.dispose();
+    _paidToController.dispose();
     _amountPulse.dispose();
     super.dispose();
   }
@@ -150,6 +152,7 @@ class _CreateTransactionScreenState
       paymentMethod: source,
       category: category,
       notes: _notesController.text.trim(),
+      paidTo: _paidToController.text.trim(),
       needsVerification: _finishLater,
       reminderDate: _finishLater ? DateTime(
         _reminderDate.year,
@@ -265,6 +268,40 @@ class _CreateTransactionScreenState
                           hintText: _isIncome
                               ? 'e.g. Salary, Dividend, Gift...'
                               : 'e.g. Starbucks, Amazon, Rent...',
+                          hintStyle: const TextStyle(
+                              color: TallyTapTheme.textGray, fontSize: 14),
+                          filled: true,
+                          fillColor: TallyTapTheme.obsidianCard,
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 16),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: const BorderSide(
+                                color: TallyTapTheme.borderGreen),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide:
+                                BorderSide(color: activeColor, width: 1.5),
+                          ),
+                        ),
+                      ),
+
+                      // ── PAID TO / PAID BY FIELD ──────────────────────────
+                      const SizedBox(height: 24),
+                      SectionLabel(label: _isIncome ? 'Paid By (optional)' : 'Paid To (optional)'),
+                      const SizedBox(height: 10),
+                      TextFormField(
+                        controller: _paidToController,
+                        style: const TextStyle(
+                          color: TallyTapTheme.textLight,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        textCapitalization: TextCapitalization.words,
+                        decoration: InputDecoration(
+                          hintText: _isIncome
+                              ? 'e.g. Employer, Client...'
+                              : 'e.g. Landlord, Store Name...',
                           hintStyle: const TextStyle(
                               color: TallyTapTheme.textGray, fontSize: 14),
                           filled: true,

@@ -66,16 +66,20 @@ class ManageCurrencySheet extends ConsumerWidget {
               child: Column(
                 children: currencies.map((currency) {
                   final isSelected = currentCurrency == currency['symbol'];
-                  return ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      side: BorderSide(
-                        color: isSelected ? TallyTapTheme.primaryMint : Colors.transparent,
-                        width: 1.0,
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2.0),
+                    child: Material(
+                      color: isSelected ? TallyTapTheme.primaryMint.withOpacity(0.1) : Colors.transparent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(
+                          color: isSelected ? TallyTapTheme.primaryMint : Colors.transparent,
+                          width: 1.0,
+                        ),
                       ),
-                    ),
-                    tileColor: isSelected ? TallyTapTheme.primaryMint.withOpacity(0.1) : Colors.transparent,
+                      clipBehavior: Clip.hardEdge,
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                     leading: Container(
                       width: 40,
                       height: 40,
@@ -128,6 +132,8 @@ class ManageCurrencySheet extends ConsumerWidget {
                         }
                       }
                     },
+                      ),
+                    ),
                   );
                 }).toList(),
               ),

@@ -28,6 +28,8 @@ class MainScreen extends ConsumerStatefulWidget {
 }
 
 class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObserver {
+  final GlobalKey _fabKey = GlobalKey();
+
   @override
   void initState() {
     super.initState();
@@ -103,6 +105,7 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
         ),
       ),
       floatingActionButton: Container(
+        key: _fabKey,
         height: 56,
         width: 56,
         decoration: BoxDecoration(
@@ -300,74 +303,137 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
   }
 
   void _showFabMenu(BuildContext context) {
+    final RenderBox? fabBox = _fabKey.currentContext?.findRenderObject() as RenderBox?;
+    if (fabBox == null) return;
+    
+    final Offset fabPosition = fabBox.localToGlobal(Offset.zero);
+    final Size fabSize = fabBox.size;
+
     showGeneralDialog(
       context: context,
       barrierDismissible: true,
       barrierLabel: 'Dismiss',
-      barrierColor: Colors.black.withOpacity(0.5),
-      transitionDuration: const Duration(milliseconds: 250),
-      pageBuilder: (context, animation, secondaryAnimation) {
-        return SafeArea(
-          child: Stack(
+      barrierColor: Colors.transparent,
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (context, animation, secondaryAnimation) => const SizedBox(),
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        return Scaffold(
+          backgroundColor: Colors.transparent,
+          body: Stack(
             children: [
+              Positioned.fill(
+                child: GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  behavior: HitTestBehavior.opaque,
+                  child: FadeTransition(
+                    opacity: animation,
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                      child: Container(
+                        color: TallyTapTheme.obsidianBg.withOpacity(0.5),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              
               Positioned(
-                bottom: 110,
-                right: 24,
+                bottom: MediaQuery.of(context).size.height - fabPosition.dy + 16,
+                right: MediaQuery.of(context).size.width - fabPosition.dx - fabSize.width,
                 child: Material(
                   color: Colors.transparent,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _buildSpeedDialItem(
-                        context,
-                        icon: Icons.add_rounded,
-                        label: 'New Transaction',
-                        onTap: () {
-                          Navigator.pop(context);
-                          Navigator.push(
+                  child: FadeTransition(
+                    opacity: animation,
+                    child: SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(0, 0.2),
+                        end: Offset.zero,
+                      ).animate(CurvedAnimation(
+                        parent: animation,
+                        curve: Curves.easeOutBack,
+                      )),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildSpeedDialItem(
                             context,
-                            MaterialPageRoute(
-                              builder: (context) => const CreateTransactionScreen(),
-                            ),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      _buildSpeedDialItem(
-                        context,
-                        icon: Icons.autorenew_rounded,
-                        label: 'Recurring Payments',
-                        onTap: () {
-                          Navigator.pop(context);
-                          Navigator.push(
+                            icon: Icons.add_rounded,
+                            label: 'New Transaction',
+                            onTap: () {
+                              Navigator.pop(context);
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const CreateTransactionScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          _buildSpeedDialItem(
                             context,
-                            MaterialPageRoute(
-                              builder: (context) => const CreateRecurringTransactionScreen(),
-                            ),
-                          );
-                        },
+                            icon: Icons.autorenew_rounded,
+                            label: 'Recurring Payments',
+                            onTap: () {
+                              Navigator.pop(context);
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const CreateRecurringTransactionScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
+                  ),
+                ),
+              ),
+
+              Positioned(
+                left: fabPosition.dx,
+                top: fabPosition.dy,
+                child: Material(
+                  color: Colors.transparent,
+                  child: GestureDetector(
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      Navigator.pop(context);
+                    },
+                    child: Container(
+                      height: fabSize.height,
+                      width: fabSize.width,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: const LinearGradient(
+                          colors: [TallyTapTheme.primaryMint, Color(0xFF33C28A)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: TallyTapTheme.primaryMint.withOpacity(0.35),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: RotationTransition(
+                        turns: Tween<double>(begin: 0, end: 0.125).animate(
+                          CurvedAnimation(
+                            parent: animation,
+                            curve: Curves.easeOutBack,
+                          )
+                        ),
+                        child: const Icon(Icons.add_rounded, color: TallyTapTheme.obsidianBg, size: 28),
+                      ),
+                    ),
                   ),
                 ),
               ),
             ],
-          ),
-        );
-      },
-      transitionBuilder: (context, animation, secondaryAnimation, child) {
-        return FadeTransition(
-          opacity: animation,
-          child: SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(0, 0.1),
-              end: Offset.zero,
-            ).animate(CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeOutBack,
-            )),
-            child: child,
           ),
         );
       },
@@ -381,17 +447,17 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         decoration: BoxDecoration(
-          color: TallyTapTheme.obsidianCard,
+          color: TallyTapTheme.primaryMint.withOpacity(0.15),
           borderRadius: BorderRadius.circular(30),
           border: Border.all(
-            color: TallyTapTheme.borderGreen.withOpacity(0.3),
+            color: TallyTapTheme.primaryMint.withOpacity(0.6),
             width: 1.2,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.3),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
+              color: TallyTapTheme.primaryMint.withOpacity(0.12),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
             ),
           ],
         ),
@@ -403,8 +469,8 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
             Text(
               label,
               style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
+                color: TallyTapTheme.primaryMint,
+                fontWeight: FontWeight.w700,
                 fontSize: 15,
                 letterSpacing: 0.3,
               ),

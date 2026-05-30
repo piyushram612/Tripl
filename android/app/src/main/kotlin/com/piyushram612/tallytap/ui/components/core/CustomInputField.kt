@@ -17,6 +17,8 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.foundation.text.BasicTextField
 import com.piyushram612.tallytap.ui.components.outerGlow
 
 val GreenPrimary = Color(0xFF10B981)
@@ -51,15 +53,21 @@ fun CustomInputField(
                 .then(if (isFocused || (onClick != null && value.isNotEmpty())) Modifier.outerGlow(color = GreenPrimary, radius = 8.dp, alpha = 0.25f, cornerRadius = 14.dp) else Modifier)
                 .background(InactivePill, RoundedCornerShape(14.dp))
                 .border(1.dp, if (isFocused || (onClick != null && value.isNotEmpty())) GreenPrimary else Color.Transparent, RoundedCornerShape(14.dp))
-                .clickable(
-                    enabled = onClick != null,
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null
-                ) { onClick?.invoke() }
+                .then(
+                    if (onClick != null) {
+                        Modifier.clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) { onClick.invoke() }
+                    } else Modifier
+                )
                 .padding(horizontal = 16.dp),
             contentAlignment = Alignment.CenterStart
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                modifier = Modifier.fillMaxSize(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 if (icon != null) {
                     Icon(
                         imageVector = icon,
@@ -77,6 +85,39 @@ fun CustomInputField(
                             fontWeight = FontWeight.W600,
                             color = if (value.isNotEmpty()) Color.White else Color.White.copy(alpha = 0.4f)
                         )
+                    )
+                } else {
+                    BasicTextField(
+                        value = value,
+                        onValueChange = onValueChange,
+                        textStyle = TextStyle(
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.W600,
+                            color = Color.White
+                        ),
+                        singleLine = true,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .onFocusChanged { focusState -> isFocused = focusState.isFocused },
+                        decorationBox = { innerTextField ->
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                if (value.isEmpty()) {
+                                    Text(
+                                        text = placeholder,
+                                        style = TextStyle(
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.W600,
+                                            color = Color.White.copy(alpha = 0.4f)
+                                        )
+                                    )
+                                }
+                                innerTextField()
+                            }
+                        }
                     )
                 }
             }
