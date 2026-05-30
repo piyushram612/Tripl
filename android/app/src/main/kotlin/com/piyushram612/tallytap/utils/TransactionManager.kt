@@ -17,7 +17,10 @@ object TransactionManager {
         titleText: String,
         amountText: String,
         category: String,
-        source: String
+        source: String,
+        paidTo: String = "",
+        needsVerification: Boolean = false,
+        reminderDate: String? = null
     ) {
         try {
             val prefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
@@ -28,6 +31,11 @@ object TransactionManager {
                 put("id", UUID.randomUUID().toString())
                 put("amount", amountText.toDoubleOrNull() ?: 0.0)
                 put("merchant", titleText)
+                put("paidTo", paidTo)
+                put("needsVerification", needsVerification)
+                if (reminderDate != null) {
+                    put("reminderDate", reminderDate)
+                }
 
                 val df = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
                     timeZone = TimeZone.getTimeZone("UTC")

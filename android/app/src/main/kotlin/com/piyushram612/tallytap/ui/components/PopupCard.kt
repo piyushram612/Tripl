@@ -119,7 +119,7 @@ fun PopupCard(
     var dateText by remember { mutableStateOf(SimpleDateFormat("dd MMM yyyy", Locale.US).format(Date())) }
     var timeText by remember { mutableStateOf(SimpleDateFormat("hh:mm a", Locale.US).format(Date())) }
     var paidTo by remember { mutableStateOf("") }
-    var finishLater by remember { mutableStateOf(true) }
+    var finishLater by remember { mutableStateOf(false) }
     var reminderDate by remember { mutableStateOf(SimpleDateFormat("dd.MM.yyyy", Locale.US).format(Date())) }
     var reminderTime by remember { mutableStateOf("09:00") }
     
@@ -398,11 +398,11 @@ fun PopupCard(
 
                                 // PAID TO / BY
                                 CustomInputField(
-                                    label = if (isIncome) "PAID BY" else "PAID TO",
+                                    label = if (isIncome) "PAID BY (OPTIONAL)" else "PAID TO (OPTIONAL)",
                                     value = paidTo,
                                     onValueChange = { paidTo = it },
                                     icon = Icons.Default.Storefront,
-                                    placeholder = "Enter name or organization"
+                                    placeholder = if (isIncome) "e.g. Employer, Client..." else "e.g. Landlord, Store Name..."
                                 )
 
                                 Spacer(modifier = Modifier.height(16.dp))
@@ -475,12 +475,26 @@ fun PopupCard(
                                 .background(GreenPrimary, RoundedCornerShape(100.dp))
                                 .clickable {
                                     if (amount.text.isNotBlank()) {
+                                        val isoReminderDate = if (finishLater) {
+                                            try {
+                                                val sdfInput = SimpleDateFormat("dd.MM.yyyy hh:mm a", Locale.US)
+                                                val parsedDate = sdfInput.parse("$reminderDate $reminderTime")
+                                                val sdfOutput = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
+                                                    timeZone = TimeZone.getTimeZone("UTC")
+                                                }
+                                                if (parsedDate != null) sdfOutput.format(parsedDate) else null
+                                            } catch (e: Exception) { null }
+                                        } else null
+
                                         TransactionManager.saveTransactionToPrefs(
                                             context = context,
                                             titleText = if (title.isNotBlank()) title else "Quick Expense",
                                             amountText = amount.text,
                                             category = selectedCategory,
-                                            source = selectedSource
+                                            source = selectedSource,
+                                            paidTo = paidTo,
+                                            needsVerification = finishLater,
+                                            reminderDate = isoReminderDate
                                         )
                                         Toast.makeText(context, "Logged: $currency${amount.text} to $selectedCategory", Toast.LENGTH_SHORT).show()
                                         onClose()

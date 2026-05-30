@@ -333,6 +333,16 @@ class SettingsScreen extends ConsumerWidget {
                       'Long press TallyTap icon on your phone launcher, select "Quick Add" to trigger instant overlays under 100ms.',
                       style: TextStyle(fontSize: 12, color: TallyTapTheme.textGray, height: 1.3),
                     ),
+                    SizedBox(height: 12),
+                    Text(
+                      '2. Quick Actions',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: TallyTapTheme.textLight),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Long press the + floating action button on any screen to reveal more transaction options.',
+                      style: TextStyle(fontSize: 12, color: TallyTapTheme.textGray, height: 1.3),
+                    ),
                   ],
                 ),
               ),

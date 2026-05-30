@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/theme.dart';
 import '../models/transaction_model.dart';
+import '../models/filter_criteria.dart';
 import '../providers/currency_provider.dart';
 import '../services/transaction_service.dart';
 import 'widgets/transaction_item.dart';
+import 'widgets/timeline_filter_sheet.dart';
 
 class TimelineScreen extends ConsumerStatefulWidget {
   const TimelineScreen({super.key});
@@ -17,6 +19,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
   String _searchQuery = '';
   String _activeFilter = 'All Activity';
   final TextEditingController _searchController = TextEditingController();
+  FilterCriteria _filterCriteria = FilterCriteria();
 
   @override
   void dispose() {
@@ -24,10 +27,41 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
     super.dispose();
   }
 
+  void _showFilterMenu(BuildContext context, double maxAmount) async {
+    final result = await showModalBottomSheet<FilterCriteria>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(
+          top: MediaQuery.of(context).padding.top + 24,
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: TimelineFilterSheet(
+          initialCriteria: _filterCriteria,
+          maxTransactionAmount: maxAmount,
+        ),
+      ),
+    );
+
+    if (result != null && mounted) {
+      setState(() {
+        _filterCriteria = result;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final transactions = ref.watch(transactionListProvider);
     final currency = ref.watch(currencyProvider);
+
+    double maxAmount = 100.0;
+    if (transactions.isNotEmpty) {
+      double rawMax = transactions.map((t) => t.amount).reduce((a, b) => a > b ? a : b);
+      maxAmount = ((rawMax / 100).ceil() * 100).toDouble();
+      if (maxAmount < 100) maxAmount = 100;
+    }
 
     final filtered = transactions.where((tx) {
       final matchesSearch = tx.merchant.toLowerCase().contains(_searchQuery.toLowerCase()) ||
@@ -43,7 +77,34 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
         matchesTab = false; // Mock empty transfers
       }
 
-      return matchesSearch && matchesTab;
+      bool matchesFilter = true;
+      if (_filterCriteria.isActive) {
+        if (_filterCriteria.startDate != null) {
+          final start = DateTime(_filterCriteria.startDate!.year, _filterCriteria.startDate!.month, _filterCriteria.startDate!.day);
+          if (tx.date.isBefore(start)) matchesFilter = false;
+        }
+        if (_filterCriteria.endDate != null) {
+          final end = DateTime(_filterCriteria.endDate!.year, _filterCriteria.endDate!.month, _filterCriteria.endDate!.day, 23, 59, 59);
+          if (tx.date.isAfter(end)) matchesFilter = false;
+        }
+        if (_filterCriteria.minAmount != null && tx.amount < _filterCriteria.minAmount!) {
+          matchesFilter = false;
+        }
+        if (_filterCriteria.maxAmount != null && tx.amount > _filterCriteria.maxAmount!) {
+          matchesFilter = false;
+        }
+        if (_filterCriteria.categories.isNotEmpty && !_filterCriteria.categories.contains(tx.category)) {
+          matchesFilter = false;
+        }
+        if (_filterCriteria.paymentMethods.isNotEmpty && !_filterCriteria.paymentMethods.contains(tx.paymentMethod)) {
+          matchesFilter = false;
+        }
+        if (_filterCriteria.needsVerification != null && tx.needsVerification != _filterCriteria.needsVerification) {
+          matchesFilter = false;
+        }
+      }
+
+      return matchesSearch && matchesTab && matchesFilter;
     }).toList();
 
     final now = DateTime.now();
@@ -115,6 +176,13 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
               hintText: 'Search transactions...',
               hintStyle: const TextStyle(fontSize: 14, color: TallyTapTheme.textGray),
               prefixIcon: const Icon(Icons.search, color: TallyTapTheme.textGray, size: 20),
+              suffixIcon: IconButton(
+                icon: Icon(
+                  Icons.tune,
+                  color: _filterCriteria.isActive ? TallyTapTheme.primaryMint : TallyTapTheme.textGray,
+                ),
+                onPressed: () => _showFilterMenu(context, maxAmount),
+              ),
               filled: true,
               fillColor: TallyTapTheme.obsidianCard,
               contentPadding: const EdgeInsets.symmetric(vertical: 14),
@@ -196,7 +264,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                         child: Column(
                           children: [
                             for (int i = 0; i < olderList.length; i++) ...[
-                              _buildTimelineTransactionItem(olderList[i], currency),
+                              _buildTimelineTransactionItem(olderList[i], currency, showDate: true),
                               if (i < olderList.length - 1)
                                 const Divider(color: TallyTapTheme.borderGreen, height: 1, thickness: 0.5),
                             ],
@@ -272,12 +340,31 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
     );
   }
 
-  Widget _buildTimelineTransactionItem(ExpenseTransaction tx, String currency) {
-    final formattedTime = "${tx.date.hour.toString().padLeft(2, '0')}:${tx.date.minute.toString().padLeft(2, '0')} ${tx.date.hour >= 12 ? 'PM' : 'AM'}";
+  Widget _buildTimelineTransactionItem(ExpenseTransaction tx, String currency, {bool showDate = false}) {
+    int hour = tx.date.hour;
+    final period = hour >= 12 ? 'PM' : 'AM';
+    if (hour > 12) hour -= 12;
+    if (hour == 0) hour = 12;
+
+    final formattedTime = "${hour.toString().padLeft(2, '0')}:${tx.date.minute.toString().padLeft(2, '0')} $period";
+    String subtitle = '$formattedTime • ${tx.paymentMethod}';
+
+    if (showDate) {
+      final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      final monthStr = months[tx.date.month - 1];
+      final dateStr = '$monthStr ${tx.date.day}';
+      
+      if (tx.date.year != DateTime.now().year) {
+        subtitle = '$dateStr, ${tx.date.year} • $subtitle';
+      } else {
+        subtitle = '$dateStr • $subtitle';
+      }
+    }
+
     return TransactionItem(
       transaction: tx,
       currency: currency,
-      subtitle: '$formattedTime • ${tx.paymentMethod}',
+      subtitle: subtitle,
       padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
     );
   }
