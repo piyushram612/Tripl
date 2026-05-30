@@ -10,6 +10,7 @@ import 'sheets/manage_categories_sheet.dart';
 import 'sheets/manage_sources_sheet.dart';
 import 'sheets/manage_currency_sheet.dart';
 import 'sheets/manage_profile_sheet.dart';
+import 'recurring_transactions_list_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -288,6 +289,18 @@ class SettingsScreen extends ConsumerWidget {
                       subtitle: 'Select your preferred global currency',
                       onTap: () => _showManageCurrencySheet(context),
                     ),
+                    const Divider(color: TallyTapTheme.borderGreen, height: 1, indent: 20, endIndent: 20),
+                    _buildSettingsTile(
+                      icon: Icons.autorenew_rounded,
+                      title: 'Manage Recurring Payments',
+                      subtitle: 'View and edit your automated transactions',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const RecurringTransactionsListScreen()),
+                        );
+                      },
+                    ),
                   ],
                 ),
               ),
@@ -324,7 +337,7 @@ class SettingsScreen extends ConsumerWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 120),
           ],
         ),
       ),

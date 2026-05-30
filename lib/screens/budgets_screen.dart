@@ -435,7 +435,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> with SingleTicker
                       );
                     }).toList(),
                     
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 120),
                 ],
               ),
             ),
