@@ -78,3 +78,32 @@ class SourcesListNotifier extends StateNotifier<List<String>> {
     }
   }
 }
+
+final sourceStartingBalancesProvider = StateNotifierProvider<SourceStartingBalancesNotifier, Map<String, double>>((ref) {
+  return SourceStartingBalancesNotifier();
+});
+
+class SourceStartingBalancesNotifier extends StateNotifier<Map<String, double>> {
+  SourceStartingBalancesNotifier() : super({}) {
+    loadBalances();
+  }
+
+  Future<void> loadBalances() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.reload();
+    final Map<String, double> balances = {};
+    for (final key in prefs.getKeys()) {
+      if (key.startsWith('source_starting_balance_')) {
+        final source = key.replaceFirst('source_starting_balance_', '');
+        balances[source] = prefs.getDouble(key) ?? 0.0;
+      }
+    }
+    state = balances;
+  }
+
+  Future<void> setStartingBalance(String source, double amount) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('source_starting_balance_$source', amount);
+    state = {...state, source: amount};
+  }
+}

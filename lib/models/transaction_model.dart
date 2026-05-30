@@ -12,6 +12,8 @@ class ExpenseTransaction {
   final bool needsVerification;
   final DateTime? reminderDate;
 
+  final String? groupId;
+
   ExpenseTransaction({
     required this.id,
     required this.amount,
@@ -23,6 +25,7 @@ class ExpenseTransaction {
     this.paidTo = '',
     this.needsVerification = false,
     this.reminderDate,
+    this.groupId,
   });
 
   Map<String, dynamic> toMap() {
@@ -37,6 +40,7 @@ class ExpenseTransaction {
       'paidTo': paidTo,
       'needsVerification': needsVerification,
       'reminderDate': reminderDate?.toIso8601String(),
+      'groupId': groupId,
     };
   }
 
@@ -52,6 +56,7 @@ class ExpenseTransaction {
       paidTo: map['paidTo'] ?? '',
       needsVerification: map['needsVerification'] ?? false,
       reminderDate: map['reminderDate'] != null ? DateTime.parse(map['reminderDate']) : null,
+      groupId: map['groupId'],
     );
   }
 

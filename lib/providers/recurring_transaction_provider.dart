@@ -93,6 +93,10 @@ class RecurringTransactionsNotifier extends StateNotifier<List<RecurringTransact
     }
   }
 
+  Future<void> checkDueTransactions() async {
+    await _processDueTransactions();
+  }
+
   Future<void> _saveTransactions(List<RecurringTransaction> transactions) async {
     final prefs = await SharedPreferences.getInstance();
     final String encoded = json.encode(transactions.map((tx) => tx.toMap()).toList());
@@ -107,6 +111,8 @@ class RecurringTransactionsNotifier extends StateNotifier<List<RecurringTransact
     if (transaction.reminderEnabled) {
       await NotificationService.scheduleRecurringNotification(transaction);
     }
+
+    await _processDueTransactions();
   }
 
   Future<void> updateTransaction(RecurringTransaction transaction) async {
@@ -122,6 +128,8 @@ class RecurringTransactionsNotifier extends StateNotifier<List<RecurringTransact
     } else {
       await NotificationService.cancelNotification(transaction.id);
     }
+
+    await _processDueTransactions();
   }
 
   Future<void> deleteTransaction(String id) async {

@@ -14,14 +14,18 @@ final transactionListProvider = StateNotifierProvider<TransactionListNotifier, L
 
 class TransactionListNotifier extends StateNotifier<List<ExpenseTransaction>> {
   final TransactionService _service;
+  int _currentSession = 0;
 
   TransactionListNotifier(this._service) : super([]) {
     loadTransactions();
   }
 
   Future<void> loadTransactions() async {
+    final session = ++_currentSession;
     final list = await _service.getTransactions();
-    state = list;
+    if (session == _currentSession) {
+      state = list;
+    }
   }
 
   Future<void> addTransaction(ExpenseTransaction tx) async {

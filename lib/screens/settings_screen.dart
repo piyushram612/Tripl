@@ -5,12 +5,16 @@ import '../providers/app_state_provider.dart';
 import '../providers/category_provider.dart';
 import '../providers/source_provider.dart';
 import '../services/platform_service.dart';
+import '../services/notification_service.dart';
 import 'calibration_screen.dart';
 import 'sheets/manage_categories_sheet.dart';
 import 'sheets/manage_sources_sheet.dart';
 import 'sheets/manage_currency_sheet.dart';
 import 'sheets/manage_profile_sheet.dart';
 import 'recurring_transactions_list_screen.dart';
+import 'tools/expense_splitter_screen.dart';
+import 'tools/tip_calculator_screen.dart';
+import 'tools/outstanding_ledger_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -298,6 +302,63 @@ class SettingsScreen extends ConsumerWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(builder: (context) => const RecurringTransactionsListScreen()),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(left: 20.0, top: 16.0, bottom: 8.0),
+                      child: Text(
+                        'TOOLS & CALCULATORS',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.5,
+                          color: TallyTapTheme.primaryMint,
+                        ),
+                      ),
+                    ),
+                    _buildSettingsTile(
+                      icon: Icons.splitscreen_rounded,
+                      title: 'Expense Splitter',
+                      subtitle: 'Split bills equally between friends',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const ExpenseSplitterScreen()),
+                        );
+                      },
+                    ),
+                    const Divider(color: TallyTapTheme.borderGreen, height: 1, indent: 20, endIndent: 20),
+                    _buildSettingsTile(
+                      icon: Icons.monetization_on_outlined,
+                      title: 'Tip Calculator',
+                      subtitle: 'Calculate tip percentages and splits',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const TipCalculatorScreen()),
+                        );
+                      },
+                    ),
+                    const Divider(color: TallyTapTheme.borderGreen, height: 1, indent: 20, endIndent: 20),
+                    _buildSettingsTile(
+                      icon: Icons.handshake_outlined,
+                      title: 'Outstanding Ledger',
+                      subtitle: 'Track who owes you money & who you owe',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const OutstandingLedgerScreen()),
                         );
                       },
                     ),

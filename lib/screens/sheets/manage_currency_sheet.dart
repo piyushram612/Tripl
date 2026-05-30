@@ -113,7 +113,24 @@ class ManageCurrencySheet extends ConsumerWidget {
                         : null,
                     onTap: () async {
                       if (!isSelected) {
-                        await ref.read(currencyProvider.notifier).setCurrency(currency['symbol']!);
+                        final result = await showDialog<Map<String, bool>>(
+                          context: context,
+                          builder: (context) => CurrencySettingsDialog(
+                            currency: currency,
+                            oldCurrencySymbol: currentCurrency,
+                          ),
+                        );
+
+                        if (result == null) return;
+
+                        final convertValues = result['convertValues'] ?? true;
+                        final applyToExisting = result['applyToExisting'] ?? true;
+
+                        await ref.read(currencyProvider.notifier).setCurrency(
+                          currency['symbol']!,
+                          convertValues: convertValues,
+                          applyToExisting: applyToExisting,
+                        );
                         
                         // Force a refresh of dependent providers
                         ref.read(transactionListProvider.notifier).loadTransactions();
@@ -123,7 +140,11 @@ class ManageCurrencySheet extends ConsumerWidget {
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text('Currency updated to ${currency['name']} and values converted.'),
+                              content: Text(
+                                'Currency updated to ${currency['name']}. '
+                                '${convertValues ? "Values converted" : "Symbol changed"}'
+                                '${applyToExisting ? " for all transactions." : " for new transactions onwards."}'
+                              ),
                               duration: const Duration(seconds: 3),
                               behavior: SnackBarBehavior.floating,
                             ),
@@ -140,6 +161,216 @@ class ManageCurrencySheet extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class CurrencySettingsDialog extends StatefulWidget {
+  final Map<String, String> currency;
+  final String oldCurrencySymbol;
+
+  const CurrencySettingsDialog({
+    super.key,
+    required this.currency,
+    required this.oldCurrencySymbol,
+  });
+
+  @override
+  State<CurrencySettingsDialog> createState() => _CurrencySettingsDialogState();
+}
+
+class _CurrencySettingsDialogState extends State<CurrencySettingsDialog> {
+  bool _convertValues = true;
+  bool _applyToExisting = true;
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: TallyTapTheme.obsidianCard,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: const BorderSide(color: TallyTapTheme.borderGreen, width: 1.5),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Change Currency to ${widget.currency['symbol']}',
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: TallyTapTheme.primaryMint,
+                fontFamily: 'Outfit',
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            
+            // Question 1: Convert or Symbol Only
+            const Text(
+              'CONVERSION OPTION',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                color: TallyTapTheme.textGray,
+                letterSpacing: 1.5,
+              ),
+            ),
+            const SizedBox(height: 8),
+            _buildSelectionCard(
+              title: 'Convert Values',
+              subtitle: 'Use exchange rates to convert all numeric amounts.',
+              selected: _convertValues,
+              onTap: () => setState(() => _convertValues = true),
+            ),
+            const SizedBox(height: 8),
+            _buildSelectionCard(
+              title: 'Change Symbol Only',
+              subtitle: 'Keep all existing numbers exactly the same.',
+              selected: !_convertValues,
+              onTap: () => setState(() => _convertValues = false),
+            ),
+            const SizedBox(height: 20),
+
+            // Question 2: All or From Now Onwards
+            const Text(
+              'APPLY TO WHICH TRANSACTIONS?',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                color: TallyTapTheme.textGray,
+                letterSpacing: 1.5,
+              ),
+            ),
+            const SizedBox(height: 8),
+            _buildSelectionCard(
+              title: 'All Transactions',
+              subtitle: 'Apply changes to all existing and future transactions.',
+              selected: _applyToExisting,
+              onTap: () => setState(() => _applyToExisting = true),
+            ),
+            const SizedBox(height: 8),
+            _buildSelectionCard(
+              title: 'From Now Onwards',
+              subtitle: 'Keep existing transactions as is; only apply to new transactions.',
+              selected: !_applyToExisting,
+              onTap: () => setState(() => _applyToExisting = false),
+            ),
+            const SizedBox(height: 24),
+
+            // Actions
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text(
+                      'Cancel',
+                      style: TextStyle(color: TallyTapTheme.textGray, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: TallyTapTheme.primaryMint,
+                      foregroundColor: TallyTapTheme.obsidianBg,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    onPressed: () {
+                      Navigator.pop(context, {
+                        'convertValues': _convertValues,
+                        'applyToExisting': _applyToExisting,
+                      });
+                    },
+                    child: const Text(
+                      'Confirm',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSelectionCard({
+    required String title,
+    required String subtitle,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: selected ? TallyTapTheme.primaryMint.withOpacity(0.08) : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: selected ? TallyTapTheme.primaryMint : TallyTapTheme.borderGreen,
+            width: selected ? 1.5 : 1.0,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 18,
+              height: 18,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: selected ? TallyTapTheme.primaryMint : TallyTapTheme.textGray,
+                  width: 2,
+                ),
+              ),
+              child: selected
+                  ? const Center(
+                      child: Icon(
+                        Icons.circle,
+                        size: 10,
+                        color: TallyTapTheme.primaryMint,
+                      ),
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: selected ? TallyTapTheme.primaryMint : TallyTapTheme.textLight,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: TallyTapTheme.textGray,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

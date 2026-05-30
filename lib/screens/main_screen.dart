@@ -75,6 +75,7 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
       ref.read(sourcesListProvider.notifier).loadSources();
       ref.read(budgetLimitsProvider.notifier).loadLimits();
       ref.read(globalBudgetProvider.notifier).loadGlobalBudget();
+      ref.read(recurringTransactionsProvider.notifier).checkDueTransactions();
     }
   }
 

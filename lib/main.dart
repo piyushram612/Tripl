@@ -10,7 +10,7 @@ import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await NotificationService.initialize();
+  NotificationService.initialize();
   runApp(
     const ProviderScope(
       child: TallyTapApp(),
