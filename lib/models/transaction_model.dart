@@ -8,6 +8,8 @@ class ExpenseTransaction {
   final String paymentMethod;
   final String category; // String to support dynamic categories
   final String notes;    // Optional user notes
+  final bool needsVerification;
+  final DateTime? reminderDate;
 
   ExpenseTransaction({
     required this.id,
@@ -17,6 +19,8 @@ class ExpenseTransaction {
     required this.paymentMethod,
     required this.category,
     this.notes = '',
+    this.needsVerification = false,
+    this.reminderDate,
   });
 
   Map<String, dynamic> toMap() {
@@ -28,6 +32,8 @@ class ExpenseTransaction {
       'paymentMethod': paymentMethod,
       'category': category,
       'notes': notes,
+      'needsVerification': needsVerification,
+      'reminderDate': reminderDate?.toIso8601String(),
     };
   }
 
@@ -40,6 +46,8 @@ class ExpenseTransaction {
       paymentMethod: map['paymentMethod'] ?? '',
       category: map['category'] ?? 'Other',
       notes: map['notes'] ?? '',
+      needsVerification: map['needsVerification'] ?? false,
+      reminderDate: map['reminderDate'] != null ? DateTime.parse(map['reminderDate']) : null,
     );
   }
 

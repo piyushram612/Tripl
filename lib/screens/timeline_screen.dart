@@ -216,7 +216,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                     ),
                     const SizedBox(height: 60),
                   ],
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 120),
                 ],
               ),
             ),

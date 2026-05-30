@@ -9,6 +9,7 @@ import '../providers/budget_provider.dart';
 import '../providers/category_provider.dart';
 import '../providers/currency_provider.dart';
 import '../providers/source_provider.dart';
+import '../providers/recurring_transaction_provider.dart';
 import '../services/transaction_service.dart';
 
 import 'home_screen.dart';
@@ -17,6 +18,7 @@ import 'insights_screen.dart';
 import 'timeline_screen.dart';
 import 'settings_screen.dart';
 import 'create_transaction_screen.dart';
+import 'create_recurring_transaction_screen.dart';
 
 class MainScreen extends ConsumerStatefulWidget {
   const MainScreen({super.key});
@@ -53,6 +55,7 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
       ref.read(budgetLimitsProvider.notifier).loadLimits();
       ref.read(globalBudgetProvider.notifier).loadGlobalBudget();
       ref.read(currencyProvider.notifier).loadCurrency();
+      ref.read(recurringTransactionsProvider); // Force initialization of recurring transactions engine
     });
   }
 
@@ -99,42 +102,45 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
           ],
         ),
       ),
-      floatingActionButton: (currentIndex == 0 || currentIndex == 3)
-          ? Container(
-              height: 56,
-              width: 56,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: const LinearGradient(
-                  colors: [TallyTapTheme.primaryMint, Color(0xFF33C28A)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+      floatingActionButton: Container(
+        height: 56,
+        width: 56,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: const LinearGradient(
+            colors: [TallyTapTheme.primaryMint, Color(0xFF33C28A)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: TallyTapTheme.primaryMint.withOpacity(0.35),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: () {
+              HapticFeedback.mediumImpact();
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const CreateTransactionScreen(),
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: TallyTapTheme.primaryMint.withOpacity(0.35),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: FloatingActionButton(
-                onPressed: () {
-                  HapticFeedback.mediumImpact();
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const CreateTransactionScreen(),
-                    ),
-                  );
-                },
-                backgroundColor: Colors.transparent,
-                elevation: 0,
-                highlightElevation: 0,
-                child: const Icon(Icons.add_rounded, color: TallyTapTheme.obsidianBg, size: 28),
-              ),
-            )
-          : null,
+              );
+            },
+            onLongPress: () {
+              HapticFeedback.heavyImpact();
+              _showFabMenu(context);
+            },
+            child: const Icon(Icons.add_rounded, color: TallyTapTheme.obsidianBg, size: 28),
+          ),
+        ),
+      ),
       bottomNavigationBar: _buildBottomNavBar(context),
     );
   }
@@ -285,6 +291,122 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
                     letterSpacing: 0.2,
                   ),
                 ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showFabMenu(BuildContext context) {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Dismiss',
+      barrierColor: Colors.black.withOpacity(0.5),
+      transitionDuration: const Duration(milliseconds: 250),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return SafeArea(
+          child: Stack(
+            children: [
+              Positioned(
+                bottom: 110,
+                right: 24,
+                child: Material(
+                  color: Colors.transparent,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildSpeedDialItem(
+                        context,
+                        icon: Icons.add_rounded,
+                        label: 'New Transaction',
+                        onTap: () {
+                          Navigator.pop(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const CreateTransactionScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      _buildSpeedDialItem(
+                        context,
+                        icon: Icons.autorenew_rounded,
+                        label: 'Recurring Payments',
+                        onTap: () {
+                          Navigator.pop(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const CreateRecurringTransactionScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        return FadeTransition(
+          opacity: animation,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0, 0.1),
+              end: Offset.zero,
+            ).animate(CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeOutBack,
+            )),
+            child: child,
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSpeedDialItem(BuildContext context, {required IconData icon, required String label, required VoidCallback onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(30),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        decoration: BoxDecoration(
+          color: TallyTapTheme.obsidianCard,
+          borderRadius: BorderRadius.circular(30),
+          border: Border.all(
+            color: TallyTapTheme.borderGreen.withOpacity(0.3),
+            width: 1.2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: TallyTapTheme.primaryMint, size: 22),
+            const SizedBox(width: 12),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 15,
+                letterSpacing: 0.3,
               ),
             ),
           ],

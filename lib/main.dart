@@ -6,9 +6,11 @@ import 'core/theme.dart';
 import 'screens/main_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/calibration_screen.dart';
+import 'services/notification_service.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await NotificationService.initialize();
   runApp(
     const ProviderScope(
       child: TallyTapApp(),

@@ -9,6 +9,8 @@ import '../providers/category_provider.dart';
 import '../providers/currency_provider.dart';
 import '../providers/source_provider.dart';
 import '../services/transaction_service.dart';
+import '../services/notification_service.dart';
+import 'widgets/transaction_form_components.dart';
 
 class CreateTransactionScreen extends ConsumerStatefulWidget {
   const CreateTransactionScreen({super.key});
@@ -30,6 +32,10 @@ class _CreateTransactionScreenState
   bool _isIncome = false;
   String? _selectedCategory;
   String? _selectedPaymentMethod;
+
+  bool _finishLater = false;
+  DateTime _reminderDate = DateTime.now();
+  TimeOfDay _reminderTime = TimeOfDay.now();
 
   late final AnimationController _amountPulse;
   late final Animation<double> _amountScale;
@@ -136,17 +142,29 @@ class _CreateTransactionScreenState
         ? _merchantController.text.trim()
         : (_isIncome ? 'Quick Income' : 'Quick Expense');
 
-    ref.read(transactionListProvider.notifier).addTransaction(
-          ExpenseTransaction(
-            id: _generateUuid(),
-            amount: amount,
-            merchant: merchant,
-            date: _selectedDate,
-            paymentMethod: source,
-            category: category,
-            notes: _notesController.text.trim(),
-          ),
-        );
+    final tx = ExpenseTransaction(
+      id: _generateUuid(),
+      amount: amount,
+      merchant: merchant,
+      date: _selectedDate,
+      paymentMethod: source,
+      category: category,
+      notes: _notesController.text.trim(),
+      needsVerification: _finishLater,
+      reminderDate: _finishLater ? DateTime(
+        _reminderDate.year,
+        _reminderDate.month,
+        _reminderDate.day,
+        _reminderTime.hour,
+        _reminderTime.minute,
+      ) : null,
+    );
+
+    ref.read(transactionListProvider.notifier).addTransaction(tx);
+    
+    if (tx.needsVerification && tx.reminderDate != null) {
+      NotificationService.scheduleTransactionReminder(tx);
+    }
     Navigator.of(context).pop();
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text('${_isIncome ? 'Income' : 'Expense'} logged!'),
@@ -204,7 +222,7 @@ class _CreateTransactionScreenState
           // Expense / Income pill toggle in the app bar
           Padding(
             padding: const EdgeInsets.only(right: 16.0),
-            child: _TypeToggle(
+            child: TypeToggle(
               isIncome: _isIncome,
               onChanged: (v) => setState(() => _isIncome = v),
             ),
@@ -224,7 +242,7 @@ class _CreateTransactionScreenState
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       // ── AMOUNT CARD ──────────────────────────────────────
-                      _AmountCard(
+                      AmountCard(
                         currency: currency,
                         controller: _amountController,
                         activeColor: activeColor,
@@ -234,7 +252,7 @@ class _CreateTransactionScreenState
                       const SizedBox(height: 24),
 
                       // ── MERCHANT FIELD ───────────────────────────────────
-                      _SectionLabel(label: 'Merchant / Title'),
+                      SectionLabel(label: 'Merchant / Title'),
                       const SizedBox(height: 10),
                       TextFormField(
                         controller: _merchantController,
@@ -272,7 +290,7 @@ class _CreateTransactionScreenState
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            _SectionLabel(label: 'Select Category'),
+                            SectionLabel(label: 'Select Category'),
                             Text(
                               'Manage All',
                               style: TextStyle(
@@ -371,7 +389,7 @@ class _CreateTransactionScreenState
 
                       // ── PAYMENT SOURCE CARDS ─────────────────────────────
                       const SizedBox(height: 24),
-                      _SectionLabel(label: 'Payment Source'),
+                      SectionLabel(label: 'Payment Source'),
                       const SizedBox(height: 12),
                       SizedBox(
                         height: 110,
@@ -530,7 +548,7 @@ class _CreateTransactionScreenState
 
                       // ── NOTES FIELD ──────────────────────────────────────
                       const SizedBox(height: 24),
-                      _SectionLabel(label: 'Notes (optional)'),
+                      SectionLabel(label: 'Notes (optional)'),
                       const SizedBox(height: 10),
                       TextField(
                         controller: _notesController,
@@ -572,7 +590,173 @@ class _CreateTransactionScreenState
                               minWidth: 0, minHeight: 0),
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 24),
+
+                      // ── FINISH LATER / VERIFY RECEIPT ────────────────────
+                      GestureDetector(
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          setState(() => _finishLater = !_finishLater);
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                          decoration: BoxDecoration(
+                            color: TallyTapTheme.obsidianCard,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: _finishLater ? activeColor : TallyTapTheme.borderGreen,
+                              width: _finishLater ? 1.5 : 1.0,
+                            ),
+                            boxShadow: _finishLater ? [
+                              BoxShadow(
+                                color: activeColor.withOpacity(0.15),
+                                blurRadius: 12,
+                                offset: const Offset(0, 4),
+                              )
+                            ] : null,
+                          ),
+                          child: Row(
+                            children: [
+                              AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                width: 24,
+                                height: 24,
+                                decoration: BoxDecoration(
+                                  color: _finishLater ? activeColor : TallyTapTheme.obsidianBg.withOpacity(0.5),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: _finishLater ? activeColor : TallyTapTheme.textGray.withOpacity(0.5),
+                                  ),
+                                ),
+                                child: _finishLater
+                                    ? const Icon(Icons.check_rounded, size: 16, color: TallyTapTheme.obsidianBg)
+                                    : null,
+                              ),
+                              const SizedBox(width: 14),
+                              Text(
+                                _isIncome ? 'Verify Receipt' : 'Finish later',
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: TallyTapTheme.textLight,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      AnimatedSize(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.fastOutSlowIn,
+                        child: _finishLater
+                            ? Padding(
+                                padding: const EdgeInsets.only(top: 16),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: GestureDetector(
+                                        onTap: () async {
+                                          final picked = await showDatePicker(
+                                            context: context,
+                                            initialDate: _reminderDate,
+                                            firstDate: DateTime.now(),
+                                            lastDate: DateTime(2101),
+                                            builder: (ctx, child) => Theme(
+                                                data: Theme.of(ctx).copyWith(
+                                                  colorScheme: const ColorScheme.dark(
+                                                    primary: TallyTapTheme.primaryMint,
+                                                    onPrimary: TallyTapTheme.obsidianBg,
+                                                    surface: TallyTapTheme.obsidianCard,
+                                                    onSurface: TallyTapTheme.textLight,
+                                                  ),
+                                                ),
+                                                child: child!),
+                                          );
+                                          if (picked != null) {
+                                            setState(() => _reminderDate = picked);
+                                          }
+                                        },
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                          decoration: BoxDecoration(
+                                            color: TallyTapTheme.obsidianCard,
+                                            borderRadius: BorderRadius.circular(16),
+                                            border: Border.all(color: TallyTapTheme.borderGreen),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              Icon(Icons.notifications_active_outlined, color: activeColor, size: 18),
+                                              const SizedBox(width: 10),
+                                              Expanded(
+                                                child: Text(
+                                                  DateFormat('MMM d, y').format(_reminderDate),
+                                                  style: const TextStyle(
+                                                    color: TallyTapTheme.textLight,
+                                                    fontWeight: FontWeight.w600,
+                                                    fontSize: 13,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: GestureDetector(
+                                        onTap: () async {
+                                          final time = await showTimePicker(
+                                            context: context,
+                                            initialTime: _reminderTime,
+                                            builder: (ctx, child) => Theme(
+                                                data: Theme.of(ctx).copyWith(
+                                                  colorScheme: const ColorScheme.dark(
+                                                    primary: TallyTapTheme.primaryMint,
+                                                    onPrimary: TallyTapTheme.obsidianBg,
+                                                    surface: TallyTapTheme.obsidianCard,
+                                                    onSurface: TallyTapTheme.textLight,
+                                                  ),
+                                                ),
+                                                child: child!),
+                                          );
+                                          if (time != null) {
+                                            setState(() => _reminderTime = time);
+                                          }
+                                        },
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                          decoration: BoxDecoration(
+                                            color: TallyTapTheme.obsidianCard,
+                                            borderRadius: BorderRadius.circular(16),
+                                            border: Border.all(color: TallyTapTheme.borderGreen),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              Icon(Icons.access_time_rounded, color: activeColor, size: 18),
+                                              const SizedBox(width: 10),
+                                              Expanded(
+                                                child: Text(
+                                                  _reminderTime.format(context),
+                                                  style: const TextStyle(
+                                                    color: TallyTapTheme.textLight,
+                                                    fontWeight: FontWeight.w600,
+                                                    fontSize: 13,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : const SizedBox.shrink(),
+                      ),
+                      const SizedBox(height: 16),
                     ],
                   ),
                 ),
@@ -642,178 +826,4 @@ class _CreateTransactionScreenState
   }
 }
 
-// ── Sub-widgets ───────────────────────────────────────────────────────────────
 
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel({required this.label});
-  final String label;
-
-  @override
-  Widget build(BuildContext context) => Text(
-        label,
-        style: const TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w700,
-          color: TallyTapTheme.textGray,
-        ),
-      );
-}
-
-class _TypeToggle extends StatelessWidget {
-  const _TypeToggle({required this.isIncome, required this.onChanged});
-  final bool isIncome;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 34,
-      decoration: BoxDecoration(
-        color: TallyTapTheme.obsidianCard,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: TallyTapTheme.borderGreen),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _pill('Expense', !isIncome, TallyTapTheme.primaryMint,
-              () => onChanged(false)),
-          _pill('Income', isIncome, const Color(0xFF10B981),
-              () => onChanged(true)),
-        ],
-      ),
-    );
-  }
-
-  Widget _pill(
-      String label, bool active, Color color, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        onTap();
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        decoration: BoxDecoration(
-          color: active ? color.withOpacity(0.15) : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
-          border: active
-              ? Border.all(color: color.withOpacity(0.6), width: 1.0)
-              : null,
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
-            color: active ? color : TallyTapTheme.textGray,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _AmountCard extends StatelessWidget {
-  const _AmountCard({
-    required this.currency,
-    required this.controller,
-    required this.activeColor,
-    required this.catColor,
-  });
-
-  final String currency;
-  final TextEditingController controller;
-  final Color activeColor;
-  final Color catColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-      decoration: BoxDecoration(
-        color: TallyTapTheme.obsidianCard,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: TallyTapTheme.borderGreen),
-        boxShadow: [
-          BoxShadow(
-            color: activeColor.withOpacity(0.06),
-            blurRadius: 20,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Text(
-            'TRANSACTION AMOUNT',
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.8,
-              color: TallyTapTheme.textGray,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Text(
-                currency,
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.w900,
-                  color: activeColor,
-                  fontFamily: 'Outfit',
-                ),
-              ),
-              const SizedBox(width: 6),
-              Flexible(
-                child: IntrinsicWidth(
-                  child: TextFormField(
-                    controller: controller,
-                    style: const TextStyle(
-                      fontSize: 48,
-                      fontWeight: FontWeight.w900,
-                      color: TallyTapTheme.textLight,
-                      fontFamily: 'Outfit',
-                      letterSpacing: -2,
-                    ),
-                    textAlign: TextAlign.left,
-                    keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true),
-                    decoration: InputDecoration(
-                      hintText: '0.00',
-                      hintStyle: TextStyle(
-                        fontSize: 48,
-                        fontWeight: FontWeight.w900,
-                        color: TallyTapTheme.textGray.withOpacity(0.25),
-                        fontFamily: 'Outfit',
-                        letterSpacing: -2,
-                      ),
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.zero,
-                      isDense: true,
-                    ),
-                    validator: (val) {
-                      if (val == null || val.trim().isEmpty) {
-                        return 'Required';
-                      }
-                      if (double.tryParse(val) == null) {
-                        return 'Invalid number';
-                      }
-                      return null;
-                    },
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
