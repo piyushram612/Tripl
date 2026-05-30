@@ -7,10 +7,12 @@ import '../providers/budget_provider.dart';
 import '../providers/category_provider.dart';
 import '../providers/currency_provider.dart';
 import '../providers/profile_provider.dart';
+import '../providers/source_provider.dart';
 import '../services/transaction_service.dart';
 import 'widgets/donut_chart_painter.dart';
 import 'widgets/weekly_trend_painter.dart';
 import 'widgets/transaction_item.dart';
+import 'payment_source_details_screen.dart';
 
 final homeSummaryPeriodProvider = StateProvider<String>((ref) => 'weekly');
 final homeBreakdownPeriodProvider = StateProvider<String>((ref) => 'weekly');
@@ -103,6 +105,8 @@ class HomeScreen extends ConsumerWidget {
     final summaryPeriod = ref.watch(homeSummaryPeriodProvider);
     final breakdownPeriod = ref.watch(homeBreakdownPeriodProvider);
     final breakdownOffset = ref.watch(homeBreakdownOffsetProvider);
+    final sources = ref.watch(sourcesListProvider);
+    final startingBalances = ref.watch(sourceStartingBalancesProvider);
     final now = DateTime.now();
 
     // 1. Dynamic overall spent (for header greeting only, based on active global budget period)
@@ -370,6 +374,121 @@ class HomeScreen extends ConsumerWidget {
               physics: const BouncingScrollPhysics(),
               child: Column(
                 children: [
+                  // Horizontal scrollable payment sources panel
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'ACCOUNTS & BALANCES',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.5,
+                        color: TallyTapTheme.textGray,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 94,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      physics: const BouncingScrollPhysics(),
+                      itemCount: sources.length,
+                      itemBuilder: (context, index) {
+                        final src = sources[index];
+                        final srcColor = TallyTapTheme.getColorForSource(src);
+                        final srcIcon = TallyTapTheme.getIconForSource(src);
+
+                        // Calculate balance and transaction count
+                        final srcTxs = transactions.where((tx) => tx.paymentMethod == src).toList();
+                        double inflows = 0.0;
+                        double outflows = 0.0;
+                        for (final tx in srcTxs) {
+                          if (tx.category.toLowerCase() == 'income') {
+                            inflows += tx.amount;
+                          } else {
+                            outflows += tx.amount;
+                          }
+                        }
+                        final double startBal = startingBalances[src] ?? 0.0;
+                        final double currentBal = startBal + inflows - outflows;
+
+                        return Container(
+                          width: 170,
+                          margin: const EdgeInsets.only(right: 14),
+                          decoration: BoxDecoration(
+                            color: TallyTapTheme.obsidianCard,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: srcColor.withOpacity(0.3), width: 1.0),
+                          ),
+                          child: InkWell(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => PaymentSourceDetailsScreen(sourceName: src),
+                                ),
+                              );
+                            },
+                            borderRadius: BorderRadius.circular(16),
+                            child: Padding(
+                              padding: const EdgeInsets.all(12.0),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 32,
+                                    height: 32,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: srcColor.withOpacity(0.12),
+                                    ),
+                                    child: Icon(srcIcon, color: srcColor, size: 16),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          src,
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                            color: TallyTapTheme.textLight,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          '$currency${currentBal.toStringAsFixed(0)}',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w900,
+                                            color: srcColor,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          '${srcTxs.length} txs',
+                                          style: const TextStyle(
+                                            fontSize: 9,
+                                            color: TallyTapTheme.textGray,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 24),
                   // CARD A: Weekly Summary Line Graph
                   GestureDetector(
                     onHorizontalDragEnd: (details) {
