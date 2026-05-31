@@ -26,10 +26,8 @@ class SettingsScreen extends ConsumerWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: TallyTapTheme.obsidianBg,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
       builder: (context) => const ManageCategoriesSheet(),
     );
   }
@@ -856,6 +854,16 @@ class SettingsScreen extends ConsumerWidget {
                   for (final source in newSourcesToCreate) {
                     await ref.read(sourcesListProvider.notifier).addSource(source);
                   }
+                  // Dynamic new categories registration
+                  final existingCategories = ref.read(categoriesListProvider);
+                  final existingLower = existingCategories.map((c) => c.toLowerCase()).toSet();
+                  for (final tx in importedTransactions) {
+                    final normalizedCat = tx.category.trim();
+                    if (normalizedCat.isNotEmpty && !existingLower.contains(normalizedCat.toLowerCase())) {
+                      await ref.read(categoriesListProvider.notifier).addCategory(normalizedCat);
+                      existingLower.add(normalizedCat.toLowerCase());
+                    }
+                  }
                   await ref.read(transactionListProvider.notifier).importTransactions(importedTransactions, overwrite: false);
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -905,6 +913,16 @@ class SettingsScreen extends ConsumerWidget {
                               for (final source in newSourcesToCreate) {
                                 await ref.read(sourcesListProvider.notifier).addSource(source);
                               }
+                              // Dynamic new categories registration
+                              final existingCategories = ref.read(categoriesListProvider);
+                              final existingLower = existingCategories.map((c) => c.toLowerCase()).toSet();
+                              for (final tx in importedTransactions) {
+                                final normalizedCat = tx.category.trim();
+                                if (normalizedCat.isNotEmpty && !existingLower.contains(normalizedCat.toLowerCase())) {
+                                  await ref.read(categoriesListProvider.notifier).addCategory(normalizedCat);
+                                  existingLower.add(normalizedCat.toLowerCase());
+                                }
+                              }
                               await ref.read(transactionListProvider.notifier).importTransactions(importedTransactions, overwrite: true);
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
@@ -938,6 +956,93 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ],
           ),
+        );
+      },
+    );
+  }
+
+  void _handleDeleteAllTransactions(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (confirmCtx) {
+        return AlertDialog(
+          backgroundColor: TallyTapTheme.obsidianBg,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: Colors.redAccent, width: 1.5),
+          ),
+          title: const Text(
+            'Delete All Transactions?', 
+            style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, fontFamily: 'Outfit'),
+          ),
+          content: const Text(
+            'This will permanently erase all transaction records from your device. This action is irreversible.\n\nAre you sure you want to proceed?',
+            style: TextStyle(color: TallyTapTheme.textLight, fontSize: 14),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(confirmCtx),
+              child: const Text('Cancel', style: TextStyle(color: TallyTapTheme.textGray)),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(confirmCtx);
+                showDialog(
+                  context: context,
+                  builder: (doubleConfirmCtx) {
+                    return AlertDialog(
+                      backgroundColor: TallyTapTheme.obsidianBg,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        side: const BorderSide(color: Colors.redAccent, width: 2.0),
+                      ),
+                      title: const Text(
+                        'WARNING: FINAL WARNING', 
+                        style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w900, fontFamily: 'Outfit'),
+                      ),
+                      content: const Text(
+                        'This is your absolute final warning. All transactions will be deleted forever.\n\nAre you sure you want to delete everything?',
+                        style: TextStyle(color: TallyTapTheme.textLight, fontSize: 14),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(doubleConfirmCtx),
+                          child: const Text('Cancel', style: TextStyle(color: TallyTapTheme.textGray)),
+                        ),
+                        ElevatedButton(
+                          onPressed: () async {
+                            Navigator.pop(doubleConfirmCtx);
+                            await ref.read(transactionListProvider.notifier).clearTransactions();
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('All transactions deleted successfully.'),
+                                  backgroundColor: Colors.redAccent,
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.redAccent,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          child: const Text('Yes, Delete Everything'),
+                        ),
+                      ],
+                    );
+                  },
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: const Text('Proceed'),
+            ),
+          ],
         );
       },
     );
@@ -1190,6 +1295,58 @@ class SettingsScreen extends ConsumerWidget {
                       title: 'Import Data from CSV',
                       subtitle: 'Restore or merge transactions from a CSV file',
                       onTap: () => _handleImport(context, ref),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Card D: Danger Zone
+            Card(
+              color: const Color(0xFF1F1212),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: Colors.redAccent.withOpacity(0.3), width: 1.0),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(left: 20.0, top: 16.0, bottom: 8.0),
+                      child: Text(
+                        'DANGER ZONE',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.5,
+                          color: Colors.redAccent,
+                        ),
+                      ),
+                    ),
+                    ListTile(
+                      onTap: () => _handleDeleteAllTransactions(context, ref),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2C1616),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.redAccent.withOpacity(0.3), width: 0.5),
+                        ),
+                        child: const Icon(Icons.delete_forever_rounded, color: Colors.redAccent, size: 20),
+                      ),
+                      title: const Text(
+                        'Delete All Transactions',
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.redAccent),
+                      ),
+                      subtitle: const Text(
+                        'Permanently erase all transaction data from this device',
+                        style: TextStyle(fontSize: 12, color: TallyTapTheme.textGray),
+                      ),
+                      trailing: const Icon(Icons.chevron_right_rounded, color: Colors.redAccent),
                     ),
                   ],
                 ),

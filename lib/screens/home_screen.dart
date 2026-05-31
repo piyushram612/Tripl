@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
+import 'package:intl/intl.dart';
 import '../core/theme.dart';
 import '../providers/app_state_provider.dart';
 import '../providers/budget_provider.dart';
@@ -115,11 +115,11 @@ class HomeScreen extends ConsumerWidget {
       if (tx.category.toLowerCase() != 'income') {
         if (globalBudget.period == 'weekly') {
           if (_isDateInCurrentWeek(tx.date)) {
-            totalSpent += tx.amount;
+            totalSpent += tx.amount.abs();
           }
         } else {
           if (_isDateInCurrentMonth(tx.date)) {
-            totalSpent += tx.amount;
+            totalSpent += tx.amount.abs();
           }
         }
       }
@@ -139,11 +139,11 @@ class HomeScreen extends ConsumerWidget {
       if (tx.category.toLowerCase() != 'income') {
         if (summaryPeriod == 'weekly') {
           if (_isDateInWeek(tx.date, adjustedNow)) {
-            summaryTotalSpent += tx.amount;
+            summaryTotalSpent += tx.amount.abs();
           }
         } else {
           if (_isDateInMonth(tx.date, adjustedNow)) {
-            summaryTotalSpent += tx.amount;
+            summaryTotalSpent += tx.amount.abs();
           }
         }
       }
@@ -156,7 +156,7 @@ class HomeScreen extends ConsumerWidget {
       for (var tx in transactions) {
         if (tx.category.toLowerCase() != 'income') {
           if (_isDateInWeek(tx.date, priorReferenceDate)) {
-            summaryPrevSpent += tx.amount;
+            summaryPrevSpent += tx.amount.abs();
           }
         }
       }
@@ -165,7 +165,7 @@ class HomeScreen extends ConsumerWidget {
       for (var tx in transactions) {
         if (tx.category.toLowerCase() != 'income') {
           if (_isDateInMonth(tx.date, priorReferenceDate)) {
-            summaryPrevSpent += tx.amount;
+            summaryPrevSpent += tx.amount.abs();
           }
         }
       }
@@ -196,9 +196,9 @@ class HomeScreen extends ConsumerWidget {
           final targetDateOnly = DateTime(targetDate.year, targetDate.month, targetDate.day);
           if (txDateOnly.isBefore(targetDateOnly) || txDateOnly.isAtSameMomentAs(targetDateOnly)) {
             if (tx.category.toLowerCase() == 'income') {
-              balance += tx.amount;
+              balance += tx.amount.abs();
             } else {
-              balance -= tx.amount;
+              balance -= tx.amount.abs();
             }
           }
         }
@@ -217,9 +217,9 @@ class HomeScreen extends ConsumerWidget {
           final targetDateOnly = DateTime(targetDate.year, targetDate.month, targetDate.day);
           if (txDateOnly.isBefore(targetDateOnly) || txDateOnly.isAtSameMomentAs(targetDateOnly)) {
             if (tx.category.toLowerCase() == 'income') {
-              balance += tx.amount;
+              balance += tx.amount.abs();
             } else {
-              balance -= tx.amount;
+              balance -= tx.amount.abs();
             }
           }
         }
@@ -405,9 +405,9 @@ class HomeScreen extends ConsumerWidget {
                         double outflows = 0.0;
                         for (final tx in srcTxs) {
                           if (tx.category.toLowerCase() == 'income') {
-                            inflows += tx.amount;
+                            inflows += tx.amount.abs();
                           } else {
-                            outflows += tx.amount;
+                            outflows += tx.amount.abs();
                           }
                         }
                         final double startBal = startingBalances[src] ?? 0.0;
@@ -461,12 +461,28 @@ class HomeScreen extends ConsumerWidget {
                                           overflow: TextOverflow.ellipsis,
                                         ),
                                         const SizedBox(height: 4),
-                                        Text(
-                                          '$currency${currentBal.toStringAsFixed(0)}',
-                                          style: TextStyle(
+                                        Text.rich(
+                                          TextSpan(
+                                            children: [
+                                              TextSpan(
+                                                text: currentBal >= 0 ? '+ ' : '- ',
+                                                style: TextStyle(
+                                                  color: currentBal >= 0
+                                                      ? const Color(0xFF10B981)
+                                                      : const Color(0xFFEF4444),
+                                                ),
+                                              ),
+                                              TextSpan(
+                                                text: '$currency${currentBal.abs().toStringAsFixed(0)}',
+                                                style: TextStyle(
+                                                  color: srcColor,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          style: const TextStyle(
                                             fontSize: 14,
                                             fontWeight: FontWeight.w900,
-                                            color: srcColor,
                                           ),
                                         ),
                                         const SizedBox(height: 2),
@@ -823,25 +839,60 @@ class HomeScreen extends ConsumerWidget {
                           ),
                           const SizedBox(height: 16),
                           // List of live transactions
-                          ListView.separated(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: transactions.length > 4 ? 4 : transactions.length,
-                            separatorBuilder: (_, __) => const Divider(color: TallyTapTheme.borderGreen, height: 24, thickness: 0.5),
-                            itemBuilder: (context, index) {
-                              final tx = transactions[index];
-                              final formattedDate = tx.date.difference(DateTime.now()).inDays.abs() == 0
-                                  ? 'Today, 8:42 AM'
-                                  : tx.date.difference(DateTime.now()).inDays.abs() == 1
-                                      ? 'Yesterday'
-                                      : 'Mon, Oct 12';
-                              return TransactionItem(
-                                transaction: tx,
-                                currency: currency,
-                                subtitle: '$formattedDate • ${tx.paymentMethod}',
-                              );
-                            },
-                          ),
+                          transactions.isEmpty
+                              ? Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 24.0),
+                                  child: Column(
+                                    children: [
+                                      Icon(
+                                        Icons.receipt_long_outlined,
+                                        size: 40,
+                                        color: TallyTapTheme.textGray.withOpacity(0.3),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      const Text(
+                                        'No transactions logged yet',
+                                        style: TextStyle(
+                                          color: TallyTapTheme.textGray,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              : ListView.separated(
+                                  padding: EdgeInsets.zero,
+                                  shrinkWrap: true,
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  itemCount: transactions.length > 4 ? 4 : transactions.length,
+                                  separatorBuilder: (_, __) => const Divider(color: TallyTapTheme.borderGreen, height: 24, thickness: 0.5),
+                                  itemBuilder: (context, index) {
+                                    final tx = transactions[index];
+                                    final now = DateTime.now();
+                                    final todayOnly = DateTime(now.year, now.month, now.day);
+                                    final txDateOnly = DateTime(tx.date.year, tx.date.month, tx.date.day);
+                                    final diffDays = todayOnly.difference(txDateOnly).inDays;
+
+                                    final String formattedDate;
+                                    if (diffDays == 0) {
+                                      formattedDate = 'Today, ${DateFormat('h:mm a').format(tx.date)}';
+                                    } else if (diffDays == 1) {
+                                      formattedDate = 'Yesterday, ${DateFormat('h:mm a').format(tx.date)}';
+                                    } else if (diffDays < 7) {
+                                      formattedDate = '${DateFormat('EEEE').format(tx.date)}, ${DateFormat('h:mm a').format(tx.date)}';
+                                    } else {
+                                      formattedDate = DateFormat('MMM d, yyyy').format(tx.date);
+                                    }
+
+                                    return TransactionItem(
+                                      transaction: tx,
+                                      currency: currency,
+                                      subtitle: '$formattedDate • ${tx.paymentMethod}',
+                                    );
+                                  },
+                                ),
                           const SizedBox(height: 20),
                           OutlinedButton(
                             onPressed: () {

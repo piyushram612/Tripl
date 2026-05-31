@@ -267,7 +267,7 @@ class CsvService {
       
       // Strip currency symbols (e.g. $, €, £) and commas from amount to parse double safely
       final cleanAmountStr = amountStr.replaceAll(RegExp(r'[^\d\.\-]'), '');
-      final double amount = double.tryParse(cleanAmountStr) ?? 0.0;
+      final double amount = (double.tryParse(cleanAmountStr) ?? 0.0).abs();
 
       final int merchantIdx = mapping['merchant'] ?? -1;
       final String merchant = getValue(merchantIdx, 'Unknown');

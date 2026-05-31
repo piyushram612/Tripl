@@ -2,7 +2,24 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Category Intent Labels
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// The four buckets a spending category can map to.
+class CategoryIntent {
+  static const String essential = 'Essential';
+  static const String joyful = 'Joyful';
+  static const String avoidable = 'Avoidable';
+  static const String investments = 'Investments';
+
+  static const List<String> all = [essential, joyful, avoidable, investments];
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Categories List Provider
+// ─────────────────────────────────────────────────────────────────────────────
+
 final categoriesListProvider = StateNotifierProvider<CategoriesListNotifier, List<String>>((ref) {
   return CategoriesListNotifier();
 });
@@ -22,6 +39,8 @@ class CategoriesListNotifier extends StateNotifier<List<String>> {
     'Housing',
     'Health',
     'Travel',
+    'Investments',
+    'Savings',
     'Other',
   ];
 
@@ -35,7 +54,19 @@ class CategoriesListNotifier extends StateNotifier<List<String>> {
     } else {
       try {
         final List<dynamic> decoded = json.decode(jsonStr);
-        state = decoded.map((e) => e.toString()).toList();
+        final existing = decoded.map((e) => e.toString()).toList();
+        // Migrate: ensure new default categories are present for existing users
+        bool changed = false;
+        for (final cat in ['Investments', 'Savings']) {
+          if (!existing.contains(cat)) {
+            existing.add(cat);
+            changed = true;
+          }
+        }
+        if (changed) {
+          await prefs.setString('categories_json', json.encode(existing));
+        }
+        state = existing;
       } catch (e) {
         state = List.from(defaultCategories);
       }
@@ -67,7 +98,7 @@ class CategoriesListNotifier extends StateNotifier<List<String>> {
       updated[index] = trimmed;
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('categories_json', json.encode(updated));
-      
+
       // Update budget limit key if it exists
       final oldKey = 'budget_limit_$oldName';
       final newKey = 'budget_limit_$trimmed';
@@ -78,7 +109,18 @@ class CategoriesListNotifier extends StateNotifier<List<String>> {
           await prefs.remove(oldKey);
         }
       }
-      
+
+      // Migrate category intent key
+      final intentKey = 'category_intent_$oldName';
+      final newIntentKey = 'category_intent_$trimmed';
+      if (prefs.containsKey(intentKey)) {
+        final intent = prefs.getString(intentKey);
+        if (intent != null) {
+          await prefs.setString(newIntentKey, intent);
+          await prefs.remove(intentKey);
+        }
+      }
+
       state = updated;
     }
   }
@@ -95,5 +137,138 @@ class CategoriesListNotifier extends StateNotifier<List<String>> {
       await prefs.setString('categories_json', json.encode(updated));
       state = updated;
     }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Category Intent Provider — maps category name → intent bucket
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Sensible defaults applied on first launch (or for any category not yet configured).
+const Map<String, String> _defaultIntents = {
+  'Dining': CategoryIntent.joyful,
+  'Commute': CategoryIntent.essential,
+  'Subscriptions': CategoryIntent.avoidable,
+  'Utilities': CategoryIntent.essential,
+  'Groceries': CategoryIntent.essential,
+  'Shopping': CategoryIntent.avoidable,
+  'Housing': CategoryIntent.essential,
+  'Health': CategoryIntent.essential,
+  'Travel': CategoryIntent.joyful,
+  'Investments': CategoryIntent.investments,
+  'Savings': CategoryIntent.investments,
+  'Other': CategoryIntent.essential,
+};
+
+final categoryIntentsProvider = StateNotifierProvider<CategoryIntentsNotifier, Map<String, String>>((ref) {
+  return CategoryIntentsNotifier();
+});
+
+class CategoryIntentsNotifier extends StateNotifier<Map<String, String>> {
+  CategoryIntentsNotifier() : super({}) {
+    loadIntents();
+  }
+
+  static const String _keyPrefix = 'category_intent_';
+
+  Future<void> loadIntents() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.reload();
+    final Map<String, String> loaded = Map.from(_defaultIntents);
+
+    // Overlay any user overrides stored individually
+    for (final key in prefs.getKeys()) {
+      if (key.startsWith(_keyPrefix)) {
+        final catName = key.substring(_keyPrefix.length);
+        final intent = prefs.getString(key);
+        if (intent != null && CategoryIntent.all.contains(intent)) {
+          loaded[catName] = intent;
+        }
+      }
+    }
+    state = loaded;
+  }
+
+  /// Returns the intent for [category], defaulting to Essential.
+  String getIntent(String category) {
+    return state[category.trim()] ?? CategoryIntent.essential;
+  }
+
+  Future<void> updateIntent(String category, String intent) async {
+    if (!CategoryIntent.all.contains(intent)) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('$_keyPrefix${category.trim()}', intent);
+    state = Map.from(state)..[category.trim()] = intent;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Budget Split Provider — user-configurable target percentages
+// ─────────────────────────────────────────────────────────────────────────────
+
+class BudgetSplitTargets {
+  /// Target % for Essential (Needs). 0–100.
+  final double needsTarget;
+
+  /// Target % for Joyful + Avoidable (Wants). 0–100.
+  final double wantsTarget;
+
+  /// Target % for Investments (Savings). 0–100.
+  final double savingsTarget;
+
+  const BudgetSplitTargets({
+    required this.needsTarget,
+    required this.wantsTarget,
+    required this.savingsTarget,
+  });
+
+  /// The three values must sum to 100 (enforced by the notifier).
+  double get total => needsTarget + wantsTarget + savingsTarget;
+}
+
+final budgetSplitProvider = StateNotifierProvider<BudgetSplitNotifier, BudgetSplitTargets>((ref) {
+  return BudgetSplitNotifier();
+});
+
+class BudgetSplitNotifier extends StateNotifier<BudgetSplitTargets> {
+  BudgetSplitNotifier()
+      : super(const BudgetSplitTargets(needsTarget: 50, wantsTarget: 30, savingsTarget: 20)) {
+    _load();
+  }
+
+  static const String _needsKey = 'budget_split_needs';
+  static const String _wantsKey = 'budget_split_wants';
+  static const String _savingsKey = 'budget_split_savings';
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.reload();
+    final needs = prefs.getDouble(_needsKey) ?? 50.0;
+    final wants = prefs.getDouble(_wantsKey) ?? 30.0;
+    final savings = prefs.getDouble(_savingsKey) ?? 20.0;
+    state = BudgetSplitTargets(
+      needsTarget: needs,
+      wantsTarget: wants,
+      savingsTarget: savings,
+    );
+  }
+
+  /// Persist new split targets. Values are clamped and normalised so they sum to 100.
+  Future<void> updateTargets({
+    required double needs,
+    required double wants,
+    required double savings,
+  }) async {
+    final total = needs + wants + savings;
+    if (total == 0) return;
+    final n = (needs / total * 100).roundToDouble();
+    final w = (wants / total * 100).roundToDouble();
+    final s = (100 - n - w).roundToDouble().clamp(0, 100).toDouble();
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_needsKey, n);
+    await prefs.setDouble(_wantsKey, w);
+    await prefs.setDouble(_savingsKey, s);
+    state = BudgetSplitTargets(needsTarget: n, wantsTarget: w, savingsTarget: s);
   }
 }

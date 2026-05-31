@@ -211,6 +211,73 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
     }
   }
 
+  void _deleteSelectedTransactions() async {
+    if (_selectedTransactionIds.isEmpty) return;
+
+    final count = _selectedTransactionIds.length;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: TallyTapTheme.obsidianCard,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: TallyTapTheme.borderGreen, width: 1.5),
+        ),
+        title: Text(
+          'Delete $count Transaction(s)?',
+          style: const TextStyle(
+            color: Colors.redAccent,
+            fontWeight: FontWeight.bold,
+            fontFamily: 'Outfit',
+          ),
+        ),
+        content: Text(
+          'Are you sure you want to permanently delete the $count selected transaction(s)? This action cannot be undone.',
+          style: const TextStyle(color: TallyTapTheme.textLight),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel', style: TextStyle(color: TallyTapTheme.textGray)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    final listNotifier = ref.read(transactionListProvider.notifier);
+    for (final txId in _selectedTransactionIds) {
+      await listNotifier.deleteTransaction(txId);
+    }
+
+    setState(() {
+      _isSelectionMode = false;
+      _selectedTransactionIds.clear();
+    });
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Successfully deleted $count transaction(s)!'),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
   void _ungroupTransactions(String groupId) async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -476,10 +543,11 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
 
     for (final tx in monthlyTransactions) {
       final isIncome = tx.category.toLowerCase() == 'income';
+      final absAmount = tx.amount.abs();
       if (isIncome) {
-        monthlyIncome += tx.amount;
+        monthlyIncome += absAmount;
       } else {
-        monthlyExpense += tx.amount;
+        monthlyExpense += absAmount;
       }
     }
 
@@ -869,23 +937,34 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                   ),
                 ],
               ),
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: TallyTapTheme.primaryMint,
-                  foregroundColor: TallyTapTheme.obsidianBg,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 22),
+                    tooltip: 'Delete Selected',
+                    onPressed: _deleteSelectedTransactions,
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                ),
-                onPressed: _selectedTransactionIds.length < 2
-                    ? null
-                    : _batchSelectedTransactions,
-                icon: const Icon(Icons.group_work_rounded, size: 18),
-                label: const Text(
-                  'Group Split',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                ),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: TallyTapTheme.primaryMint,
+                      foregroundColor: TallyTapTheme.obsidianBg,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    ),
+                    onPressed: _selectedTransactionIds.length < 2
+                        ? null
+                        : _batchSelectedTransactions,
+                    icon: const Icon(Icons.group_work_rounded, size: 18),
+                    label: const Text(
+                      'Group Split',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -1051,7 +1130,7 @@ class _GroupTransactionCardState extends State<GroupTransactionCard> {
     double netAmount = 0.0;
     for (final tx in widget.transactions) {
       final isInc = tx.category.toLowerCase() == 'income';
-      netAmount += isInc ? tx.amount : -tx.amount;
+      netAmount += isInc ? tx.amount.abs() : -tx.amount.abs();
     }
     final isNetIncome = netAmount >= 0;
     final displayAmount = netAmount.abs();
@@ -1234,7 +1313,7 @@ class _GroupTransactionCardState extends State<GroupTransactionCard> {
                           ),
                         ),
                         Text(
-                          '${isInc ? '+' : '-'} ${widget.currency}${tx.amount.toStringAsFixed(2)}',
+                          '${isInc ? '+' : '-'} ${widget.currency}${tx.amount.abs().toStringAsFixed(2)}',
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,

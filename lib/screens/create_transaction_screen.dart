@@ -89,11 +89,11 @@ class _CreateTransactionScreenState
       TallyTapTheme.getIconForCategory(cat, _isIncome);
 
   /// Sum transactions for a given source to show a rough balance.
-  double _balanceForSource(List<ExpenseTransaction> txs, String src) {
-    double b = 0;
+  double _balanceForSource(List<ExpenseTransaction> txs, String src, double startingBalance) {
+    double b = startingBalance;
     for (final t in txs) {
       if (t.paymentMethod == src) {
-        b += t.category.toLowerCase() == 'income' ? t.amount : -t.amount;
+        b += t.category.toLowerCase() == 'income' ? t.amount.abs() : -t.amount.abs();
       }
     }
     return b;
@@ -186,6 +186,7 @@ class _CreateTransactionScreenState
         .toList();
     final sources = ref.watch(sourcesListProvider);
     final allTx = ref.watch(transactionListProvider);
+    final startingBalances = ref.watch(sourceStartingBalancesProvider);
 
     // auto-select defaults
     if (_selectedCategory == null && categories.isNotEmpty) {
@@ -442,7 +443,8 @@ class _CreateTransactionScreenState
                             final selected = src == _selectedPaymentMethod;
                             final srcColor =
                                 TallyTapTheme.getColorForSource(src);
-                            final balance = _balanceForSource(allTx, src);
+                            final startBal = startingBalances[src] ?? 0.0;
+                            final balance = _balanceForSource(allTx, src, startBal);
                             return GestureDetector(
                               onTap: () {
                                 HapticFeedback.selectionClick();
@@ -512,15 +514,31 @@ class _CreateTransactionScreenState
                                                 : TallyTapTheme.textGray,
                                           ),
                                         ),
-                                        Text(
-                                          '$currency${balance.toStringAsFixed(2)}',
-                                          style: TextStyle(
+                                        Text.rich(
+                                          TextSpan(
+                                            children: [
+                                              TextSpan(
+                                                text: balance >= 0 ? '+ ' : '- ',
+                                                style: TextStyle(
+                                                  color: balance >= 0
+                                                      ? const Color(0xFF10B981)
+                                                      : const Color(0xFFEF4444),
+                                                ),
+                                              ),
+                                              TextSpan(
+                                                text: '$currency${balance.abs().toStringAsFixed(2)}',
+                                                style: TextStyle(
+                                                  color: selected
+                                                      ? srcColor
+                                                      : TallyTapTheme.textGray
+                                                          .withOpacity(0.6),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          style: const TextStyle(
                                             fontSize: 11,
                                             fontWeight: FontWeight.w600,
-                                            color: selected
-                                                ? srcColor
-                                                : TallyTapTheme.textGray
-                                                    .withOpacity(0.6),
                                           ),
                                         ),
                                       ],
