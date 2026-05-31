@@ -161,6 +161,7 @@ class _CreateTransactionScreenState
         _reminderTime.hour,
         _reminderTime.minute,
       ) : null,
+      wasFinishLater: _finishLater,
     );
 
     ref.read(transactionListProvider.notifier).addTransaction(tx);

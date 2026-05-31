@@ -8,6 +8,7 @@ import '../../services/transaction_service.dart';
 import '../../providers/outstanding_provider.dart';
 import '../../providers/currency_provider.dart';
 import '../../providers/source_provider.dart';
+import '../../services/notification_service.dart';
 
 class OutstandingLedgerScreen extends ConsumerStatefulWidget {
   const OutstandingLedgerScreen({super.key});
@@ -32,7 +33,7 @@ class _OutstandingLedgerScreenState extends ConsumerState<OutstandingLedgerScree
 
   @override
   Widget build(BuildContext context) {
-    final records = ref.watch(outstandingListProvider);
+    final records = ref.watch(combinedOutstandingProvider);
     final currency = ref.watch(currencyProvider);
     final sources = ref.watch(sourcesListProvider);
 
@@ -457,7 +458,29 @@ class _OutstandingLedgerScreenState extends ConsumerState<OutstandingLedgerScree
                                                       constraints: const BoxConstraints(),
                                                       onPressed: () {
                                                         HapticFeedback.lightImpact();
-                                                        ref.read(outstandingListProvider.notifier).deleteRecord(r.id);
+                                                        final allTx = ref.read(transactionListProvider);
+                                                        final isSynth = allTx.any((t) => t.id == r.id && t.wasFinishLater);
+                                                        if (isSynth) {
+                                                          final tx = allTx.firstWhere((t) => t.id == r.id);
+                                                          final updatedTx = ExpenseTransaction(
+                                                            id: tx.id,
+                                                            amount: tx.amount,
+                                                            merchant: tx.merchant,
+                                                            date: tx.date,
+                                                            paymentMethod: tx.paymentMethod,
+                                                            category: tx.category,
+                                                            notes: tx.notes,
+                                                            paidTo: tx.paidTo,
+                                                            needsVerification: tx.needsVerification,
+                                                            reminderDate: tx.reminderDate,
+                                                            wasFinishLater: tx.wasFinishLater,
+                                                            hideFromLedger: true,
+                                                            groupId: tx.groupId,
+                                                          );
+                                                          ref.read(transactionListProvider.notifier).updateTransaction(updatedTx);
+                                                        } else {
+                                                          ref.read(outstandingListProvider.notifier).deleteRecord(r.id);
+                                                        }
                                                       },
                                                     ),
                                                 ],
@@ -520,7 +543,20 @@ class _OutstandingLedgerScreenState extends ConsumerState<OutstandingLedgerScree
   // Settle Single Debt Dialog
   void _showSettleDialog(BuildContext context, OutstandingRecord record) {
     bool recordTimelineTx = true;
-    String selectedSource = 'Cash';
+    final allTx = ref.read(transactionListProvider);
+    final isSynth = allTx.any((t) => t.id == record.id && t.wasFinishLater);
+    ExpenseTransaction? synthTx;
+    if (isSynth) {
+      synthTx = allTx.firstWhere((t) => t.id == record.id);
+    }
+
+    String selectedSource = synthTx?.paymentMethod ?? 'Cash';
+    final sources = ref.read(sourcesListProvider);
+    if (synthTx != null && synthTx.paymentMethod.isNotEmpty && sources.contains(synthTx.paymentMethod)) {
+      selectedSource = synthTx.paymentMethod;
+    } else if (!sources.contains(selectedSource)) {
+      selectedSource = sources.isNotEmpty ? sources.first : 'Cash';
+    }
 
     showDialog(
       context: context,
@@ -561,10 +597,10 @@ class _OutstandingLedgerScreenState extends ConsumerState<OutstandingLedgerScree
                       });
                     },
                   ),
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'Record Settlement in Timeline',
-                      style: TextStyle(color: TallyTapTheme.textLight, fontSize: 13, fontWeight: FontWeight.bold),
+                      isSynth ? 'Complete transaction in timeline' : 'Record Settlement in Timeline',
+                      style: const TextStyle(color: TallyTapTheme.textLight, fontSize: 13, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ],
@@ -620,19 +656,77 @@ class _OutstandingLedgerScreenState extends ConsumerState<OutstandingLedgerScree
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
               onPressed: () async {
-                await ref.read(outstandingListProvider.notifier).settleRecord(
-                      record.id,
-                      recordTimelineTx: recordTimelineTx,
-                      paymentMethod: recordTimelineTx ? selectedSource : null,
+                final allTx = ref.read(transactionListProvider);
+                final isSynth = allTx.any((t) => t.id == record.id && t.wasFinishLater);
+                ExpenseTransaction? synthTx;
+                if (isSynth) {
+                  synthTx = allTx.firstWhere((t) => t.id == record.id);
+                }
+
+                if (isSynth && synthTx != null) {
+                  if (recordTimelineTx) {
+                    final updatedTx = ExpenseTransaction(
+                      id: synthTx.id,
+                      amount: synthTx.amount,
+                      merchant: synthTx.merchant,
+                      date: synthTx.date,
+                      paymentMethod: selectedSource, // Set to selected source
+                      category: synthTx.category,
+                      notes: synthTx.notes,
+                      paidTo: synthTx.paidTo,
+                      needsVerification: false, // Mark completed
+                      reminderDate: null,
+                      wasFinishLater: synthTx.wasFinishLater,
+                      hideFromLedger: synthTx.hideFromLedger,
+                      groupId: synthTx.groupId,
                     );
-                if (context.mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Settled ${record.personName}\'s log!'),
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
+                    await ref.read(transactionListProvider.notifier).updateTransaction(updatedTx);
+                    NotificationService.cancelNotification(synthTx.id);
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Transaction completed successfully'), behavior: SnackBarBehavior.floating),
+                      );
+                    }
+                  } else {
+                    final updatedTx = ExpenseTransaction(
+                      id: synthTx.id,
+                      amount: synthTx.amount,
+                      merchant: synthTx.merchant,
+                      date: synthTx.date,
+                      paymentMethod: synthTx.paymentMethod,
+                      category: synthTx.category,
+                      notes: synthTx.notes,
+                      paidTo: synthTx.paidTo,
+                      needsVerification: synthTx.needsVerification, // remains true
+                      reminderDate: synthTx.reminderDate,
+                      wasFinishLater: synthTx.wasFinishLater,
+                      hideFromLedger: true, // hide from ledger
+                      groupId: synthTx.groupId,
+                    );
+                    await ref.read(transactionListProvider.notifier).updateTransaction(updatedTx);
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Transaction hidden from ledger'), behavior: SnackBarBehavior.floating),
+                      );
+                    }
+                  }
+                } else {
+                  await ref.read(outstandingListProvider.notifier).settleRecord(
+                        record.id,
+                        recordTimelineTx: recordTimelineTx,
+                        paymentMethod: recordTimelineTx ? selectedSource : null,
+                      );
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Settled ${record.personName}\'s log!'),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
                 }
               },
               child: const Text('Settle', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -645,8 +739,31 @@ class _OutstandingLedgerScreenState extends ConsumerState<OutstandingLedgerScree
 
   // Settle Net Balance Dialog
   void _showSettleNetDialog(BuildContext context, String person, double netAmount, List<OutstandingRecord> activeItems) {
+    final allTx = ref.read(transactionListProvider);
+    final synthesizedItems = activeItems.where((r) => allTx.any((t) => t.id == r.id && t.wasFinishLater)).toList();
+    final manualItems = activeItems.where((r) => !allTx.any((t) => t.id == r.id && t.wasFinishLater)).toList();
+
+    bool onlySynthesized = synthesizedItems.isNotEmpty && manualItems.isEmpty;
+    bool mixed = synthesizedItems.isNotEmpty && manualItems.isNotEmpty;
+
     bool recordTimelineTx = true;
     String selectedSource = 'Cash';
+
+    // Auto-fetch source if only one synthesized record is being settled
+    if (onlySynthesized && synthesizedItems.length == 1) {
+      final synthTx = allTx.firstWhere((t) => t.id == synthesizedItems.first.id);
+      final sources = ref.read(sourcesListProvider);
+      if (synthTx.paymentMethod.isNotEmpty && sources.contains(synthTx.paymentMethod)) {
+        selectedSource = synthTx.paymentMethod;
+      } else if (!sources.contains(selectedSource) && sources.isNotEmpty) {
+        selectedSource = sources.first;
+      }
+    } else {
+      final sources = ref.read(sourcesListProvider);
+      if (!sources.contains(selectedSource) && sources.isNotEmpty) {
+        selectedSource = sources.first;
+      }
+    }
 
     showDialog(
       context: context,
@@ -685,10 +802,14 @@ class _OutstandingLedgerScreenState extends ConsumerState<OutstandingLedgerScree
                       });
                     },
                   ),
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'Record Settlement in Timeline',
-                      style: TextStyle(color: TallyTapTheme.textLight, fontSize: 13, fontWeight: FontWeight.bold),
+                      onlySynthesized 
+                          ? 'Complete transaction(s) in timeline' 
+                          : mixed 
+                              ? 'Record manual settlement & complete pending'
+                              : 'Record Settlement in Timeline',
+                      style: const TextStyle(color: TallyTapTheme.textLight, fontSize: 13, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ],
@@ -744,30 +865,79 @@ class _OutstandingLedgerScreenState extends ConsumerState<OutstandingLedgerScree
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
               onPressed: () async {
-                // Settle all active logs for this person
-                for (final record in activeItems) {
+                // Settle synthesized logs for this person
+                for (final record in synthesizedItems) {
+                  final synthTx = allTx.firstWhere((t) => t.id == record.id);
+                  if (recordTimelineTx) {
+                    final updatedTx = ExpenseTransaction(
+                      id: synthTx.id,
+                      amount: synthTx.amount,
+                      merchant: synthTx.merchant,
+                      date: synthTx.date,
+                      paymentMethod: selectedSource, // Update payment source
+                      category: synthTx.category,
+                      notes: synthTx.notes,
+                      paidTo: synthTx.paidTo,
+                      needsVerification: false,
+                      reminderDate: null,
+                      wasFinishLater: synthTx.wasFinishLater,
+                      hideFromLedger: synthTx.hideFromLedger,
+                      groupId: synthTx.groupId,
+                    );
+                    await ref.read(transactionListProvider.notifier).updateTransaction(updatedTx);
+                    NotificationService.cancelNotification(synthTx.id);
+                  } else {
+                    final updatedTx = ExpenseTransaction(
+                      id: synthTx.id,
+                      amount: synthTx.amount,
+                      merchant: synthTx.merchant,
+                      date: synthTx.date,
+                      paymentMethod: synthTx.paymentMethod,
+                      category: synthTx.category,
+                      notes: synthTx.notes,
+                      paidTo: synthTx.paidTo,
+                      needsVerification: synthTx.needsVerification,
+                      reminderDate: synthTx.reminderDate,
+                      wasFinishLater: synthTx.wasFinishLater,
+                      hideFromLedger: true,
+                      groupId: synthTx.groupId,
+                    );
+                    await ref.read(transactionListProvider.notifier).updateTransaction(updatedTx);
+                  }
+                }
+
+                // Settle manual logs for this person
+                for (final record in manualItems) {
                   await ref.read(outstandingListProvider.notifier).settleRecord(record.id, recordTimelineTx: false);
                 }
 
-                // If timeline tracking was requested, log the NET settlement as a single entry
-                if (recordTimelineTx) {
-                  final isIncome = netAmount > 0;
-                  final txId = DateTime.now().millisecondsSinceEpoch.toString();
+                // If timeline tracking was requested and there are manual items, log the NET settlement as a single entry
+                if (recordTimelineTx && manualItems.isNotEmpty) {
+                  // Calculate net amount strictly for manual items to prevent double accounting
+                  double manualNetAmount = 0;
+                  for (final record in manualItems) {
+                     manualNetAmount += record.isLent ? record.amount : -record.amount;
+                  }
                   
-                  final netTx = ExpenseTransaction(
-                    id: txId,
-                    amount: netAmount.abs(),
-                    merchant: person,
-                    date: DateTime.now(),
-                    paymentMethod: selectedSource,
-                    category: isIncome ? 'Income' : 'Other',
-                    notes: isIncome 
-                        ? 'Settled net balance: $person paid back'
-                        : 'Settled net balance: Paid back $person',
-                    paidTo: !isIncome ? person : '',
-                  );
+                  if (manualNetAmount != 0) {
+                    final isIncome = manualNetAmount > 0;
+                    final txId = DateTime.now().millisecondsSinceEpoch.toString();
+                    
+                    final netTx = ExpenseTransaction(
+                      id: txId,
+                      amount: manualNetAmount.abs(),
+                      merchant: person,
+                      date: DateTime.now(),
+                      paymentMethod: selectedSource,
+                      category: isIncome ? 'Income' : 'Other',
+                      notes: isIncome 
+                          ? 'Settled net balance: $person paid back'
+                          : 'Settled net balance: Paid back $person',
+                      paidTo: !isIncome ? person : '',
+                    );
 
-                  await ref.read(transactionListProvider.notifier).addTransaction(netTx);
+                    await ref.read(transactionListProvider.notifier).addTransaction(netTx);
+                  }
                 }
 
                 if (context.mounted) {

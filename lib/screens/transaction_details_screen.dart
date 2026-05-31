@@ -8,6 +8,7 @@ import '../providers/category_provider.dart';
 import '../providers/currency_provider.dart';
 import '../providers/source_provider.dart';
 import '../services/transaction_service.dart';
+import '../services/notification_service.dart';
 
 class TransactionDetailsScreen extends ConsumerStatefulWidget {
   final ExpenseTransaction transaction;
@@ -34,6 +35,9 @@ class _TransactionDetailsScreenState
   late DateTime _selectedDate;
   late String _selectedCategory;
   late String _selectedPaymentMethod;
+  late bool _finishLater;
+  late DateTime _reminderDate;
+  late TimeOfDay _reminderTime;
 
   @override
   void initState() {
@@ -49,6 +53,11 @@ class _TransactionDetailsScreenState
     _selectedDate = widget.transaction.date;
     _selectedCategory = widget.transaction.category;
     _selectedPaymentMethod = widget.transaction.paymentMethod;
+    _finishLater = widget.transaction.needsVerification;
+    _reminderDate = widget.transaction.reminderDate ?? DateTime.now();
+    _reminderTime = widget.transaction.reminderDate != null
+        ? TimeOfDay.fromDateTime(widget.transaction.reminderDate!)
+        : TimeOfDay.now();
   }
 
   @override
@@ -101,18 +110,37 @@ class _TransactionDetailsScreenState
       ));
       return;
     }
-    ref.read(transactionListProvider.notifier).updateTransaction(
-          ExpenseTransaction(
-            id: widget.transaction.id,
-            amount: amount,
-            merchant: _merchantController.text.trim(),
-            date: _selectedDate,
-            paymentMethod: _selectedPaymentMethod,
-            category: _selectedCategory,
-            notes: _notesController.text.trim(),
-            paidTo: _paidToController.text.trim(),
-          ),
-        );
+    final tx = ExpenseTransaction(
+      id: widget.transaction.id,
+      amount: amount,
+      merchant: _merchantController.text.trim(),
+      date: _selectedDate,
+      paymentMethod: _selectedPaymentMethod,
+      category: _selectedCategory,
+      notes: _notesController.text.trim(),
+      paidTo: _paidToController.text.trim(),
+      needsVerification: _finishLater,
+      reminderDate: _finishLater ? DateTime(
+        _reminderDate.year,
+        _reminderDate.month,
+        _reminderDate.day,
+        _reminderTime.hour,
+        _reminderTime.minute,
+      ) : null,
+      wasFinishLater: widget.transaction.wasFinishLater || _finishLater,
+      hideFromLedger: widget.transaction.hideFromLedger,
+      groupId: widget.transaction.groupId,
+    );
+
+    ref.read(transactionListProvider.notifier).updateTransaction(tx);
+    
+    // Manage notification
+    if (tx.needsVerification && tx.reminderDate != null) {
+      NotificationService.scheduleTransactionReminder(tx);
+    } else {
+      NotificationService.cancelNotification(tx.id);
+    }
+
     setState(() => _isEditing = false);
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
       content: Text('Transaction updated successfully'),
@@ -254,6 +282,11 @@ class _TransactionDetailsScreenState
                   _selectedDate = widget.transaction.date;
                   _selectedCategory = widget.transaction.category;
                   _selectedPaymentMethod = widget.transaction.paymentMethod;
+                  _finishLater = widget.transaction.needsVerification;
+                  _reminderDate = widget.transaction.reminderDate ?? DateTime.now();
+                  _reminderTime = widget.transaction.reminderDate != null
+                      ? TimeOfDay.fromDateTime(widget.transaction.reminderDate!)
+                      : TimeOfDay.now();
                 }
                 _isEditing = !_isEditing;
               });
@@ -795,11 +828,248 @@ class _TransactionDetailsScreenState
                             ],
                           ),
                         ),
+                      if (_isEditing) ...[
+                        const SizedBox(height: 24),
+                        GestureDetector(
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            setState(() => _finishLater = !_finishLater);
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                            decoration: BoxDecoration(
+                              color: TallyTapTheme.obsidianCard,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: _finishLater ? activeColor : TallyTapTheme.borderGreen,
+                                width: _finishLater ? 1.5 : 1.0,
+                              ),
+                              boxShadow: _finishLater ? [
+                                BoxShadow(
+                                  color: activeColor.withOpacity(0.15),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
+                                )
+                              ] : null,
+                            ),
+                            child: Row(
+                              children: [
+                                AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  width: 24,
+                                  height: 24,
+                                  decoration: BoxDecoration(
+                                    color: _finishLater ? activeColor : TallyTapTheme.obsidianBg.withOpacity(0.5),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(
+                                      color: _finishLater ? activeColor : TallyTapTheme.textGray.withOpacity(0.5),
+                                    ),
+                                  ),
+                                  child: _finishLater
+                                      ? const Icon(Icons.check_rounded, size: 16, color: TallyTapTheme.obsidianBg)
+                                      : null,
+                                ),
+                                const SizedBox(width: 14),
+                                Text(
+                                  isIncome ? 'Verify Receipt' : 'Finish later',
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: TallyTapTheme.textLight,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+
+                        AnimatedSize(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.fastOutSlowIn,
+                          child: _finishLater
+                              ? Padding(
+                                  padding: const EdgeInsets.only(top: 16),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: GestureDetector(
+                                          onTap: () async {
+                                            final picked = await showDatePicker(
+                                              context: context,
+                                              initialDate: _reminderDate,
+                                              firstDate: DateTime.now(),
+                                              lastDate: DateTime(2101),
+                                              builder: (ctx, child) => Theme(
+                                                  data: Theme.of(ctx).copyWith(
+                                                    colorScheme: const ColorScheme.dark(
+                                                      primary: TallyTapTheme.primaryMint,
+                                                      onPrimary: TallyTapTheme.obsidianBg,
+                                                      surface: TallyTapTheme.obsidianCard,
+                                                      onSurface: TallyTapTheme.textLight,
+                                                    ),
+                                                  ),
+                                                  child: child!),
+                                            );
+                                            if (picked != null) {
+                                              setState(() => _reminderDate = picked);
+                                            }
+                                          },
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                            decoration: BoxDecoration(
+                                              color: TallyTapTheme.obsidianCard,
+                                              borderRadius: BorderRadius.circular(16),
+                                              border: Border.all(color: TallyTapTheme.borderGreen),
+                                            ),
+                                            child: Row(
+                                              children: [
+                                                Icon(Icons.notifications_active_outlined, color: activeColor, size: 18),
+                                                const SizedBox(width: 10),
+                                                Expanded(
+                                                  child: Text(
+                                                    DateFormat('MMM d, y').format(_reminderDate),
+                                                    style: const TextStyle(
+                                                      color: TallyTapTheme.textLight,
+                                                      fontWeight: FontWeight.w600,
+                                                      fontSize: 13,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: GestureDetector(
+                                          onTap: () async {
+                                            final time = await showTimePicker(
+                                              context: context,
+                                              initialTime: _reminderTime,
+                                              builder: (ctx, child) => Theme(
+                                                  data: Theme.of(ctx).copyWith(
+                                                    colorScheme: const ColorScheme.dark(
+                                                      primary: TallyTapTheme.primaryMint,
+                                                      onPrimary: TallyTapTheme.obsidianBg,
+                                                      surface: TallyTapTheme.obsidianCard,
+                                                      onSurface: TallyTapTheme.textLight,
+                                                    ),
+                                                  ),
+                                                  child: child!),
+                                            );
+                                            if (time != null) {
+                                              setState(() => _reminderTime = time);
+                                            }
+                                          },
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                            decoration: BoxDecoration(
+                                              color: TallyTapTheme.obsidianCard,
+                                              borderRadius: BorderRadius.circular(16),
+                                              border: Border.all(color: TallyTapTheme.borderGreen),
+                                            ),
+                                            child: Row(
+                                              children: [
+                                                Icon(Icons.access_time_rounded, color: activeColor, size: 18),
+                                                const SizedBox(width: 10),
+                                                Expanded(
+                                                  child: Text(
+                                                    _reminderTime.format(context),
+                                                    style: const TextStyle(
+                                                      color: TallyTapTheme.textLight,
+                                                      fontWeight: FontWeight.w600,
+                                                      fontSize: 13,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              : const SizedBox.shrink(),
+                        ),
+                      ],
                       const SizedBox(height: 8),
                     ],
                   ),
                 ),
               ),
+
+              // ── VERIFY RECEIPT BUTTON (view mode only) ──────────────────────
+              if (!_isEditing && widget.transaction.needsVerification)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                  child: Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(18),
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFF59E0B).withOpacity(0.35),
+                          blurRadius: 16,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
+                    ),
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        foregroundColor: TallyTapTheme.obsidianBg,
+                        shadowColor: Colors.transparent,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18)),
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                      ),
+                      icon: const Icon(Icons.verified_outlined, size: 22),
+                      label: Text(
+                        isIncome ? 'Verify Receipt' : 'Mark as Completed',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      onPressed: () {
+                        HapticFeedback.lightImpact();
+                        
+                        // Complete it
+                        final tx = ExpenseTransaction(
+                          id: widget.transaction.id,
+                          amount: widget.transaction.amount,
+                          merchant: widget.transaction.merchant,
+                          date: widget.transaction.date,
+                          paymentMethod: widget.transaction.paymentMethod,
+                          category: widget.transaction.category,
+                          notes: widget.transaction.notes,
+                          paidTo: widget.transaction.paidTo,
+                          needsVerification: false,
+                          reminderDate: null,
+                          wasFinishLater: true,
+                          hideFromLedger: widget.transaction.hideFromLedger,
+                          groupId: widget.transaction.groupId,
+                        );
+
+                        ref.read(transactionListProvider.notifier).updateTransaction(tx);
+                        NotificationService.cancelNotification(tx.id);
+
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content: Text('${isIncome ? "Receipt verified" : "Transaction completed"} successfully'),
+                          backgroundColor: const Color(0xFF10B981),
+                        ));
+                      },
+                    ),
+                  ),
+                ),
 
               // ── SAVE BUTTON (edit mode only) ───────────────────────────
               if (_isEditing)

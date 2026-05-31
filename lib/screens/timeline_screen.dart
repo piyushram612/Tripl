@@ -7,6 +7,7 @@ import '../providers/currency_provider.dart';
 import '../services/transaction_service.dart';
 import 'widgets/transaction_item.dart';
 import 'widgets/timeline_filter_sheet.dart';
+import 'group_transaction_details_screen.dart';
 
 class TimelineScreen extends ConsumerStatefulWidget {
   const TimelineScreen({super.key});
@@ -1077,6 +1078,36 @@ class _GroupTransactionCardState extends State<GroupTransactionCard> {
                     ),
                   );
                 },
+              ),
+            ),
+            Container(
+              color: TallyTapTheme.obsidianBg.withOpacity(0.5),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => GroupTransactionDetailsScreen(groupId: widget.groupId),
+                      ),
+                    );
+                  },
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: TallyTapTheme.primaryMint,
+                    side: const BorderSide(color: TallyTapTheme.borderGreen),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  icon: const Icon(Icons.receipt_long_rounded, size: 18),
+                  label: const Text(
+                    'View Details & Verify',
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                  ),
+                ),
               ),
             ),
           ],

@@ -41,6 +41,7 @@ class _CreateRecurringTransactionScreenState extends ConsumerState<CreateRecurri
   ReminderTiming _reminderTiming = ReminderTiming.oneDayBefore;
   
   bool _autoCreate = true;
+  bool _logAsPending = false;
 
   @override
   void initState() {
@@ -62,6 +63,7 @@ class _CreateRecurringTransactionScreenState extends ConsumerState<CreateRecurri
       _reminderEnabled = tx.reminderEnabled;
       _reminderTiming = tx.reminderTiming ?? ReminderTiming.oneDayBefore;
       _autoCreate = tx.autoCreate;
+      _logAsPending = tx.logAsPending;
     } else {
       _executionTime = TimeOfDay.now();
     }
@@ -118,6 +120,7 @@ class _CreateRecurringTransactionScreenState extends ConsumerState<CreateRecurri
   void _applyTemplate(String template) {
     setState(() {
       _amountController.clear();
+      _logAsPending = false;
       switch (template) {
         case 'Netflix':
           _titleController.text = 'Netflix';
@@ -224,6 +227,7 @@ class _CreateRecurringTransactionScreenState extends ConsumerState<CreateRecurri
         reminderEnabled: _reminderEnabled,
         reminderTiming: _reminderEnabled ? _reminderTiming : null,
         autoCreate: _autoCreate,
+        logAsPending: _logAsPending,
         paymentMethod: sourceToSave,
         merchant: _titleController.text, // Using title as merchant
         nextDueDate: widget.existingTransaction?.nextDueDate ?? effectiveStartDate,
@@ -761,9 +765,23 @@ class _CreateRecurringTransactionScreenState extends ConsumerState<CreateRecurri
                               value: _autoCreate,
                               activeColor: activeColor,
                               checkColor: TallyTapTheme.obsidianBg,
-                              onChanged: (val) => setState(() => _autoCreate = val ?? true),
+                              onChanged: (val) => setState(() {
+                                _autoCreate = val ?? true;
+                                if (!_autoCreate) _logAsPending = false;
+                              }),
                               controlAffinity: ListTileControlAffinity.leading,
                             ),
+                            if (_autoCreate)
+                              CheckboxListTile(
+                                contentPadding: const EdgeInsets.only(left: 48.0, right: 16.0),
+                                title: const Text('Require manual verification', style: TextStyle(color: TallyTapTheme.textLight, fontWeight: FontWeight.w600, fontSize: 13)),
+                                subtitle: const Text('Logs as a \'Finish Later\' draft for you to review', style: TextStyle(color: TallyTapTheme.textGray, fontSize: 12)),
+                                value: _logAsPending,
+                                activeColor: activeColor,
+                                checkColor: TallyTapTheme.obsidianBg,
+                                onChanged: (val) => setState(() => _logAsPending = val ?? false),
+                                controlAffinity: ListTileControlAffinity.leading,
+                              ),
                             const Divider(color: TallyTapTheme.borderGreen, height: 1),
                             CheckboxListTile(
                               title: const Text('Enable Reminders', style: TextStyle(color: TallyTapTheme.textLight, fontWeight: FontWeight.bold, fontSize: 14)),

@@ -135,3 +135,33 @@ class OutstandingListNotifier extends StateNotifier<List<OutstandingRecord>> {
     state = [];
   }
 }
+
+final combinedOutstandingProvider = Provider<List<OutstandingRecord>>((ref) {
+  final manualRecords = ref.watch(outstandingListProvider);
+  final transactions = ref.watch(transactionListProvider);
+
+  final manualLinkedIds = manualRecords.map((r) => r.linkedTransactionId).where((id) => id != null).toSet();
+
+  final synthRecords = transactions
+      .where((tx) => tx.wasFinishLater && !tx.hideFromLedger && !manualLinkedIds.contains(tx.id))
+      .map((tx) {
+    final isIncome = tx.category.toLowerCase() == 'income';
+    final isLent = isIncome; // Income means they owe me
+    final personName = tx.paidTo.isNotEmpty ? tx.paidTo : tx.merchant;
+
+    return OutstandingRecord(
+      id: tx.id, // Synthesized records have the same ID as the transaction
+      personName: personName,
+      amount: tx.amount,
+      notes: tx.notes.isNotEmpty ? tx.notes : tx.merchant,
+      date: tx.date,
+      isLent: isLent,
+      isSettled: !tx.needsVerification,
+      linkedTransactionId: tx.id,
+    );
+  }).toList();
+
+  final allRecords = [...manualRecords, ...synthRecords];
+  allRecords.sort((a, b) => b.date.compareTo(a.date));
+  return allRecords;
+});
