@@ -24,6 +24,34 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
 
   bool _isSelectionMode = false;
   final Set<String> _selectedTransactionIds = {};
+  MonthYear? _selectedMonth;
+
+  List<MonthYear> _getAvailableMonths(List<ExpenseTransaction> transactions) {
+    if (transactions.isEmpty) {
+      final now = DateTime.now();
+      return [MonthYear(now.year, now.month)];
+    }
+    final Set<MonthYear> months = {};
+    for (final tx in transactions) {
+      months.add(MonthYear(tx.date.year, tx.date.month));
+    }
+    final list = months.toList();
+    list.sort((a, b) {
+      if (a.year != b.year) {
+        return b.year.compareTo(a.year);
+      }
+      return b.month.compareTo(a.month);
+    });
+    return list;
+  }
+
+  String _getDayOfWeekName(int weekday) {
+    const weekDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    if (weekday >= 1 && weekday <= 7) {
+      return weekDays[weekday - 1];
+    }
+    return '';
+  }
 
   @override
   void dispose() {
@@ -177,6 +205,73 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
         SnackBar(
           content: Text('Group "$groupName" created successfully!'),
           backgroundColor: TallyTapTheme.borderGreen,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  void _deleteSelectedTransactions() async {
+    if (_selectedTransactionIds.isEmpty) return;
+
+    final count = _selectedTransactionIds.length;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: TallyTapTheme.obsidianCard,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: TallyTapTheme.borderGreen, width: 1.5),
+        ),
+        title: Text(
+          'Delete $count Transaction(s)?',
+          style: const TextStyle(
+            color: Colors.redAccent,
+            fontWeight: FontWeight.bold,
+            fontFamily: 'Outfit',
+          ),
+        ),
+        content: Text(
+          'Are you sure you want to permanently delete the $count selected transaction(s)? This action cannot be undone.',
+          style: const TextStyle(color: TallyTapTheme.textLight),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel', style: TextStyle(color: TallyTapTheme.textGray)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    final listNotifier = ref.read(transactionListProvider.notifier);
+    for (final txId in _selectedTransactionIds) {
+      await listNotifier.deleteTransaction(txId);
+    }
+
+    setState(() {
+      _isSelectionMode = false;
+      _selectedTransactionIds.clear();
+    });
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Successfully deleted $count transaction(s)!'),
+          backgroundColor: Colors.redAccent,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -341,10 +436,122 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
     }
   }
 
+  Widget _buildSummaryPill({
+    required String label,
+    required String value,
+    required Color color,
+    required IconData icon,
+    bool isNet = false,
+    bool isPositive = true,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+      decoration: BoxDecoration(
+        color: TallyTapTheme.obsidianCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isNet
+              ? (isPositive ? TallyTapTheme.primaryMint.withOpacity(0.4) : Colors.redAccent.withOpacity(0.4))
+              : TallyTapTheme.borderGreen,
+          width: 1.0,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: color, size: 12),
+              const SizedBox(width: 4),
+              Text(
+                label.toUpperCase(),
+                style: const TextStyle(fontSize: 8, fontWeight: FontWeight.w800, color: TallyTapTheme.textGray, letterSpacing: 0.8),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w900,
+                color: isNet ? (isPositive ? const Color(0xFF10B981) : Colors.redAccent) : TallyTapTheme.textLight,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionHeaderForDay(String dayKey) {
+    final parts = dayKey.split('-');
+    final year = int.parse(parts[0]);
+    final month = int.parse(parts[1]);
+    final day = int.parse(parts[2]);
+    final date = DateTime(year, month, day);
+    
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+
+    String title = '';
+    if (date == today) {
+      title = 'Today';
+    } else if (date == yesterday) {
+      title = 'Yesterday';
+    } else {
+      final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      final dayName = _getDayOfWeekName(date.weekday);
+      title = '$dayName, ${months[month - 1]} $day';
+      if (year != now.year) {
+        title += ', $year';
+      }
+    }
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: TallyTapTheme.textLight),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final transactions = ref.watch(transactionListProvider);
     final currency = ref.watch(currencyProvider);
+
+    final availableMonths = _getAvailableMonths(transactions);
+    if (_selectedMonth == null || !availableMonths.contains(_selectedMonth)) {
+      _selectedMonth = availableMonths.isNotEmpty ? availableMonths.first : MonthYear(DateTime.now().year, DateTime.now().month);
+    }
+
+    // Filter transactions for the selected month
+    final monthlyTransactions = transactions.where((tx) =>
+        tx.date.year == _selectedMonth!.year && tx.date.month == _selectedMonth!.month).toList();
+
+    // Calculate monthly summary
+    double monthlyIncome = 0.0;
+    double monthlyExpense = 0.0;
+
+    for (final tx in monthlyTransactions) {
+      final isIncome = tx.category.toLowerCase() == 'income';
+      final absAmount = tx.amount.abs();
+      if (isIncome) {
+        monthlyIncome += absAmount;
+      } else {
+        monthlyExpense += absAmount;
+      }
+    }
+
+    final double monthlyNet = monthlyIncome - monthlyExpense;
 
     double maxAmount = 100.0;
     if (transactions.isNotEmpty) {
@@ -353,7 +560,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
       if (maxAmount < 100) maxAmount = 100;
     }
 
-    final grouped = _groupTransactions(transactions);
+    final grouped = _groupTransactions(monthlyTransactions);
 
     final filteredItems = grouped.where((item) {
       if (item.isGroup) {
@@ -445,17 +652,21 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
       }
     }).toList();
 
-    final now = DateTime.now();
-    final todayList = filteredItems.where((item) =>
-        item.date.year == now.year && item.date.month == now.month && item.date.day == now.day).toList();
-
-    final yesterday = now.subtract(const Duration(days: 1));
-    final yesterdayList = filteredItems.where((item) =>
-        item.date.year == yesterday.year && item.date.month == yesterday.month && item.date.day == yesterday.day).toList();
-
-    final olderList = filteredItems.where((item) =>
-        !(item.date.year == now.year && item.date.month == now.month && item.date.day == now.day) &&
-        !(item.date.year == yesterday.year && item.date.month == yesterday.month && item.date.day == yesterday.day)).toList();
+    // Group filtered items by day key descending
+    final Map<String, List<TimelineItem>> dayGroups = {};
+    final List<String> sortedDayKeys = [];
+    
+    for (final item in filteredItems) {
+      final date = item.date;
+      final key = "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+      if (!dayGroups.containsKey(key)) {
+        dayGroups[key] = [];
+        sortedDayKeys.add(key);
+      }
+      dayGroups[key]!.add(item);
+    }
+    
+    sortedDayKeys.sort((a, b) => b.compareTo(a));
 
     return Stack(
       children: [
@@ -537,6 +748,85 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                 ),
               ),
               const SizedBox(height: 16),
+
+              // Month Selection Row
+              SizedBox(
+                height: 38,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  itemCount: availableMonths.length,
+                  itemBuilder: (context, index) {
+                    final m = availableMonths[index];
+                    final isSelected = m == _selectedMonth;
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _selectedMonth = m;
+                        });
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.only(right: 10),
+                        padding: const EdgeInsets.symmetric(horizontal: 18),
+                        decoration: BoxDecoration(
+                          color: isSelected ? TallyTapTheme.primaryMint : TallyTapTheme.obsidianCard,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isSelected ? Colors.transparent : TallyTapTheme.borderGreen,
+                            width: 1.0,
+                          ),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          m.shortName,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: isSelected ? TallyTapTheme.obsidianBg : TallyTapTheme.textLight,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // Monthly Summary pills (Expenses, Income, Net)
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildSummaryPill(
+                      label: 'Expenses',
+                      value: '$currency${monthlyExpense.toStringAsFixed(2)}',
+                      color: const Color(0xFFF87171),
+                      icon: Icons.arrow_upward_rounded,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildSummaryPill(
+                      label: 'Income',
+                      value: '$currency${monthlyIncome.toStringAsFixed(2)}',
+                      color: const Color(0xFF34D399),
+                      icon: Icons.arrow_downward_rounded,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildSummaryPill(
+                      label: 'Net Balance',
+                      value: '${monthlyNet >= 0 ? '+' : '-'}$currency${monthlyNet.abs().toStringAsFixed(2)}',
+                      color: monthlyNet >= 0 ? TallyTapTheme.primaryMint : TallyTapTheme.textLight,
+                      icon: Icons.account_balance_wallet_outlined,
+                      isNet: true,
+                      isPositive: monthlyNet >= 0,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
               SizedBox(
                 height: 36,
                 child: ListView(
@@ -550,62 +840,24 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
               Expanded(
                 child: SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      if (todayList.isNotEmpty) ...[
-                        _buildSectionHeader('Today', ''),
+                      for (final dayKey in sortedDayKeys) ...[
+                        _buildSectionHeaderForDay(dayKey),
                         const SizedBox(height: 8),
                         Card(
                           child: Padding(
                             padding: const EdgeInsets.symmetric(vertical: 8.0),
                             child: Column(
                               children: [
-                                for (int i = 0; i < todayList.length; i++) ...[
-                                  _buildTimelineItem(todayList[i], currency),
-                                  if (i < todayList.length - 1)
-                                    const Divider(color: TallyTapTheme.borderGreen, height: 1, thickness: 0.5),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                      ],
-                      if (yesterdayList.isNotEmpty) ...[
-                        _buildSectionHeader('Yesterday', ''),
-                        const SizedBox(height: 8),
-                        Card(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8.0),
-                            child: Column(
-                              children: [
-                                for (int i = 0; i < yesterdayList.length; i++) ...[
-                                  _buildTimelineItem(yesterdayList[i], currency),
-                                  if (i < yesterdayList.length - 1)
-                                    const Divider(color: TallyTapTheme.borderGreen, height: 1, thickness: 0.5),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                      ],
-                      if (olderList.isNotEmpty) ...[
-                        _buildSectionHeader('Older Activity', ''),
-                        const SizedBox(height: 8),
-                        Card(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8.0),
-                            child: Column(
-                              children: [
-                                for (int i = 0; i < olderList.length; i++) ...[
-                                  _buildTimelineItem(olderList[i], currency, showDate: true),
-                                  if (i < olderList.length - 1)
+                                for (int i = 0; i < dayGroups[dayKey]!.length; i++) ...[
+                                  _buildTimelineItem(dayGroups[dayKey]![i], currency, showDate: false),
+                                  if (i < dayGroups[dayKey]!.length - 1)
                                     const Divider(color: TallyTapTheme.borderGreen, height: 1, thickness: 0.5),
                                 ],
                               ],
@@ -685,23 +937,34 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                   ),
                 ],
               ),
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: TallyTapTheme.primaryMint,
-                  foregroundColor: TallyTapTheme.obsidianBg,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 22),
+                    tooltip: 'Delete Selected',
+                    onPressed: _deleteSelectedTransactions,
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                ),
-                onPressed: _selectedTransactionIds.length < 2
-                    ? null
-                    : _batchSelectedTransactions,
-                icon: const Icon(Icons.group_work_rounded, size: 18),
-                label: const Text(
-                  'Group Split',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                ),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: TallyTapTheme.primaryMint,
+                      foregroundColor: TallyTapTheme.obsidianBg,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    ),
+                    onPressed: _selectedTransactionIds.length < 2
+                        ? null
+                        : _batchSelectedTransactions,
+                    icon: const Icon(Icons.group_work_rounded, size: 18),
+                    label: const Text(
+                      'Group Split',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -736,23 +999,6 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildSectionHeader(String day, String dateStr) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          day,
-          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: TallyTapTheme.textLight),
-        ),
-        if (dateStr.isNotEmpty)
-          Text(
-            dateStr,
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: TallyTapTheme.textGray),
-          ),
-      ],
     );
   }
 
@@ -884,7 +1130,7 @@ class _GroupTransactionCardState extends State<GroupTransactionCard> {
     double netAmount = 0.0;
     for (final tx in widget.transactions) {
       final isInc = tx.category.toLowerCase() == 'income';
-      netAmount += isInc ? tx.amount : -tx.amount;
+      netAmount += isInc ? tx.amount.abs() : -tx.amount.abs();
     }
     final isNetIncome = netAmount >= 0;
     final displayAmount = netAmount.abs();
@@ -1067,7 +1313,7 @@ class _GroupTransactionCardState extends State<GroupTransactionCard> {
                           ),
                         ),
                         Text(
-                          '${isInc ? '+' : '-'} ${widget.currency}${tx.amount.toStringAsFixed(2)}',
+                          '${isInc ? '+' : '-'} ${widget.currency}${tx.amount.abs().toStringAsFixed(2)}',
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
@@ -1114,5 +1360,30 @@ class _GroupTransactionCardState extends State<GroupTransactionCard> {
         ],
       ),
     );
+  }
+}
+
+class MonthYear {
+  final int year;
+  final int month;
+
+  MonthYear(this.year, this.month);
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MonthYear && runtimeType == other.runtimeType && year == other.year && month == other.month;
+
+  @override
+  int get hashCode => year.hashCode ^ month.hashCode;
+
+  String get displayName {
+    final months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    return '${months[month - 1]} $year';
+  }
+  
+  String get shortName {
+    final shortMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${shortMonths[month - 1]} $year';
   }
 }

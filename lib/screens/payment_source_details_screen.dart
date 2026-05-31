@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 import '../core/theme.dart';
 import '../models/transaction_model.dart';
 import '../providers/currency_provider.dart';
@@ -49,6 +50,9 @@ class _PaymentSourceDetailsScreenState extends ConsumerState<PaymentSourceDetail
       const Color(0xFF06B6D4), // Cyan
       const Color(0xFFEF4444), // Red
       const Color(0xFF10B981), // Emerald Green
+      const Color(0xFF3B82F6), // Blue
+      const Color(0xFFF97316), // Orange
+      const Color(0xFF84CC16), // Lime Green
     ];
 
     showDialog(
@@ -320,6 +324,8 @@ class _PaymentSourceDetailsScreenState extends ConsumerState<PaymentSourceDetail
     
     final activeColor = TallyTapTheme.getColorForSource(widget.sourceName);
 
+
+
     // Filter transactions belonging strictly to this source
     final sourceTxs = transactions.where((tx) => tx.paymentMethod == widget.sourceName).toList();
 
@@ -334,14 +340,69 @@ class _PaymentSourceDetailsScreenState extends ConsumerState<PaymentSourceDetail
     for (final tx in sourceTxs) {
       final isInc = tx.category.toLowerCase() == 'income';
       if (isInc) {
-        totalIncome += tx.amount;
+        totalIncome += tx.amount.abs();
       } else {
-        totalExpense += tx.amount;
+        totalExpense += tx.amount.abs();
       }
     }
 
     final double starting = startingBalances[widget.sourceName] ?? 0.0;
     final double netCalculated = starting + totalIncome - totalExpense;
+
+    // Load and compute Billing Cycle configuration and parameters
+    final billingConfigs = ref.watch(sourceBillingCyclesProvider);
+    final config = billingConfigs[widget.sourceName] ?? SourceBillingCycleConfig(statementDay: 1, dueDay: 20, isEnabled: false);
+
+    DateTime? statementStart;
+    DateTime? statementEnd;
+    DateTime? previousStatementStart;
+    DateTime? previousStatementEnd;
+    DateTime? dueDate;
+    int daysRemaining = 0;
+    double currentCycleSpent = 0.0;
+    double lastStatementSpent = 0.0;
+
+    if (config.isEnabled) {
+      final today = DateTime.now();
+      if (today.day >= config.statementDay) {
+        statementStart = DateTime(today.year, today.month, config.statementDay);
+        statementEnd = DateTime(today.year, today.month + 1, config.statementDay - 1);
+
+        previousStatementStart = DateTime(today.year, today.month - 1, config.statementDay);
+        previousStatementEnd = DateTime(today.year, today.month, config.statementDay - 1);
+      } else {
+        statementStart = DateTime(today.year, today.month - 1, config.statementDay);
+        statementEnd = DateTime(today.year, today.month, config.statementDay - 1);
+
+        previousStatementStart = DateTime(today.year, today.month - 2, config.statementDay);
+        previousStatementEnd = DateTime(today.year, today.month - 1, config.statementDay - 1);
+      }
+
+      dueDate = DateTime(previousStatementEnd.year, previousStatementEnd.month + 1, config.dueDay);
+      daysRemaining = dueDate.difference(DateTime(today.year, today.month, today.day)).inDays;
+
+      for (final tx in sourceTxs) {
+        if (tx.category.toLowerCase() != 'income') {
+          // Check if transaction falls inside current billing cycle
+          if (tx.date.isAfter(statementStart.subtract(const Duration(seconds: 1))) &&
+              tx.date.isBefore(statementEnd.add(const Duration(days: 1)))) {
+            currentCycleSpent += tx.amount.abs();
+          }
+          // Check if transaction falls inside previous billing cycle
+          if (tx.date.isAfter(previousStatementStart.subtract(const Duration(seconds: 1))) &&
+              tx.date.isBefore(previousStatementEnd.add(const Duration(days: 1)))) {
+            lastStatementSpent += tx.amount.abs();
+          }
+        }
+      }
+    }
+
+    final String currentCycleStr = statementStart != null && statementEnd != null
+        ? '${DateFormat('MMM d').format(statementStart)} - ${DateFormat('MMM d').format(statementEnd)}'
+        : '';
+    final String dueDateStr = dueDate != null
+        ? DateFormat('MMMM d, y').format(dueDate)
+        : '';
 
     // Build timeline details for all-time line graph
     final List<double> graphValues = [];
@@ -461,6 +522,17 @@ class _PaymentSourceDetailsScreenState extends ConsumerState<PaymentSourceDetail
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
+                                  netCalculated >= 0 ? '+ ' : '- ',
+                                  style: TextStyle(
+                                    fontSize: 40,
+                                    fontWeight: FontWeight.w900,
+                                    color: netCalculated >= 0
+                                        ? const Color(0xFF10B981)
+                                        : const Color(0xFFEF4444),
+                                    height: 1.0,
+                                  ),
+                                ),
+                                Text(
                                   currency,
                                   style: TextStyle(
                                     fontSize: 24,
@@ -470,7 +542,7 @@ class _PaymentSourceDetailsScreenState extends ConsumerState<PaymentSourceDetail
                                   ),
                                 ),
                                 Text(
-                                  netCalculated.toStringAsFixed(2),
+                                  netCalculated.abs().toStringAsFixed(2),
                                   style: const TextStyle(
                                     fontSize: 40,
                                     fontWeight: FontWeight.w900,
@@ -512,6 +584,13 @@ class _PaymentSourceDetailsScreenState extends ConsumerState<PaymentSourceDetail
                           ],
                         ),
                       ),
+                      const SizedBox(height: 20),
+
+                      // Billing Cycle Info Card
+                      config.isEnabled
+                          ? _buildBillingCycleCard(context, config, currentCycleSpent, lastStatementSpent, currentCycleStr, dueDateStr, daysRemaining)
+                          : _buildBillingCycleDisabledCard(context, config),
+
                       const SizedBox(height: 20),
 
                       // Correct Balance & Merge CTAs Row
@@ -682,6 +761,365 @@ class _PaymentSourceDetailsScreenState extends ConsumerState<PaymentSourceDetail
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildBillingCycleCard(
+      BuildContext context,
+      SourceBillingCycleConfig config,
+      double currentCycleSpent,
+      double lastStatementSpent,
+      String currentCycleStr,
+      String dueDateStr,
+      int daysRemaining) {
+    final activeColor = TallyTapTheme.getColorForSource(widget.sourceName);
+    final currency = ref.read(currencyProvider);
+    return Card(
+      color: TallyTapTheme.obsidianCard,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: activeColor.withOpacity(0.2), width: 1.0),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.credit_card_rounded, color: activeColor, size: 18),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Billing Cycle Details',
+                      style: TextStyle(
+                        color: TallyTapTheme.textLight,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                IconButton(
+                  icon: const Icon(Icons.settings_rounded, color: TallyTapTheme.textGray, size: 16),
+                  onPressed: () => _showBillingCycleConfigDialog(config),
+                  constraints: const BoxConstraints(),
+                  padding: EdgeInsets.zero,
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Current Cycle Spent', style: TextStyle(color: TallyTapTheme.textGray, fontSize: 11)),
+                    const SizedBox(height: 4),
+                    Text(
+                      '$currentCycleStr',
+                      style: const TextStyle(color: TallyTapTheme.textLight, fontSize: 10, fontWeight: FontWeight.w500),
+                    ),
+                  ],
+                ),
+                Text(
+                  '- $currency${currentCycleSpent.toStringAsFixed(2)}',
+                  style: const TextStyle(color: TallyTapTheme.textLight, fontSize: 14, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const Divider(color: TallyTapTheme.borderGreen, height: 20, thickness: 0.5),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Last Statement Balance', style: TextStyle(color: TallyTapTheme.textGray, fontSize: 11)),
+                Text(
+                  '- $currency${lastStatementSpent.toStringAsFixed(2)}',
+                  style: const TextStyle(color: TallyTapTheme.textLight, fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: daysRemaining < 0
+                    ? const Color(0xFF3B1616)
+                    : daysRemaining <= 5
+                        ? const Color(0xFF33200D)
+                        : const Color(0xFF0F1B17),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: daysRemaining < 0
+                      ? Colors.redAccent.withOpacity(0.3)
+                      : daysRemaining <= 5
+                          ? Colors.amber.withOpacity(0.3)
+                          : TallyTapTheme.borderGreen,
+                  width: 0.5,
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Payment Due Date', style: TextStyle(color: TallyTapTheme.textGray, fontSize: 10)),
+                      const SizedBox(height: 4),
+                      Text(
+                        '$dueDateStr',
+                        style: const TextStyle(color: TallyTapTheme.textLight, fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: daysRemaining < 0
+                          ? Colors.redAccent.withOpacity(0.2)
+                          : daysRemaining <= 5
+                              ? Colors.amber.withOpacity(0.2)
+                              : TallyTapTheme.primaryMint.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      daysRemaining < 0
+                          ? 'Overdue'
+                          : daysRemaining == 0
+                              ? 'Due Today'
+                              : daysRemaining == 1
+                                  ? 'Due Tomorrow'
+                                  : 'Due in $daysRemaining days',
+                      style: TextStyle(
+                        color: daysRemaining < 0
+                            ? Colors.redAccent
+                            : daysRemaining <= 5
+                                ? Colors.amber
+                                : TallyTapTheme.primaryMint,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBillingCycleDisabledCard(BuildContext context, SourceBillingCycleConfig config) {
+    final activeColor = TallyTapTheme.getColorForSource(widget.sourceName);
+    return Card(
+      color: TallyTapTheme.obsidianCard,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: TallyTapTheme.borderGreen.withOpacity(0.5), width: 1.0),
+      ),
+      child: InkWell(
+        onTap: () => _showBillingCycleConfigDialog(config),
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: activeColor.withOpacity(0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.credit_card_rounded, color: activeColor, size: 20),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Setup Billing Cycle',
+                      style: TextStyle(
+                        color: TallyTapTheme.textLight,
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Track statement period spend, payment due dates, and alerts (ideal for Credit Cards).',
+                      style: TextStyle(
+                        color: TallyTapTheme.textGray.withOpacity(0.7),
+                        fontSize: 11,
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(Icons.arrow_forward_ios_rounded, color: TallyTapTheme.textGray.withOpacity(0.5), size: 14),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showBillingCycleConfigDialog(SourceBillingCycleConfig config) {
+    int statementDay = config.statementDay;
+    int dueDay = config.dueDay;
+    bool isEnabled = config.isEnabled;
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: TallyTapTheme.obsidianBg,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: Row(
+                children: [
+                  const Icon(Icons.credit_card_rounded, color: TallyTapTheme.primaryMint, size: 20),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Billing Cycle Settings',
+                    style: TextStyle(color: TallyTapTheme.textLight, fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Enable Billing Cycle',
+                          style: TextStyle(color: TallyTapTheme.textLight, fontSize: 13, fontWeight: FontWeight.w600),
+                        ),
+                        Switch(
+                          value: isEnabled,
+                          activeColor: TallyTapTheme.primaryMint,
+                          activeTrackColor: TallyTapTheme.primaryMint.withOpacity(0.3),
+                          onChanged: (val) {
+                            setDialogState(() {
+                              isEnabled = val;
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                    if (isEnabled) ...[
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Statement Closing Day of Month',
+                        style: TextStyle(color: TallyTapTheme.textGray, fontSize: 11),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Slider(
+                              value: statementDay.toDouble(),
+                              min: 1,
+                              max: 28,
+                              divisions: 27,
+                              activeColor: TallyTapTheme.primaryMint,
+                              onChanged: (val) {
+                                setDialogState(() {
+                                  statementDay = val.round();
+                                });
+                              },
+                            ),
+                          ),
+                          Text(
+                            '$statementDay',
+                            style: const TextStyle(color: TallyTapTheme.textLight, fontSize: 13, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Payment Due Day of Month',
+                        style: TextStyle(color: TallyTapTheme.textGray, fontSize: 11),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Slider(
+                              value: dueDay.toDouble(),
+                              min: 1,
+                              max: 28,
+                              divisions: 27,
+                              activeColor: TallyTapTheme.primaryMint,
+                              onChanged: (val) {
+                                setDialogState(() {
+                                  dueDay = val.round();
+                                });
+                              },
+                            ),
+                          ),
+                          Text(
+                            '$dueDay',
+                            style: const TextStyle(color: TallyTapTheme.textLight, fontSize: 13, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Note: Days are capped at 28 to support all calendar months seamlessly.',
+                        style: TextStyle(color: TallyTapTheme.textGray, fontSize: 10, fontStyle: FontStyle.italic),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogCtx),
+                  child: const Text('Cancel', style: TextStyle(color: TallyTapTheme.textGray)),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    Navigator.pop(dialogCtx);
+                    final newConfig = SourceBillingCycleConfig(
+                      statementDay: statementDay,
+                      dueDay: dueDay,
+                      isEnabled: isEnabled,
+                    );
+                    await ref.read(sourceBillingCyclesProvider.notifier).setConfig(widget.sourceName, newConfig);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(isEnabled
+                              ? 'Billing cycle configured successfully!'
+                              : 'Billing cycle disabled.'),
+                          behavior: SnackBarBehavior.floating,
+                          backgroundColor: TallyTapTheme.primaryMint,
+                        ),
+                      );
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: TallyTapTheme.primaryMint,
+                    foregroundColor: TallyTapTheme.obsidianBg,
+                  ),
+                  child: const Text('Save', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 }

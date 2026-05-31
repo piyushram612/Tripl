@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/theme.dart';
 import '../providers/currency_provider.dart';
 import '../providers/insights_provider.dart';
+import '../providers/category_provider.dart';
 import 'widgets/intent_ring_painter.dart';
 
 class InsightsScreen extends ConsumerWidget {
@@ -12,6 +14,7 @@ class InsightsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final currency = ref.watch(currencyProvider);
     final insights = ref.watch(insightsProvider);
+    final splitTargets = ref.watch(budgetSplitProvider);
 
     return SafeArea(
       child: SingleChildScrollView(
@@ -47,7 +50,7 @@ class InsightsScreen extends ConsumerWidget {
                       letterSpacing: -1.0,
                     ),
                   ),
-                  const SizedBox(width: 38), // To balance the left wallet icon container and keep TallyTap centered
+                  const SizedBox(width: 38),
                 ],
               ),
               const SizedBox(height: 24),
@@ -70,6 +73,8 @@ class InsightsScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 20),
+
+              // ── Intent Ring Card ──────────────────────────────────────────────
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(20.0),
@@ -79,20 +84,29 @@ class InsightsScreen extends ConsumerWidget {
                         essential: insights.essential,
                         joyful: insights.joyful,
                         avoidable: insights.avoidable,
+                        investments: insights.investments,
                         totalSpent: insights.totalSpent,
                         currency: currency,
                       ),
                       const SizedBox(height: 20),
                       _buildIntentLegendRow('Essential', insights.essentialPercent, TallyTapTheme.primaryMint),
                       const Divider(color: TallyTapTheme.borderGreen, height: 24, thickness: 0.5),
-                      _buildIntentLegendRow('Joyful', insights.joyfulPercent, const Color(0xFF4B5E55)),
+                      _buildIntentLegendRow('Joyful', insights.joyfulPercent, const Color(0xFF9FB6DF)),
                       const Divider(color: TallyTapTheme.borderGreen, height: 24, thickness: 0.5),
                       _buildIntentLegendRow('Avoidable', insights.avoidablePercent, const Color(0xFFFFB5B5)),
+                      const Divider(color: TallyTapTheme.borderGreen, height: 24, thickness: 0.5),
+                      _buildIntentLegendRow('Investments', insights.investmentsPercent, const Color(0xFF8B5CF6)),
                     ],
                   ),
                 ),
               ),
               const SizedBox(height: 16),
+
+              // ── Budget Split Card ─────────────────────────────────────────────
+              _BudgetSplitCard(insights: insights, splitTargets: splitTargets, currency: currency),
+              const SizedBox(height: 16),
+
+              // ── Insight of the Day ────────────────────────────────────────────
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(20.0),
@@ -115,29 +129,14 @@ class InsightsScreen extends ConsumerWidget {
                         ],
                       ),
                       const SizedBox(height: 12),
-                      RichText(
-                        text: const TextSpan(
-                          style: TextStyle(fontSize: 13, color: TallyTapTheme.textLight, height: 1.5),
-                          children: [
-                            TextSpan(text: "Your "),
-                            TextSpan(
-                              text: "Joyful",
-                              style: TextStyle(color: Color(0xFF9FB6DF), fontWeight: FontWeight.bold),
-                            ),
-                            TextSpan(text: " spending increased by 12% this month, primarily driven by dining experiences. However, your "),
-                            TextSpan(
-                              text: "Avoidable",
-                              style: TextStyle(color: Color(0xFFFFB5B5), fontWeight: FontWeight.bold),
-                            ),
-                            TextSpan(text: " expenses remain low, indicating strong fundamental habits."),
-                          ],
-                        ),
-                      ),
+                      _buildDynamicInsight(insights, currency),
                     ],
                   ),
                 ),
               ),
               const SizedBox(height: 16),
+
+              // ── Category Breakdown ────────────────────────────────────────────
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(20.0),
@@ -247,6 +246,494 @@ class InsightsScreen extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(100),
               ),
             ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDynamicInsight(InsightsState insights, String currency) {
+    if (insights.totalSpent == 0) {
+      return const Text(
+        "You haven't logged any expenses this period. Start tracking your transactions to unlock personalized, value-based intentionality insights!",
+        style: TextStyle(fontSize: 13, color: TallyTapTheme.textLight, height: 1.5),
+      );
+    }
+
+    final double essential = insights.essential;
+    final double joyful = insights.joyful;
+    final double avoidable = insights.avoidable;
+    final double invest = insights.investments;
+
+    final String essentialPct = insights.essentialPercent;
+    final String joyfulPct = insights.joyfulPercent;
+    final String avoidablePct = insights.avoidablePercent;
+    final String investPct = insights.investmentsPercent;
+
+    List<InlineSpan> spans = [];
+
+    spans.add(const TextSpan(text: "Your spending is currently "));
+
+    final double maxVal = [essential, joyful, avoidable, invest].reduce((a, b) => a > b ? a : b);
+
+    if (essential == maxVal) {
+      spans.add(const TextSpan(text: "primarily focused on "));
+      spans.add(const TextSpan(text: "Essential", style: TextStyle(color: TallyTapTheme.primaryMint, fontWeight: FontWeight.bold)));
+      spans.add(TextSpan(text: " needs ($essentialPct of total), showing disciplined baseline habits. "));
+    } else if (joyful == maxVal) {
+      spans.add(const TextSpan(text: "largely driven by "));
+      spans.add(const TextSpan(text: "Joyful", style: TextStyle(color: Color(0xFF9FB6DF), fontWeight: FontWeight.bold)));
+      spans.add(TextSpan(text: " experiences ($joyfulPct of total), highlighting your focus on values-based spending. "));
+    } else if (invest == maxVal) {
+      spans.add(const TextSpan(text: "notably directed towards "));
+      spans.add(const TextSpan(text: "Investments", style: TextStyle(color: Color(0xFF8B5CF6), fontWeight: FontWeight.bold)));
+      spans.add(TextSpan(text: " ($investPct of total) — fantastic discipline in building your future. "));
+    } else {
+      spans.add(const TextSpan(text: "highly allocated towards "));
+      spans.add(const TextSpan(text: "Avoidable", style: TextStyle(color: Color(0xFFFFB5B5), fontWeight: FontWeight.bold)));
+      spans.add(TextSpan(text: " expenses ($avoidablePct of total), primarily driven by entertainment or subscriptions. "));
+    }
+
+    if (avoidable / insights.totalSpent > 0.25) {
+      spans.add(const TextSpan(text: "With "));
+      spans.add(const TextSpan(text: "Avoidable", style: TextStyle(color: Color(0xFFFFB5B5), fontWeight: FontWeight.bold)));
+      spans.add(const TextSpan(text: " costs exceeding 25%, reviewing recurring subscriptions could easily unlock savings. "));
+    } else if (avoidable > 0) {
+      spans.add(const TextSpan(text: "Your "));
+      spans.add(const TextSpan(text: "Avoidable", style: TextStyle(color: Color(0xFFFFB5B5), fontWeight: FontWeight.bold)));
+      spans.add(TextSpan(text: " expenses remain very low ($avoidablePct), indicating strong fundamental budget control. "));
+    }
+
+    if (invest > 0 && invest / insights.totalSpent >= 0.20) {
+      spans.add(const TextSpan(text: "Your "));
+      spans.add(const TextSpan(text: "Investment", style: TextStyle(color: Color(0xFF8B5CF6), fontWeight: FontWeight.bold)));
+      spans.add(TextSpan(text: " rate ($investPct) meets or exceeds the 20% savings benchmark — excellent financial health."));
+    } else if (invest == 0) {
+      spans.add(const TextSpan(text: "Consider logging "));
+      spans.add(const TextSpan(text: "Investment", style: TextStyle(color: Color(0xFF8B5CF6), fontWeight: FontWeight.bold)));
+      spans.add(const TextSpan(text: " transactions (e.g. SIP, stocks, savings deposits) to track your wealth-building progress."));
+    } else {
+      spans.add(const TextSpan(text: "Your "));
+      spans.add(const TextSpan(text: "Investment", style: TextStyle(color: Color(0xFF8B5CF6), fontWeight: FontWeight.bold)));
+      spans.add(TextSpan(text: " rate is $investPct. Aim to grow this towards your savings target for stronger long-term wealth."));
+    }
+
+    return RichText(
+      text: TextSpan(
+        style: const TextStyle(fontSize: 13, color: TallyTapTheme.textLight, height: 1.5),
+        children: spans,
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Budget Split Card — configurable Needs / Wants / Savings targets
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _BudgetSplitCard extends ConsumerStatefulWidget {
+  final InsightsState insights;
+  final BudgetSplitTargets splitTargets;
+  final String currency;
+
+  const _BudgetSplitCard({
+    required this.insights,
+    required this.splitTargets,
+    required this.currency,
+  });
+
+  @override
+  ConsumerState<_BudgetSplitCard> createState() => _BudgetSplitCardState();
+}
+
+class _BudgetSplitCardState extends ConsumerState<_BudgetSplitCard> {
+  bool _isEditing = false;
+
+  // Local slider state (only active while editing)
+  late double _needsTarget;
+  late double _wantsTarget;
+  late double _savingsTarget;
+
+  @override
+  void initState() {
+    super.initState();
+    _resetLocal();
+  }
+
+  void _resetLocal() {
+    _needsTarget   = widget.splitTargets.needsTarget;
+    _wantsTarget   = widget.splitTargets.wantsTarget;
+    _savingsTarget = widget.splitTargets.savingsTarget;
+  }
+
+  // When user drags one slider, redistribute the remainder equally among others.
+  void _onNeedsChanged(double val) {
+    final rem = (100 - val).clamp(0.0, 100.0);
+    setState(() {
+      _needsTarget = val;
+      final ratio = _wantsTarget + _savingsTarget > 0 ? _wantsTarget / (_wantsTarget + _savingsTarget) : 0.5;
+      _wantsTarget   = (rem * ratio).clamp(0, rem);
+      _savingsTarget = (rem - _wantsTarget).clamp(0, rem);
+    });
+  }
+
+  void _onWantsChanged(double val) {
+    final rem = (100 - val).clamp(0.0, 100.0);
+    setState(() {
+      _wantsTarget = val;
+      final ratio = _needsTarget + _savingsTarget > 0 ? _needsTarget / (_needsTarget + _savingsTarget) : 0.5;
+      _needsTarget   = (rem * ratio).clamp(0, rem);
+      _savingsTarget = (rem - _needsTarget).clamp(0, rem);
+    });
+  }
+
+  void _onSavingsChanged(double val) {
+    final rem = (100 - val).clamp(0.0, 100.0);
+    setState(() {
+      _savingsTarget = val;
+      final ratio = _needsTarget + _wantsTarget > 0 ? _needsTarget / (_needsTarget + _wantsTarget) : 0.5;
+      _needsTarget = (rem * ratio).clamp(0, rem);
+      _wantsTarget = (rem - _needsTarget).clamp(0, rem);
+    });
+  }
+
+  Future<void> _saveTargets() async {
+    await ref.read(budgetSplitProvider.notifier).updateTargets(
+      needs: _needsTarget,
+      wants: _wantsTarget,
+      savings: _savingsTarget,
+    );
+    if (mounted) setState(() => _isEditing = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ins = widget.insights;
+    final targets = widget.splitTargets;
+
+    final double needsActual   = ins.needsActual;
+    final double wantsActual   = ins.wantsActual;
+    final double savingsActual = ins.savingsActual;
+
+    // Determine the biggest deviation to generate a tip
+    final double needsDelta   = needsActual   - targets.needsTarget;
+    final double wantsDelta   = wantsActual   - targets.wantsTarget;
+    final double savingsDelta = savingsActual - targets.savingsTarget;
+
+    String tipText;
+    Color tipColor;
+    if (ins.totalSpent == 0) {
+      tipText = 'Log your first transaction to see how your spending compares to your targets.';
+      tipColor = TallyTapTheme.textGray;
+    } else if (needsDelta.abs() >= wantsDelta.abs() && needsDelta.abs() >= savingsDelta.abs()) {
+      if (needsDelta > 5) {
+        tipText = 'Your Needs are ${needsDelta.toStringAsFixed(0)}% above target. Look for areas to trim essential fixed costs.';
+        tipColor = const Color(0xFFF59E0B);
+      } else {
+        tipText = 'Your Needs spending is right on track. Great foundational discipline!';
+        tipColor = TallyTapTheme.primaryMint;
+      }
+    } else if (wantsDelta.abs() >= savingsDelta.abs()) {
+      if (wantsDelta > 5) {
+        tipText = 'Your Wants are ${wantsDelta.toStringAsFixed(0)}% above target. Consider trimming avoidable subscriptions or entertainment.';
+        tipColor = const Color(0xFFFFB5B5);
+      } else {
+        tipText = 'Wants spending is well controlled — you\'re staying within your lifestyle budget.';
+        tipColor = const Color(0xFF9FB6DF);
+      }
+    } else {
+      if (savingsDelta < -5) {
+        tipText = 'Your Savings/Investments are ${(-savingsDelta).toStringAsFixed(0)}% below target. Try routing more to your SIP or savings account.';
+        tipColor = const Color(0xFF8B5CF6);
+      } else {
+        tipText = 'You\'re hitting your savings target — excellent long-term wealth building!';
+        tipColor = const Color(0xFF8B5CF6);
+      }
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1A1040),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.pie_chart_outline_rounded, color: Color(0xFF8B5CF6), size: 16),
+                    ),
+                    const SizedBox(width: 10),
+                    const Text(
+                      'BUDGET SPLIT',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.5,
+                        color: Color(0xFF8B5CF6),
+                      ),
+                    ),
+                  ],
+                ),
+                GestureDetector(
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    if (_isEditing) {
+                      _saveTargets();
+                    } else {
+                      setState(() {
+                        _resetLocal();
+                        _isEditing = true;
+                      });
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _isEditing ? const Color(0xFF8B5CF6) : TallyTapTheme.obsidianCard,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: _isEditing ? const Color(0xFF8B5CF6) : TallyTapTheme.borderGreen,
+                      ),
+                    ),
+                    child: Text(
+                      _isEditing ? 'SAVE' : 'EDIT TARGETS',
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.0,
+                        color: _isEditing ? Colors.white : TallyTapTheme.textGray,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            if (_isEditing) ...[
+              // ── Target Editor ────────────────────────────────────────────────
+              const Text(
+                'ADJUST YOUR TARGETS',
+                style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 1.5, color: TallyTapTheme.textGray),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Drag the sliders to set how you want to distribute your spending. Values auto-balance to 100%.',
+                style: TextStyle(fontSize: 12, color: TallyTapTheme.textGray, height: 1.4),
+              ),
+              const SizedBox(height: 16),
+              _buildTargetSlider('Needs', _needsTarget, TallyTapTheme.primaryMint, _onNeedsChanged),
+              const SizedBox(height: 12),
+              _buildTargetSlider('Wants', _wantsTarget, const Color(0xFF9FB6DF), _onWantsChanged),
+              const SizedBox(height: 12),
+              _buildTargetSlider('Savings', _savingsTarget, const Color(0xFF8B5CF6), _onSavingsChanged),
+              const SizedBox(height: 4),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Text(
+                    'Total: ${(_needsTarget + _wantsTarget + _savingsTarget).toStringAsFixed(0)}%',
+                    style: const TextStyle(fontSize: 11, color: TallyTapTheme.textGray, fontWeight: FontWeight.w700),
+                  ),
+                ],
+              ),
+            ] else ...[
+              // ── Split Rows ───────────────────────────────────────────────────
+              _buildSplitRow(
+                label: 'Needs',
+                subtitle: 'Essential expenses',
+                actual: needsActual,
+                target: targets.needsTarget,
+                actualColor: TallyTapTheme.primaryMint,
+                targetColor: TallyTapTheme.primaryMint.withOpacity(0.25),
+              ),
+              const SizedBox(height: 16),
+              _buildSplitRow(
+                label: 'Wants',
+                subtitle: 'Joyful + Avoidable',
+                actual: wantsActual,
+                target: targets.wantsTarget,
+                actualColor: const Color(0xFF9FB6DF),
+                targetColor: const Color(0xFF9FB6DF).withOpacity(0.25),
+              ),
+              const SizedBox(height: 16),
+              _buildSplitRow(
+                label: 'Savings',
+                subtitle: 'Investments & growth',
+                actual: savingsActual,
+                target: targets.savingsTarget,
+                actualColor: const Color(0xFF8B5CF6),
+                targetColor: const Color(0xFF8B5CF6).withOpacity(0.25),
+              ),
+              const SizedBox(height: 20),
+
+              // ── Dynamic Tip ──────────────────────────────────────────────────
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: tipColor.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: tipColor.withOpacity(0.2)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.tips_and_updates_outlined, color: tipColor, size: 16),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        tipText,
+                        style: TextStyle(fontSize: 12, color: tipColor, height: 1.45),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSplitRow({
+    required String label,
+    required String subtitle,
+    required double actual,
+    required double target,
+    required Color actualColor,
+    required Color targetColor,
+  }) {
+    final bool overTarget = actual > target + 2;
+    final bool underTarget = actual < target - 2;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: const TextStyle(fontSize: 13, color: TallyTapTheme.textLight, fontWeight: FontWeight.w700)),
+                Text(subtitle, style: const TextStyle(fontSize: 11, color: TallyTapTheme.textGray)),
+              ],
+            ),
+            Row(
+              children: [
+                Text(
+                  '${actual.toStringAsFixed(0)}%',
+                  style: TextStyle(fontSize: 15, color: actualColor, fontWeight: FontWeight.w900),
+                ),
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: overTarget
+                        ? const Color(0xFFFFB5B5).withOpacity(0.15)
+                        : underTarget
+                            ? const Color(0xFFF59E0B).withOpacity(0.12)
+                            : TallyTapTheme.primaryMint.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    'target ${target.toStringAsFixed(0)}%',
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                      color: overTarget
+                          ? const Color(0xFFFFB5B5)
+                          : underTarget
+                              ? const Color(0xFFF59E0B)
+                              : TallyTapTheme.primaryMint,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Stack(
+          children: [
+            // Target track (full width marker)
+            Container(
+              height: 8,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: const Color(0xFF14241F),
+                borderRadius: BorderRadius.circular(100),
+              ),
+            ),
+            // Target marker line
+            FractionallySizedBox(
+              widthFactor: (target / 100).clamp(0.0, 1.0),
+              child: Container(
+                height: 8,
+                decoration: BoxDecoration(
+                  color: targetColor,
+                  borderRadius: BorderRadius.circular(100),
+                ),
+              ),
+            ),
+            // Actual bar
+            FractionallySizedBox(
+              widthFactor: (actual / 100).clamp(0.0, 1.0),
+              child: Container(
+                height: 8,
+                decoration: BoxDecoration(
+                  color: actualColor,
+                  borderRadius: BorderRadius.circular(100),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTargetSlider(String label, double value, Color color, ValueChanged<double> onChanged) {
+    return Row(
+      children: [
+        SizedBox(
+          width: 58,
+          child: Text(label, style: const TextStyle(fontSize: 12, color: TallyTapTheme.textLight, fontWeight: FontWeight.w600)),
+        ),
+        Expanded(
+          child: SliderTheme(
+            data: SliderThemeData(
+              activeTrackColor: color,
+              inactiveTrackColor: color.withOpacity(0.15),
+              thumbColor: color,
+              overlayColor: color.withOpacity(0.15),
+              trackHeight: 4,
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+            ),
+            child: Slider(
+              value: value.clamp(0, 100),
+              min: 0,
+              max: 100,
+              divisions: 100,
+              onChanged: onChanged,
+            ),
+          ),
+        ),
+        SizedBox(
+          width: 36,
+          child: Text(
+            '${value.toStringAsFixed(0)}%',
+            textAlign: TextAlign.right,
+            style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w900),
           ),
         ),
       ],

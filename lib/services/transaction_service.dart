@@ -47,6 +47,11 @@ class TransactionListNotifier extends StateNotifier<List<ExpenseTransaction>> {
     await _service.clearAll();
     await loadTransactions();
   }
+
+  Future<void> importTransactions(List<ExpenseTransaction> txs, {bool overwrite = false}) async {
+    await _service.saveTransactions(txs, overwrite: overwrite);
+    await loadTransactions();
+  }
 }
 
 class TransactionService {
@@ -105,5 +110,23 @@ class TransactionService {
   Future<void> clearAll() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_key);
+  }
+
+  Future<void> saveTransactions(List<ExpenseTransaction> txs, {bool overwrite = false}) async {
+    final prefs = await SharedPreferences.getInstance();
+    List<ExpenseTransaction> currentList = [];
+    if (!overwrite) {
+      currentList = await getTransactions();
+      final Map<String, ExpenseTransaction> merged = {
+        for (var tx in currentList) tx.id: tx,
+      };
+      for (var tx in txs) {
+        merged[tx.id] = tx;
+      }
+      currentList = merged.values.toList();
+    } else {
+      currentList = txs;
+    }
+    await prefs.setString(_key, json.encode(currentList.map((e) => e.toMap()).toList()));
   }
 }

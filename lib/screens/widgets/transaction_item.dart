@@ -107,7 +107,7 @@ class TransactionItem extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    '${isIncome ? '+' : '-'} $currency${transaction.amount.toStringAsFixed(2)}',
+                    '${isIncome ? '+' : '-'} $currency${transaction.amount.abs().toStringAsFixed(2)}',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w800,

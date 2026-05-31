@@ -107,3 +107,72 @@ class SourceStartingBalancesNotifier extends StateNotifier<Map<String, double>> 
     state = {...state, source: amount};
   }
 }
+
+class SourceBillingCycleConfig {
+  final int statementDay; // Day of the month when billing statement closes (1 to 28)
+  final int dueDay;       // Day of the month when payment is due (1 to 28)
+  final bool isEnabled;
+
+  SourceBillingCycleConfig({
+    required this.statementDay,
+    required this.dueDay,
+    required this.isEnabled,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'statementDay': statementDay,
+      'dueDay': dueDay,
+      'isEnabled': isEnabled,
+    };
+  }
+
+  factory SourceBillingCycleConfig.fromMap(Map<String, dynamic> map) {
+    return SourceBillingCycleConfig(
+      statementDay: map['statementDay'] ?? 1,
+      dueDay: map['dueDay'] ?? 20,
+      isEnabled: map['isEnabled'] ?? false,
+    );
+  }
+}
+
+final sourceBillingCyclesProvider = StateNotifierProvider<SourceBillingCyclesNotifier, Map<String, SourceBillingCycleConfig>>((ref) {
+  return SourceBillingCyclesNotifier();
+});
+
+class SourceBillingCyclesNotifier extends StateNotifier<Map<String, SourceBillingCycleConfig>> {
+  SourceBillingCyclesNotifier() : super({}) {
+    loadConfigs();
+  }
+
+  Future<void> loadConfigs() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.reload();
+    final Map<String, SourceBillingCycleConfig> configs = {};
+    for (final key in prefs.getKeys()) {
+      if (key.startsWith('source_billing_cycle_')) {
+        final source = key.replaceFirst('source_billing_cycle_', '');
+        final jsonStr = prefs.getString(key);
+        if (jsonStr != null && jsonStr.isNotEmpty) {
+          try {
+            configs[source] = SourceBillingCycleConfig.fromMap(json.decode(jsonStr));
+          } catch (_) {}
+        }
+      }
+    }
+    state = configs;
+  }
+
+  Future<void> setConfig(String source, SourceBillingCycleConfig config) async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = 'source_billing_cycle_$source';
+    if (config.isEnabled) {
+      await prefs.setString(key, json.encode(config.toMap()));
+      state = {...state, source: config};
+    } else {
+      await prefs.remove(key);
+      final updated = {...state}..remove(source);
+      state = updated;
+    }
+  }
+}

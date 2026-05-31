@@ -8,6 +8,7 @@ class IntentRingGraph extends ConsumerStatefulWidget {
   final double essential;
   final double joyful;
   final double avoidable;
+  final double investments;
   final double totalSpent;
   final String currency;
 
@@ -16,6 +17,7 @@ class IntentRingGraph extends ConsumerStatefulWidget {
     required this.essential,
     required this.joyful,
     required this.avoidable,
+    required this.investments,
     required this.totalSpent,
     required this.currency,
   });
@@ -76,6 +78,7 @@ class _IntentRingGraphState extends ConsumerState<IntentRingGraph> with SingleTi
                   essential: widget.essential,
                   joyful: widget.joyful,
                   avoidable: widget.avoidable,
+                  investments: widget.investments,
                   animationValue: _animation.value,
                 ),
               );
@@ -122,108 +125,86 @@ class _IntentRingPainter extends CustomPainter {
   final double essential;
   final double joyful;
   final double avoidable;
+  final double investments;
   final double animationValue;
+
+  // Intent bucket colours
+  static const Color _essentialColor = TallyTapTheme.primaryMint;       // Mint
+  static const Color _joyfulColor = Color(0xFF9FB6DF);                   // Slate blue
+  static const Color _avoidableColor = Color(0xFFFFB5B5);               // Coral pink
+  static const Color _investmentsColor = Color(0xFF8B5CF6);             // Royal violet
 
   _IntentRingPainter({
     required this.essential,
     required this.joyful,
     required this.avoidable,
+    required this.investments,
     required this.animationValue,
   });
 
+  Paint _makePaint(Color color, double strokeWidth) => Paint()
+    ..color = color
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = strokeWidth
+    ..strokeCap = StrokeCap.round;
+
   @override
   void paint(Canvas canvas, Size size) {
-    final double total = essential + joyful + avoidable;
+    final double total = essential + joyful + avoidable + investments;
     if (total == 0) return;
 
-    final double essentialAngle = (essential / total) * 2 * pi;
-    final double joyfulAngle = (joyful / total) * 2 * pi;
-    final double avoidableAngle = (avoidable / total) * 2 * pi;
+    final double avoidableAngle  = (avoidable   / total) * 2 * pi;
+    final double essentialAngle  = (essential   / total) * 2 * pi;
+    final double joyfulAngle     = (joyful      / total) * 2 * pi;
+    final double investAngle     = (investments / total) * 2 * pi;
 
     final Rect rect = Rect.fromLTWH(0, 0, size.width, size.height);
     const double strokeWidth = 12.0;
 
-    final Paint trackPaint = Paint()
-      ..color = const Color(0xFF14241F)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth;
+    // Track ring
+    canvas.drawCircle(
+      Offset(size.width / 2, size.height / 2),
+      size.width / 2,
+      Paint()
+        ..color = const Color(0xFF14241F)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = strokeWidth,
+    );
 
-    canvas.drawCircle(Offset(size.width / 2, size.height / 2), size.width / 2, trackPaint);
-
-    final Paint essentialPaint = Paint()
-      ..color = TallyTapTheme.primaryMint
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.round;
-
-    final Paint joyfulPaint = Paint()
-      ..color = const Color(0xFF4B5E55)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.round;
-
-    final Paint avoidablePaint = Paint()
-      ..color = const Color(0xFFFFB5B5)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.round;
+    final Paint avoidablePaint  = _makePaint(_avoidableColor, strokeWidth);
+    final Paint essentialPaint  = _makePaint(_essentialColor, strokeWidth);
+    final Paint joyfulPaint     = _makePaint(_joyfulColor, strokeWidth);
+    final Paint investmentsPaint = _makePaint(_investmentsColor, strokeWidth);
 
     double overallSweep = 2 * pi * animationValue;
     double relativeStart = 0.0;
     const double spacing = 0.05;
 
-    // 1. Avoidable Segment (Coral Pink)
-    if (avoidableAngle > 0) {
-      if (overallSweep > relativeStart) {
-        final double drawAngle = (overallSweep - relativeStart).clamp(0.0, avoidableAngle);
-        if (drawAngle > 0) {
-          final double activeSpacing = drawAngle >= avoidableAngle ? spacing : 0.0;
-          canvas.drawArc(
-            rect,
-            -pi / 2 + relativeStart + activeSpacing / 2,
-            drawAngle - activeSpacing,
-            false,
-            avoidablePaint,
-          );
-        }
+    void drawSegment(double segAngle, Paint paint) {
+      if (segAngle <= 0) return;
+      if (overallSweep <= relativeStart) {
+        relativeStart += segAngle;
+        return;
       }
-      relativeStart += avoidableAngle;
+      final double drawAngle = (overallSweep - relativeStart).clamp(0.0, segAngle);
+      if (drawAngle > 0) {
+        final double activeSpacing = drawAngle >= segAngle ? spacing : 0.0;
+        canvas.drawArc(
+          rect,
+          -pi / 2 + relativeStart + activeSpacing / 2,
+          drawAngle - activeSpacing,
+          false,
+          paint,
+        );
+      }
+      relativeStart += segAngle;
     }
 
-    // 2. Essential Segment (Mint Green)
-    if (essentialAngle > 0) {
-      if (overallSweep > relativeStart) {
-        final double drawAngle = (overallSweep - relativeStart).clamp(0.0, essentialAngle);
-        if (drawAngle > 0) {
-          final double activeSpacing = drawAngle >= essentialAngle ? spacing : 0.0;
-          canvas.drawArc(
-            rect,
-            -pi / 2 + relativeStart + activeSpacing / 2,
-            drawAngle - activeSpacing,
-            false,
-            essentialPaint,
-          );
-        }
-      }
-      relativeStart += essentialAngle;
-    }
-
-    // 3. Joyful Segment (Slate Green)
-    if (joyfulAngle > 0) {
-      if (overallSweep > relativeStart) {
-        final double drawAngle = (overallSweep - relativeStart).clamp(0.0, joyfulAngle);
-        if (drawAngle > 0) {
-          final double activeSpacing = drawAngle >= joyfulAngle ? spacing : 0.0;
-          canvas.drawArc(
-            rect,
-            -pi / 2 + relativeStart + activeSpacing / 2,
-            drawAngle - activeSpacing,
-            false,
-            joyfulPaint,
-          );
-        }
-      }
-    }
+    // Render order: Avoidable → Essential → Joyful → Investments
+    drawSegment(avoidableAngle,  avoidablePaint);
+    drawSegment(essentialAngle,  essentialPaint);
+    drawSegment(joyfulAngle,     joyfulPaint);
+    drawSegment(investAngle,     investmentsPaint);
   }
 
   @override
