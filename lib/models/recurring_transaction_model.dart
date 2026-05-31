@@ -28,6 +28,7 @@ class RecurringTransaction {
   final bool reminderEnabled;
   final ReminderTiming? reminderTiming;
   final bool autoCreate;
+  final bool logAsPending;
   final String? merchant;
   final String paymentMethod;
   final bool isVariableAmount;
@@ -57,6 +58,7 @@ class RecurringTransaction {
     this.reminderEnabled = true,
     this.reminderTiming,
     required this.autoCreate,
+    this.logAsPending = false,
     this.merchant,
     required this.paymentMethod,
     this.isVariableAmount = false,
@@ -87,6 +89,7 @@ class RecurringTransaction {
     bool? reminderEnabled,
     ReminderTiming? reminderTiming,
     bool? autoCreate,
+    bool? logAsPending,
     String? merchant,
     String? paymentMethod,
     bool? isVariableAmount,
@@ -116,6 +119,7 @@ class RecurringTransaction {
       reminderEnabled: reminderEnabled ?? this.reminderEnabled,
       reminderTiming: reminderTiming ?? this.reminderTiming,
       autoCreate: autoCreate ?? this.autoCreate,
+      logAsPending: logAsPending ?? this.logAsPending,
       merchant: merchant ?? this.merchant,
       paymentMethod: paymentMethod ?? this.paymentMethod,
       isVariableAmount: isVariableAmount ?? this.isVariableAmount,
@@ -198,6 +202,7 @@ class RecurringTransaction {
       'reminderEnabled': reminderEnabled,
       'reminderTiming': reminderTiming?.name,
       'autoCreate': autoCreate,
+      'logAsPending': logAsPending,
       'merchant': merchant,
       'paymentMethod': paymentMethod,
       'isVariableAmount': isVariableAmount,
@@ -230,6 +235,7 @@ class RecurringTransaction {
       reminderEnabled: map['reminderEnabled'] ?? true,
       reminderTiming: map['reminderTiming'] != null ? ReminderTiming.values.byName(map['reminderTiming']) : null,
       autoCreate: map['autoCreate'] ?? false,
+      logAsPending: map['logAsPending'] ?? false,
       merchant: map['merchant'],
       paymentMethod: map['paymentMethod'] ?? 'Cash',
       isVariableAmount: map['isVariableAmount'] ?? false,

@@ -11,6 +11,8 @@ class ExpenseTransaction {
   final String paidTo;
   final bool needsVerification;
   final DateTime? reminderDate;
+  final bool wasFinishLater;
+  final bool hideFromLedger;
 
   final String? groupId;
 
@@ -25,6 +27,8 @@ class ExpenseTransaction {
     this.paidTo = '',
     this.needsVerification = false,
     this.reminderDate,
+    this.wasFinishLater = false,
+    this.hideFromLedger = false,
     this.groupId,
   });
 
@@ -40,6 +44,8 @@ class ExpenseTransaction {
       'paidTo': paidTo,
       'needsVerification': needsVerification,
       'reminderDate': reminderDate?.toIso8601String(),
+      'wasFinishLater': wasFinishLater,
+      'hideFromLedger': hideFromLedger,
       'groupId': groupId,
     };
   }
@@ -56,6 +62,8 @@ class ExpenseTransaction {
       paidTo: map['paidTo'] ?? '',
       needsVerification: map['needsVerification'] ?? false,
       reminderDate: map['reminderDate'] != null ? DateTime.parse(map['reminderDate']) : null,
+      wasFinishLater: map['wasFinishLater'] ?? (map['needsVerification'] ?? false), // Backwards compat: if needsVerification was true, it wasFinishLater.
+      hideFromLedger: map['hideFromLedger'] ?? false,
       groupId: map['groupId'],
     );
   }

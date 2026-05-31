@@ -62,6 +62,8 @@ class RecurringTransactionsNotifier extends StateNotifier<List<RecurringTransact
             date: tx.nextDueDate,
             paymentMethod: tx.paymentMethod,
             category: tx.type == TransactionType.income ? 'Income' : tx.category,
+            needsVerification: tx.logAsPending,
+            wasFinishLater: tx.logAsPending,
           );
           await _ref.read(transactionListProvider.notifier).addTransaction(newExpense);
           

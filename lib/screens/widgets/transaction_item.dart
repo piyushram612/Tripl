@@ -51,11 +51,13 @@ class TransactionItem extends StatelessWidget {
       borderRadius: BorderRadius.circular(16),
       child: Container(
         decoration: BoxDecoration(
-          color: isSelected ? TallyTapTheme.primaryMint.withOpacity(0.05) : Colors.transparent,
+          color: isSelected 
+              ? TallyTapTheme.primaryMint.withOpacity(0.05) 
+              : (transaction.needsVerification ? const Color(0xFFF59E0B).withOpacity(0.05) : Colors.transparent),
           borderRadius: BorderRadius.circular(16),
           border: isSelected
               ? Border.all(color: TallyTapTheme.primaryMint.withOpacity(0.3), width: 1.0)
-              : null,
+              : (transaction.needsVerification ? Border.all(color: const Color(0xFFF59E0B).withOpacity(0.3), width: 1.0) : null),
         ),
         child: Padding(
           padding: padding ?? const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
@@ -127,6 +129,25 @@ class TransactionItem extends StatelessWidget {
                           fontSize: 9,
                           fontWeight: FontWeight.bold,
                           color: Color(0xFF10B981),
+                        ),
+                      ),
+                    ),
+                  ],
+                  if (transaction.needsVerification) ...[
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF3B2314),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: const Color(0xFF7A3E14), width: 0.5),
+                      ),
+                      child: const Text(
+                        'Pending',
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFFF59E0B),
                         ),
                       ),
                     ),

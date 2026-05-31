@@ -17,6 +17,7 @@ class _ExpenseSplitterScreenState extends ConsumerState<ExpenseSplitterScreen> {
   final TextEditingController _descController = TextEditingController(text: "Restaurant Outing");
   int _peopleCount = 4;
   final List<TextEditingController> _friendControllers = [];
+  final List<bool> _friendVerificationFlags = [];
 
   @override
   void initState() {
@@ -41,11 +42,13 @@ class _ExpenseSplitterScreenState extends ConsumerState<ExpenseSplitterScreen> {
       while (_friendControllers.length < requiredFriends) {
         final index = _friendControllers.length + 1;
         _friendControllers.add(TextEditingController(text: "Friend $index"));
+        _friendVerificationFlags.add(false);
       }
     } else if (_friendControllers.length > requiredFriends) {
       while (_friendControllers.length > requiredFriends) {
         final controller = _friendControllers.removeLast();
         controller.dispose();
+        _friendVerificationFlags.removeLast();
       }
     }
   }
@@ -98,6 +101,8 @@ class _ExpenseSplitterScreenState extends ConsumerState<ExpenseSplitterScreen> {
         paymentMethod: "UPI",
         category: "Income",
         notes: "Group Split share",
+        needsVerification: _friendVerificationFlags[i],
+        wasFinishLater: _friendVerificationFlags[i],
         groupId: generatedGroupId,
       );
       await listNotifier.addTransaction(repaymentTx);
@@ -391,29 +396,68 @@ class _ExpenseSplitterScreenState extends ConsumerState<ExpenseSplitterScreen> {
                       child: Card(
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-                          child: Row(
+                          child: Column(
                             children: [
-                              CircleAvatar(
-                                backgroundColor: TallyTapTheme.borderGreen,
-                                radius: 14,
-                                child: Text(
-                                  'F$index',
-                                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: TallyTapTheme.textGray),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: TextField(
-                                  controller: _friendControllers[friendIdx],
-                                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: TallyTapTheme.textLight),
-                                  decoration: const InputDecoration(
-                                    border: InputBorder.none,
+                              Row(
+                                children: [
+                                  CircleAvatar(
+                                    backgroundColor: TallyTapTheme.borderGreen,
+                                    radius: 14,
+                                    child: Text(
+                                      'F$index',
+                                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: TallyTapTheme.textGray),
+                                    ),
                                   ),
-                                ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: TextField(
+                                      controller: _friendControllers[friendIdx],
+                                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: TallyTapTheme.textLight),
+                                      decoration: const InputDecoration(
+                                        border: InputBorder.none,
+                                      ),
+                                    ),
+                                  ),
+                                  Text(
+                                    '₹${_amountPerPerson.toStringAsFixed(2)}',
+                                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: TallyTapTheme.textLight),
+                                  ),
+                                ],
                               ),
-                              Text(
-                                '₹${_amountPerPerson.toStringAsFixed(2)}',
-                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: TallyTapTheme.textLight),
+                              const Divider(color: TallyTapTheme.borderGreen, height: 16),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.pending_actions_rounded,
+                                        size: 16,
+                                        color: _friendVerificationFlags[friendIdx] ? const Color(0xFFF59E0B) : TallyTapTheme.textGray,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        'Needs Verification',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: _friendVerificationFlags[friendIdx] ? const Color(0xFFF59E0B) : TallyTapTheme.textGray,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  Switch(
+                                    value: _friendVerificationFlags[friendIdx],
+                                    activeColor: const Color(0xFFF59E0B),
+                                    inactiveTrackColor: TallyTapTheme.obsidianBg,
+                                    onChanged: (val) {
+                                      HapticFeedback.selectionClick();
+                                      setState(() {
+                                        _friendVerificationFlags[friendIdx] = val;
+                                      });
+                                    },
+                                  ),
+                                ],
                               ),
                             ],
                           ),
