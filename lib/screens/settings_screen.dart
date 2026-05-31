@@ -6,6 +6,9 @@ import '../providers/category_provider.dart';
 import '../providers/source_provider.dart';
 import '../services/platform_service.dart';
 import '../services/notification_service.dart';
+import '../services/csv_service.dart';
+import '../services/transaction_service.dart';
+import '../models/transaction_model.dart';
 import 'calibration_screen.dart';
 import 'sheets/manage_categories_sheet.dart';
 import 'sheets/manage_sources_sheet.dart';
@@ -102,6 +105,851 @@ class SettingsScreen extends ConsumerWidget {
         style: const TextStyle(fontSize: 12, color: TallyTapTheme.textGray),
       ),
       trailing: const Icon(Icons.chevron_right_rounded, color: TallyTapTheme.textGray),
+    );
+  }
+
+  Future<void> _handleExport(BuildContext context, WidgetRef ref) async {
+    try {
+      final transactions = ref.read(transactionListProvider);
+      if (transactions.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No transactions to export yet! Add some transactions first.'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.amber,
+          ),
+        );
+        return;
+      }
+
+      // Show a loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(color: TallyTapTheme.primaryMint),
+        ),
+      );
+
+      await CsvService.exportTransactions(transactions);
+
+      if (context.mounted) {
+        Navigator.pop(context); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('CSV backup generated successfully!'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: TallyTapTheme.primaryMint,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Export failed: ${e.toString().replaceAll('Exception: ', '')}'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleImport(BuildContext context, WidgetRef ref) async {
+    try {
+      final rawData = await CsvService.pickAndParseRawCsv();
+
+      if (rawData.rows.isEmpty) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('The selected CSV file contains no data rows.'),
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: Colors.amber,
+            ),
+          );
+        }
+        return;
+      }
+
+      // Check if it's already using TallyTap's exact headers
+      final headersLower = rawData.headers.map((h) => h.toLowerCase().trim()).toList();
+      final bool hasExactRequired = headersLower.contains('amount') &&
+                                    headersLower.contains('merchant') &&
+                                    headersLower.contains('date');
+
+      if (hasExactRequired) {
+        final idIndex = headersLower.indexOf('id');
+        final amountIndex = headersLower.indexOf('amount');
+        final merchantIndex = headersLower.indexOf('merchant');
+        final dateIndex = headersLower.indexOf('date');
+        final paymentMethodIndex = headersLower.indexOf('paymentmethod');
+        final categoryIndex = headersLower.indexOf('category');
+        final notesIndex = headersLower.indexOf('notes');
+        final paidToIndex = headersLower.indexOf('paidto');
+
+        final Map<String, int> mapping = {
+          'id': idIndex,
+          'amount': amountIndex,
+          'merchant': merchantIndex,
+          'date': dateIndex,
+          'category': categoryIndex,
+          'paymentMethod': paymentMethodIndex,
+          'notes': notesIndex,
+          'paidTo': paidToIndex,
+        };
+
+        final parsedTransactions = CsvService.parseCsvWithMapping(rawData.rows, mapping);
+        if (context.mounted) {
+          _showAccountMapperSheet(context, ref, parsedTransactions);
+        }
+      } else {
+        if (context.mounted) {
+          _showColumnMapperSheet(context, ref, rawData);
+        }
+      }
+    } catch (e) {
+      if (context.mounted && e.toString() != 'Exception: No file selected') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Import failed: ${e.toString().replaceAll('Exception: ', '')}'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showColumnMapperSheet(
+    BuildContext context,
+    WidgetRef ref,
+    RawCsvData rawData,
+  ) {
+    int amountIdx = CsvService.findBestHeaderMatch(rawData.headers, ['amount', 'value', 'cost', 'sum', 'price', 'total', 'charge', 'spent', 'outflow']);
+    int merchantIdx = CsvService.findBestHeaderMatch(rawData.headers, ['merchant', 'payee', 'store', 'description', 'title', 'name', 'vendor', 'narrative']);
+    int dateIdx = CsvService.findBestHeaderMatch(rawData.headers, ['date', 'time', 'timestamp', 'created', 'created_at', 'transaction date']);
+    int categoryIdx = CsvService.findBestHeaderMatch(rawData.headers, ['category', 'type', 'tag', 'group']);
+    int paymentIdx = CsvService.findBestHeaderMatch(rawData.headers, ['paymentmethod', 'payment', 'method', 'source', 'account', 'card', 'wallet']);
+    int notesIdx = CsvService.findBestHeaderMatch(rawData.headers, ['notes', 'note', 'comment', 'memo', 'remarks', 'reference']);
+    int paidToIdx = CsvService.findBestHeaderMatch(rawData.headers, ['paid_to', 'paidto', 'recipient', 'to']);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: TallyTapTheme.obsidianBg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (stateCtx, setState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 24,
+                right: 24,
+                top: 24,
+                bottom: MediaQuery.of(stateCtx).viewInsets.bottom + 24,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0F1B17),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: TallyTapTheme.borderGreen, width: 0.5),
+                          ),
+                          child: const Icon(Icons.splitscreen_rounded, color: TallyTapTheme.primaryMint, size: 24),
+                        ),
+                        const SizedBox(width: 16),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Map CSV Columns',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: TallyTapTheme.textLight,
+                                ),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                'Align external app headers with TallyTap fields',
+                                style: TextStyle(fontSize: 12, color: TallyTapTheme.textGray),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    const Text(
+                      'TallyTap has auto-detected closely matching columns from your file. Please verify and fill in the required mappings (*) to parse the transactions correctly.',
+                      style: TextStyle(fontSize: 12, color: TallyTapTheme.textGray, height: 1.4),
+                    ),
+                    const SizedBox(height: 20),
+
+                    _buildMappingDropdown(
+                      label: 'Amount Column',
+                      subtitle: 'Total cost of the transaction',
+                      currentValue: amountIdx,
+                      headers: rawData.headers,
+                      isRequired: true,
+                      onChanged: (val) => setState(() => amountIdx = val ?? -1),
+                    ),
+                    _buildMappingDropdown(
+                      label: 'Merchant Column',
+                      subtitle: 'Store, payee, or description of transaction',
+                      currentValue: merchantIdx,
+                      headers: rawData.headers,
+                      isRequired: true,
+                      onChanged: (val) => setState(() => merchantIdx = val ?? -1),
+                    ),
+                    _buildMappingDropdown(
+                      label: 'Date Column',
+                      subtitle: 'When the transaction happened',
+                      currentValue: dateIdx,
+                      headers: rawData.headers,
+                      isRequired: true,
+                      onChanged: (val) => setState(() => dateIdx = val ?? -1),
+                    ),
+                    _buildMappingDropdown(
+                      label: 'Category Column',
+                      subtitle: 'Groceries, entertainment, bills, etc.',
+                      currentValue: categoryIdx,
+                      headers: rawData.headers,
+                      isRequired: false,
+                      onChanged: (val) => setState(() => categoryIdx = val ?? -1),
+                    ),
+                    _buildMappingDropdown(
+                      label: 'Payment Method Column',
+                      subtitle: 'Cash, Credit Card, Bank, account name, etc.',
+                      currentValue: paymentIdx,
+                      headers: rawData.headers,
+                      isRequired: false,
+                      onChanged: (val) => setState(() => paymentIdx = val ?? -1),
+                    ),
+                    _buildMappingDropdown(
+                      label: 'Notes Column',
+                      subtitle: 'Extra memo, description, or custom comments',
+                      currentValue: notesIdx,
+                      headers: rawData.headers,
+                      isRequired: false,
+                      onChanged: (val) => setState(() => notesIdx = val ?? -1),
+                    ),
+                    _buildMappingDropdown(
+                      label: 'Paid To Column',
+                      subtitle: 'Person or entity that received payment',
+                      currentValue: paidToIdx,
+                      headers: rawData.headers,
+                      isRequired: false,
+                      onChanged: (val) => setState(() => paidToIdx = val ?? -1),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    ElevatedButton(
+                      onPressed: () {
+                        if (amountIdx == -1 || merchantIdx == -1 || dateIdx == -1) {
+                          ScaffoldMessenger.of(stateCtx).showSnackBar(
+                            const SnackBar(
+                              content: Text('Please map all required columns (Amount, Merchant, Date)'),
+                              behavior: SnackBarBehavior.floating,
+                              backgroundColor: Colors.amber,
+                            ),
+                          );
+                          return;
+                        }
+
+                        final Map<String, int> mapping = {
+                          'amount': amountIdx,
+                          'merchant': merchantIdx,
+                          'date': dateIdx,
+                          'category': categoryIdx,
+                          'paymentMethod': paymentIdx,
+                          'notes': notesIdx,
+                          'paidTo': paidToIdx,
+                        };
+
+                        final parsedTransactions = CsvService.parseCsvWithMapping(rawData.rows, mapping);
+
+                        Navigator.pop(ctx);
+                        _showAccountMapperSheet(context, ref, parsedTransactions);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: TallyTapTheme.primaryMint,
+                        foregroundColor: TallyTapTheme.obsidianBg,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      child: const Text('Parse Transactions', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('Cancel', style: TextStyle(color: TallyTapTheme.textGray)),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildMappingDropdown({
+    required String label,
+    required String subtitle,
+    required int currentValue,
+    required List<String> headers,
+    required bool isRequired,
+    required ValueChanged<int?> onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              label,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: TallyTapTheme.textLight),
+            ),
+            if (isRequired)
+              const Text(
+                ' *',
+                style: TextStyle(color: Colors.redAccent, fontSize: 13, fontWeight: FontWeight.bold),
+              ),
+          ],
+        ),
+        const SizedBox(height: 2),
+        Text(
+          subtitle,
+          style: const TextStyle(fontSize: 11, color: TallyTapTheme.textGray),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: const Color(0xFF141F1B),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: TallyTapTheme.borderGreen.withOpacity(0.5), width: 1),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<int>(
+              value: currentValue == -1 ? null : currentValue,
+              hint: Text(
+                isRequired ? 'Select Column (Required)' : 'None (Use Default)',
+                style: TextStyle(fontSize: 13, color: isRequired ? Colors.amber.withOpacity(0.7) : TallyTapTheme.textGray),
+              ),
+              dropdownColor: TallyTapTheme.obsidianBg,
+              isExpanded: true,
+              icon: const Icon(Icons.arrow_drop_down, color: TallyTapTheme.primaryMint),
+              items: [
+                if (!isRequired)
+                  const DropdownMenuItem<int>(
+                    value: null,
+                    child: Text('None (Use Default)', style: TextStyle(fontSize: 13, color: TallyTapTheme.textGray)),
+                  ),
+                ...List.generate(headers.length, (index) {
+                  return DropdownMenuItem<int>(
+                    value: index,
+                    child: Text(
+                      'Column ${index + 1}: ${headers[index]}',
+                      style: const TextStyle(fontSize: 13, color: TallyTapTheme.textLight),
+                    ),
+                  );
+                }),
+              ],
+              onChanged: onChanged,
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
+  void _showAccountMapperSheet(
+    BuildContext context,
+    WidgetRef ref,
+    List<ExpenseTransaction> parsedTransactions,
+  ) {
+    final csvPaymentMethods = parsedTransactions
+        .map((tx) => tx.paymentMethod.trim())
+        .where((method) => method.isNotEmpty)
+        .toSet()
+        .toList();
+
+    // If there are no payment methods in the parsed transactions, go straight to options dialog
+    if (csvPaymentMethods.isEmpty) {
+      _showImportOptionsDialog(context, ref, parsedTransactions);
+      return;
+    }
+
+    final existingSources = ref.read(sourcesListProvider);
+    final Map<String, String> selectedMappings = {};
+    for (final src in csvPaymentMethods) {
+      final bestMatch = existingSources.firstWhere(
+        (s) => s.toLowerCase().trim() == src.toLowerCase(),
+        orElse: () => '',
+      );
+      if (bestMatch.isNotEmpty) {
+        selectedMappings[src] = bestMatch;
+      } else {
+        selectedMappings[src] = '__CREATE_NEW__';
+      }
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: TallyTapTheme.obsidianBg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (stateCtx, setState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 24,
+                right: 24,
+                top: 24,
+                bottom: MediaQuery.of(stateCtx).viewInsets.bottom + 24,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0F1B17),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: TallyTapTheme.borderGreen, width: 0.5),
+                          ),
+                          child: const Icon(Icons.account_balance_outlined, color: TallyTapTheme.primaryMint, size: 24),
+                        ),
+                        const SizedBox(width: 16),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Map Payment Accounts',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: TallyTapTheme.textLight,
+                                ),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                'Align CSV bank accounts with TallyTap accounts',
+                                style: TextStyle(fontSize: 12, color: TallyTapTheme.textGray),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    const Text(
+                      'TallyTap detected these payment accounts in your CSV file. You can map them to existing accounts in the app, or create them freshly.',
+                      style: TextStyle(fontSize: 12, color: TallyTapTheme.textGray, height: 1.4),
+                    ),
+                    const SizedBox(height: 20),
+
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxHeight: MediaQuery.of(context).size.height * 0.4,
+                      ),
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: csvPaymentMethods.length,
+                        itemBuilder: (listCtx, idx) {
+                          final src = csvPaymentMethods[idx];
+                          final mappedVal = selectedMappings[src] ?? '__CREATE_NEW__';
+                          final isNew = mappedVal == '__CREATE_NEW__';
+
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 16),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF141F1B),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: isNew 
+                                    ? TallyTapTheme.primaryMint.withOpacity(0.2) 
+                                    : TallyTapTheme.borderGreen.withOpacity(0.3),
+                                width: 1,
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Row(
+                                        children: [
+                                          const Icon(Icons.credit_card_rounded, color: TallyTapTheme.textGray, size: 16),
+                                          const SizedBox(width: 8),
+                                          Flexible(
+                                            child: Text(
+                                              src,
+                                              style: const TextStyle(
+                                                fontSize: 14, 
+                                                fontWeight: FontWeight.bold, 
+                                                color: TallyTapTheme.textLight
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: isNew 
+                                            ? TallyTapTheme.primaryMint.withOpacity(0.1) 
+                                            : const Color(0xFF0F1B17),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: isNew ? TallyTapTheme.primaryMint : TallyTapTheme.borderGreen,
+                                          width: 0.5,
+                                        ),
+                                      ),
+                                      child: Text(
+                                        isNew ? 'CREATE FRESH' : 'EXISTING MATCH',
+                                        style: TextStyle(
+                                          fontSize: 8, 
+                                          fontWeight: FontWeight.w800, 
+                                          color: isNew ? TallyTapTheme.primaryMint : TallyTapTheme.textGray
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF0F1B17),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(color: TallyTapTheme.borderGreen.withOpacity(0.5), width: 1),
+                                  ),
+                                  child: DropdownButtonHideUnderline(
+                                    child: DropdownButton<String>(
+                                      value: mappedVal,
+                                      dropdownColor: TallyTapTheme.obsidianBg,
+                                      isExpanded: true,
+                                      icon: const Icon(Icons.arrow_drop_down, color: TallyTapTheme.primaryMint),
+                                      items: [
+                                        DropdownMenuItem<String>(
+                                          value: '__CREATE_NEW__',
+                                          child: Text(
+                                            'Create New Account: "$src"',
+                                            style: const TextStyle(fontSize: 13, color: TallyTapTheme.primaryMint, fontWeight: FontWeight.bold),
+                                          ),
+                                        ),
+                                        ...existingSources.map((ext) {
+                                          return DropdownMenuItem<String>(
+                                            value: ext,
+                                            child: Text(
+                                              'Map to Existing: $ext',
+                                              style: const TextStyle(fontSize: 13, color: TallyTapTheme.textLight),
+                                            ),
+                                          );
+                                        }),
+                                      ],
+                                      onChanged: (val) {
+                                        if (val != null) {
+                                          setState(() {
+                                            selectedMappings[src] = val;
+                                          });
+                                        }
+                                      },
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    ElevatedButton(
+                      onPressed: () {
+                        final List<String> newSourcesToCreate = [];
+                        final mappedTransactions = parsedTransactions.map((tx) {
+                          final trimmedMethod = tx.paymentMethod.trim();
+                          if (trimmedMethod.isEmpty) return tx;
+
+                          final mappedVal = selectedMappings[trimmedMethod];
+                          if (mappedVal != null && mappedVal != '__CREATE_NEW__') {
+                            return ExpenseTransaction(
+                              id: tx.id,
+                              amount: tx.amount,
+                              merchant: tx.merchant,
+                              date: tx.date,
+                              category: tx.category,
+                              paymentMethod: mappedVal,
+                              notes: tx.notes,
+                              paidTo: tx.paidTo,
+                              groupId: tx.groupId,
+                              reminderDate: tx.reminderDate,
+                              needsVerification: tx.needsVerification,
+                            );
+                          } else if (mappedVal == '__CREATE_NEW__') {
+                            if (!newSourcesToCreate.contains(trimmedMethod)) {
+                              newSourcesToCreate.add(trimmedMethod);
+                            }
+                          }
+                          return tx;
+                        }).toList();
+
+                        Navigator.pop(ctx);
+                        _showImportOptionsDialog(
+                          context, 
+                          ref, 
+                          mappedTransactions, 
+                          newSourcesToCreate: newSourcesToCreate
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: TallyTapTheme.primaryMint,
+                        foregroundColor: TallyTapTheme.obsidianBg,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      child: const Text('Confirm Mappings & Next', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('Cancel', style: TextStyle(color: TallyTapTheme.textGray)),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showImportOptionsDialog(
+    BuildContext context,
+    WidgetRef ref,
+    List<ExpenseTransaction> importedTransactions, {
+    List<String> newSourcesToCreate = const [],
+  }) {
+    final double totalAmount = importedTransactions.fold(0.0, (sum, item) => sum + item.amount);
+    final dates = importedTransactions.map((t) => t.date).toList()..sort();
+    final dateRangeStr = dates.isNotEmpty
+        ? '${dates.first.day}/${dates.first.month}/${dates.first.year} - ${dates.last.day}/${dates.last.month}/${dates.last.year}'
+        : 'N/A';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: TallyTapTheme.obsidianBg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 24,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0F1B17),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: TallyTapTheme.borderGreen, width: 0.5),
+                    ),
+                    child: const Icon(Icons.file_download_rounded, color: TallyTapTheme.primaryMint, size: 24),
+                  ),
+                  const SizedBox(width: 16),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Confirm CSV Import',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: TallyTapTheme.textLight,
+                          ),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'Select how you want to import this data',
+                          style: TextStyle(fontSize: 12, color: TallyTapTheme.textGray),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              
+              // Preview statistics card
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF141F1B),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: TallyTapTheme.borderGreen.withOpacity(0.3), width: 1),
+                ),
+                child: Column(
+                  children: [
+                    _buildPreviewRow('Transactions Found', '${importedTransactions.length} items'),
+                    const SizedBox(height: 8),
+                    _buildPreviewRow('Total Value', '\$${totalAmount.toStringAsFixed(2)}'),
+                    const SizedBox(height: 8),
+                    _buildPreviewRow('Date Range', dateRangeStr),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Button 1: Merge
+              ElevatedButton(
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  // Dynamic new sources registration
+                  for (final source in newSourcesToCreate) {
+                    await ref.read(sourcesListProvider.notifier).addSource(source);
+                  }
+                  await ref.read(transactionListProvider.notifier).importTransactions(importedTransactions, overwrite: false);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Successfully merged ${importedTransactions.length} transactions!'),
+                        behavior: SnackBarBehavior.floating,
+                        backgroundColor: TallyTapTheme.primaryMint,
+                      ),
+                    );
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: TallyTapTheme.primaryMint,
+                  foregroundColor: TallyTapTheme.obsidianBg,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                child: const Text('Merge with Existing Data', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(height: 12),
+
+              // Button 2: Overwrite with Warning!
+              OutlinedButton(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  // Double confirmation for overwrite!
+                  showDialog(
+                    context: context,
+                    builder: (doubleConfirmCtx) {
+                      return AlertDialog(
+                        backgroundColor: TallyTapTheme.obsidianBg,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        title: const Text('Danger: Overwrite Database?', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                        content: const Text(
+                          'This will permanently delete all your existing transactions and replace them with the CSV transactions. This action cannot be undone.\n\nAre you absolutely sure?',
+                          style: TextStyle(color: TallyTapTheme.textLight, fontSize: 14),
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(doubleConfirmCtx),
+                            child: const Text('Cancel', style: TextStyle(color: TallyTapTheme.textGray)),
+                          ),
+                          ElevatedButton(
+                            onPressed: () async {
+                              Navigator.pop(doubleConfirmCtx);
+                              // Dynamic new sources registration
+                              for (final source in newSourcesToCreate) {
+                                await ref.read(sourcesListProvider.notifier).addSource(source);
+                              }
+                              await ref.read(transactionListProvider.notifier).importTransactions(importedTransactions, overwrite: true);
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Successfully imported transactions (database overwritten)!'),
+                                    behavior: SnackBarBehavior.floating,
+                                    backgroundColor: Colors.redAccent,
+                                  ),
+                                );
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.redAccent,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            child: const Text('Yes, Overwrite'),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                },
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.redAccent,
+                  side: const BorderSide(color: Colors.redAccent, width: 1.2),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                child: const Text('Overwrite Existing Data', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPreviewRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 13, color: TallyTapTheme.textGray)),
+        Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: TallyTapTheme.textLight)),
+      ],
     );
   }
 
@@ -309,6 +1157,46 @@ class SettingsScreen extends ConsumerWidget {
                 ),
               ),
             ),
+            const SizedBox(height: 20),
+
+            // Card C: Export & Backup
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(left: 20.0, top: 16.0, bottom: 8.0),
+                      child: Text(
+                        'EXPORT & BACKUP',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.5,
+                          color: TallyTapTheme.primaryMint,
+                        ),
+                      ),
+                    ),
+                    _buildSettingsTile(
+                      icon: Icons.file_upload_rounded,
+                      title: 'Export Data to CSV',
+                      subtitle: 'Export your private transaction log to a CSV file',
+                      onTap: () => _handleExport(context, ref),
+                    ),
+                    const Divider(color: TallyTapTheme.borderGreen, height: 1, indent: 20, endIndent: 20),
+                    _buildSettingsTile(
+                      icon: Icons.file_download_rounded,
+                      title: 'Import Data from CSV',
+                      subtitle: 'Restore or merge transactions from a CSV file',
+                      onTap: () => _handleImport(context, ref),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
             Card(
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8.0),
