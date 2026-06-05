@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../core/theme.dart';
 import '../providers/app_state_provider.dart';
 import '../providers/budget_provider.dart';
@@ -312,14 +313,10 @@ class HomeScreen extends ConsumerWidget {
                   size: 20,
                 ),
               ),
-              const Text(
-                'TallyTap',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w900,
-                  color: TallyTapTheme.textLight,
-                  letterSpacing: -1.0,
-                ),
+              SvgPicture.asset(
+                'assets/icon/tallytap.svg',
+                height: 24,
+                fit: BoxFit.contain,
               ),
               const SizedBox(width: 38), // To balance the left wallet icon container and keep TallyTap centered
             ],
