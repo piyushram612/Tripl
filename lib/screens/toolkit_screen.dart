@@ -19,8 +19,8 @@ import 'tools/expense_splitter_screen.dart';
 import 'tools/tip_calculator_screen.dart';
 import 'tools/outstanding_ledger_screen.dart';
 
-class SettingsScreen extends ConsumerWidget {
-  const SettingsScreen({super.key});
+class ToolkitScreen extends ConsumerWidget {
+  const ToolkitScreen({super.key});
 
   void _showManageCategoriesSheet(BuildContext context) {
     showModalBottomSheet(
@@ -1071,7 +1071,7 @@ class SettingsScreen extends ConsumerWidget {
           children: [
             const SizedBox(height: 20),
             const Text(
-              'Settings',
+              'Toolkit',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.w900,
@@ -1447,6 +1447,16 @@ class SettingsScreen extends ConsumerWidget {
                     SizedBox(height: 4),
                     Text(
                       'Long press the + floating action button on any screen to reveal more transaction options.',
+                      style: TextStyle(fontSize: 12, color: TallyTapTheme.textGray, height: 1.3),
+                    ),
+                    SizedBox(height: 12),
+                    Text(
+                      '3. Home Layout Editing',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: TallyTapTheme.textLight),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Long press any widget on the Home page to enter Edit Mode. From there, you can drag and drop cards to reorder your personalized dashboard layout.',
                       style: TextStyle(fontSize: 12, color: TallyTapTheme.textGray, height: 1.3),
                     ),
                   ],

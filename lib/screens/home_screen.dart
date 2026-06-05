@@ -96,6 +96,45 @@ class HomeScreen extends ConsumerWidget {
   }
 
 
+  Widget _wrapForEditMode(Widget child, String key, bool isEditMode, WidgetRef ref) {
+    if (!isEditMode) {
+      return GestureDetector(
+        onLongPress: () => ref.read(homeEditModeProvider.notifier).state = true,
+        child: child,
+      );
+    }
+    return Container(
+      key: ValueKey(key),
+      margin: const EdgeInsets.only(bottom: 24.0),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: TallyTapTheme.primaryMint.withValues(alpha: 0.5), width: 2),
+      ),
+      child: AbsorbPointer(
+        child: Opacity(
+          opacity: 0.8,
+          child: Stack(
+            children: [
+              child,
+              Positioned(
+                top: 10,
+                right: 10,
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: const BoxDecoration(
+                    color: TallyTapTheme.obsidianCard,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.drag_handle, color: TallyTapTheme.primaryMint, size: 20),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final transactions = ref.watch(transactionListProvider);
@@ -109,6 +148,8 @@ class HomeScreen extends ConsumerWidget {
     final sources = ref.watch(sourcesListProvider);
     final startingBalances = ref.watch(sourceStartingBalancesProvider);
     final now = DateTime.now();
+    final isEditMode = ref.watch(homeEditModeProvider);
+    final homeLayout = ref.watch(homeLayoutProvider);
 
     // 1. Dynamic overall spent (for header greeting only, based on active global budget period)
     double totalSpent = 0.0;
@@ -290,87 +331,9 @@ class HomeScreen extends ConsumerWidget {
       );
     }).toList()..sort((a, b) => b.amount.compareTo(a.amount));
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const SizedBox(height: 12),
-          // 1. Top Header
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: TallyTapTheme.obsidianCard,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: TallyTapTheme.borderGreen),
-                ),
-                child: const Icon(
-                  Icons.account_balance_wallet_outlined,
-                  color: TallyTapTheme.primaryMint,
-                  size: 20,
-                ),
-              ),
-              SvgPicture.asset(
-                'assets/icon/tallytap.svg',
-                height: 24,
-                fit: BoxFit.contain,
-              ),
-              const SizedBox(width: 38), // To balance the left wallet icon container and keep TallyTap centered
-            ],
-          ),
-          const SizedBox(height: 24),
-
-          // 2. Main Greeting Text
-          Builder(
-            builder: (context) {
-              final int hour = now.hour;
-              String greetingWord = 'Good morning';
-              if (hour >= 12 && hour < 17) {
-                greetingWord = 'Good afternoon';
-              } else if (hour >= 17 && hour < 22) {
-                greetingWord = 'Good evening';
-              } else if (hour >= 22 || hour < 5) {
-                greetingWord = 'Good night';
-              }
-
-              return Text(
-                '$greetingWord, $username',
-                style: const TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w900,
-                  color: TallyTapTheme.primaryMint,
-                  letterSpacing: -0.8,
-                ),
-              );
-            },
-          ),
-          const SizedBox(height: 6),
-          RichText(
-            text: TextSpan(
-              style: const TextStyle(fontSize: 14, color: TallyTapTheme.textGray, height: 1.4),
-              children: [
-                const TextSpan(text: "You've spent "),
-                TextSpan(
-                  text: '$currency${totalSpent.toStringAsFixed(0)}',
-                  style: const TextStyle(color: TallyTapTheme.primaryMint, fontWeight: FontWeight.bold),
-                ),
-                TextSpan(
-                  text: ' recently.\nYou\'re on track to stay within your $currency${globalBudget.amount.toStringAsFixed(0)} ${globalBudget.period} budget.',
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // 3. Scrollable Dashboard Cards
-          Expanded(
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              child: Column(
-                children: [
+    final widgetAccounts = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
                   // Horizontal scrollable payment sources panel
                   const Align(
                     alignment: Alignment.centerLeft,
@@ -501,8 +464,14 @@ class HomeScreen extends ConsumerWidget {
                       },
                     ),
                   ),
-                  const SizedBox(height: 24),
-                  // CARD A: Weekly Summary Line Graph
+                  const SizedBox(height: 24)
+      ],
+    );
+
+    final widgetSummary = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // CARD A: Weekly Summary Line Graph
                   GestureDetector(
                     onHorizontalDragEnd: (details) {
                       if (details.primaryVelocity == null) return;
@@ -664,9 +633,14 @@ class HomeScreen extends ConsumerWidget {
                       ),
                     ),
                   ),),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 20)
+      ],
+    );
 
-                  // CARD B: Spending Breakdown
+    final widgetBreakdown = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // CARD B: Spending Breakdown
                   GestureDetector(
                     onHorizontalDragEnd: (details) {
                       if (details.primaryVelocity == null) return;
@@ -806,9 +780,14 @@ class HomeScreen extends ConsumerWidget {
                       ),
                     ),
                   ),),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 20)
+      ],
+    );
 
-                  // CARD C: Recent Reflections (Mockup Transactions)
+    final widgetRecent = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // CARD C: Recent Reflections (Mockup Transactions)
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.all(20.0),
@@ -913,15 +892,126 @@ class HomeScreen extends ConsumerWidget {
                         ],
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 120),
-                ],
+                  )
+      ],
+    );
+
+    final widgetsMap = {
+      'accounts': widgetAccounts,
+      'summary': widgetSummary,
+      'breakdown': widgetBreakdown,
+      'recent': widgetRecent,
+    };
+    return Stack(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: 12),
+              // Top Header removed
+
+              // 2. Main Greeting Text
+              Builder(
+                builder: (context) {
+                  final int hour = now.hour;
+                  String greetingWord = 'Good morning';
+                  if (hour >= 12 && hour < 17) {
+                    greetingWord = 'Good afternoon';
+                  } else if (hour >= 17 && hour < 22) {
+                    greetingWord = 'Good evening';
+                  } else if (hour >= 22 || hour < 5) {
+                    greetingWord = 'Good night';
+                  }
+
+                  return Text(
+                    '$greetingWord, $username',
+                    style: const TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w900,
+                      color: TallyTapTheme.primaryMint,
+                      letterSpacing: -0.8,
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 6),
+              RichText(
+                text: TextSpan(
+                  style: const TextStyle(fontSize: 14, color: TallyTapTheme.textGray, height: 1.4),
+                  children: [
+                    const TextSpan(text: "You've spent "),
+                    TextSpan(
+                      text: '$currency${totalSpent.toStringAsFixed(0)}',
+                      style: const TextStyle(color: TallyTapTheme.primaryMint, fontWeight: FontWeight.bold),
+                    ),
+                    TextSpan(
+                      text: ' recently.\nYou\'re on track to stay within your $currency${globalBudget.amount.toStringAsFixed(0)} ${globalBudget.period} budget.',
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // 3. Scrollable Dashboard Cards
+              Expanded(
+                child: isEditMode
+                    ? ReorderableListView(
+                        padding: const EdgeInsets.only(bottom: 120),
+                        physics: const BouncingScrollPhysics(),
+                        onReorder: (oldIndex, newIndex) {
+                          if (oldIndex < newIndex) {
+                            newIndex -= 1;
+                          }
+                          final layout = List<String>.from(homeLayout);
+                          final item = layout.removeAt(oldIndex);
+                          layout.insert(newIndex, item);
+                          ref.read(homeLayoutProvider.notifier).updateLayout(layout);
+                        },
+                        children: [
+                          for (final key in homeLayout)
+                            if (widgetsMap.containsKey(key))
+                              _wrapForEditMode(widgetsMap[key]!, key, isEditMode, ref),
+                        ],
+                      )
+                    : SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            for (final key in homeLayout)
+                              if (widgetsMap.containsKey(key))
+                                _wrapForEditMode(widgetsMap[key]!, key, isEditMode, ref),
+                            const SizedBox(height: 120),
+                          ],
+                        ),
+                      ),
+              ),
+            ],
+          ),
+        ),
+        if (isEditMode)
+          Positioned(
+            bottom: 120,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: FloatingActionButton.extended(
+                onPressed: () {
+                  ref.read(homeEditModeProvider.notifier).state = false;
+                },
+                backgroundColor: TallyTapTheme.primaryMint,
+                foregroundColor: TallyTapTheme.obsidianBg,
+                elevation: 8,
+                icon: const Icon(Icons.check),
+                label: const Text('Save Layout', style: TextStyle(fontWeight: FontWeight.bold)),
               ),
             ),
           ),
-        ],
-      ),
+      ],
     );
+
   }
 
   Widget _buildMiniPeriodToggle({

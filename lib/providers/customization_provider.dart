@@ -23,7 +23,8 @@ class CustomizationNotifier extends StateNotifier<void> {
     final catIconsStr = prefs.getString('custom_category_icons') ?? '{}';
     try {
       final Map<String, dynamic> decoded = json.decode(catIconsStr);
-      TallyTapTheme.customCategoryIcons = decoded.map((k, v) => MapEntry(k, IconData(v as int, fontFamily: 'MaterialIcons')));
+      final instantiateIcon = IconData.new;
+      TallyTapTheme.customCategoryIcons = decoded.map((k, v) => MapEntry(k, instantiateIcon(v as int, fontFamily: 'MaterialIcons')));
     } catch (_) {}
 
     // Load source colors

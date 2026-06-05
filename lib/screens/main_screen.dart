@@ -16,7 +16,7 @@ import 'home_screen.dart';
 import 'budgets_screen.dart';
 import 'insights_screen.dart';
 import 'timeline_screen.dart';
-import 'settings_screen.dart';
+import 'toolkit_screen.dart';
 import 'create_transaction_screen.dart';
 import 'create_recurring_transaction_screen.dart';
 
@@ -101,7 +101,7 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
             BudgetsScreen(),
             InsightsScreen(),
             TimelineScreen(),
-            SettingsScreen(),
+            ToolkitScreen(),
           ],
         ),
       ),
@@ -244,7 +244,7 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
                         _buildNavBarItem(1, Icons.account_balance_wallet, 'Budgets', currentIndex == 1),
                         _buildNavBarItem(2, Icons.analytics_outlined, 'Insights', currentIndex == 2),
                         _buildNavBarItem(3, Icons.history_toggle_off, 'Timeline', currentIndex == 3),
-                        _buildNavBarItem(4, Icons.settings, 'Settings', currentIndex == 4),
+                        _buildNavBarItem(4, Icons.handyman_rounded, 'Toolkit', currentIndex == 4),
                       ],
                     ),
                   ),
