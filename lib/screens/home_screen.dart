@@ -96,7 +96,7 @@ class HomeScreen extends ConsumerWidget {
   }
 
 
-  Widget _wrapForEditMode(Widget child, String key, bool isEditMode, WidgetRef ref) {
+  Widget _wrapForEditMode(Widget child, String key, bool isEditMode, WidgetRef ref, int index) {
     if (!isEditMode) {
       return GestureDetector(
         onLongPress: () => ref.read(homeEditModeProvider.notifier).state = true,
@@ -110,27 +110,33 @@ class HomeScreen extends ConsumerWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: TallyTapTheme.primaryMint.withValues(alpha: 0.5), width: 2),
       ),
-      child: AbsorbPointer(
-        child: Opacity(
-          opacity: 0.8,
-          child: Stack(
-            children: [
-              child,
-              Positioned(
-                top: 10,
-                right: 10,
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: const BoxDecoration(
-                    color: TallyTapTheme.obsidianCard,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.drag_handle, color: TallyTapTheme.primaryMint, size: 20),
-                ),
+      child: Stack(
+        children: [
+          ReorderableDelayedDragStartListener(
+            index: index,
+            child: AbsorbPointer(
+              child: Opacity(
+                opacity: 0.8,
+                child: child,
               ),
-            ],
+            ),
           ),
-        ),
+          Positioned(
+            top: 10,
+            right: 10,
+            child: ReorderableDragStartListener(
+              index: index,
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: const BoxDecoration(
+                  color: TallyTapTheme.obsidianCard,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.drag_handle, color: TallyTapTheme.primaryMint, size: 20),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -912,54 +918,58 @@ class HomeScreen extends ConsumerWidget {
               const SizedBox(height: 12),
               // Top Header removed
 
-              // 2. Main Greeting Text
-              Builder(
-                builder: (context) {
-                  final int hour = now.hour;
-                  String greetingWord = 'Good morning';
-                  if (hour >= 12 && hour < 17) {
-                    greetingWord = 'Good afternoon';
-                  } else if (hour >= 17 && hour < 22) {
-                    greetingWord = 'Good evening';
-                  } else if (hour >= 22 || hour < 5) {
-                    greetingWord = 'Good night';
-                  }
-
-                  return Text(
-                    '$greetingWord, $username',
-                    style: const TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w900,
-                      color: TallyTapTheme.primaryMint,
-                      letterSpacing: -0.8,
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 6),
-              RichText(
-                text: TextSpan(
-                  style: const TextStyle(fontSize: 14, color: TallyTapTheme.textGray, height: 1.4),
-                  children: [
-                    const TextSpan(text: "You've spent "),
-                    TextSpan(
-                      text: '$currency${totalSpent.toStringAsFixed(0)}',
-                      style: const TextStyle(color: TallyTapTheme.primaryMint, fontWeight: FontWeight.bold),
-                    ),
-                    TextSpan(
-                      text: ' recently.\nYou\'re on track to stay within your $currency${globalBudget.amount.toStringAsFixed(0)} ${globalBudget.period} budget.',
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-
               // 3. Scrollable Dashboard Cards
               Expanded(
                 child: isEditMode
                     ? ReorderableListView(
+                        buildDefaultDragHandles: false,
                         padding: const EdgeInsets.only(bottom: 120),
                         physics: const BouncingScrollPhysics(),
+                        header: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Builder(
+                              builder: (context) {
+                                final int hour = now.hour;
+                                String greetingWord = 'Good morning';
+                                if (hour >= 12 && hour < 17) {
+                                  greetingWord = 'Good afternoon';
+                                } else if (hour >= 17 && hour < 22) {
+                                  greetingWord = 'Good evening';
+                                } else if (hour >= 22 || hour < 5) {
+                                  greetingWord = 'Good night';
+                                }
+
+                                return Text(
+                                  '$greetingWord, $username',
+                                  style: const TextStyle(
+                                    fontSize: 26,
+                                    fontWeight: FontWeight.w900,
+                                    color: TallyTapTheme.primaryMint,
+                                    letterSpacing: -0.8,
+                                  ),
+                                );
+                              },
+                            ),
+                            const SizedBox(height: 6),
+                            RichText(
+                              text: TextSpan(
+                                style: const TextStyle(fontSize: 14, color: TallyTapTheme.textGray, height: 1.4),
+                                children: [
+                                  const TextSpan(text: "You've spent "),
+                                  TextSpan(
+                                    text: '$currency${totalSpent.toStringAsFixed(0)}',
+                                    style: const TextStyle(color: TallyTapTheme.primaryMint, fontWeight: FontWeight.bold),
+                                  ),
+                                  TextSpan(
+                                    text: ' recently.\nYou\'re on track to stay within your $currency${globalBudget.amount.toStringAsFixed(0)} ${globalBudget.period} budget.',
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                          ],
+                        ),
                         onReorder: (oldIndex, newIndex) {
                           if (oldIndex < newIndex) {
                             newIndex -= 1;
@@ -970,9 +980,9 @@ class HomeScreen extends ConsumerWidget {
                           ref.read(homeLayoutProvider.notifier).updateLayout(layout);
                         },
                         children: [
-                          for (final key in homeLayout)
-                            if (widgetsMap.containsKey(key))
-                              _wrapForEditMode(widgetsMap[key]!, key, isEditMode, ref),
+                          for (int i = 0; i < homeLayout.length; i++)
+                            if (widgetsMap.containsKey(homeLayout[i]))
+                              _wrapForEditMode(widgetsMap[homeLayout[i]]!, homeLayout[i], isEditMode, ref, i),
                         ],
                       )
                     : SingleChildScrollView(
@@ -980,9 +990,49 @@ class HomeScreen extends ConsumerWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            for (final key in homeLayout)
-                              if (widgetsMap.containsKey(key))
-                                _wrapForEditMode(widgetsMap[key]!, key, isEditMode, ref),
+                            Builder(
+                              builder: (context) {
+                                final int hour = now.hour;
+                                String greetingWord = 'Good morning';
+                                if (hour >= 12 && hour < 17) {
+                                  greetingWord = 'Good afternoon';
+                                } else if (hour >= 17 && hour < 22) {
+                                  greetingWord = 'Good evening';
+                                } else if (hour >= 22 || hour < 5) {
+                                  greetingWord = 'Good night';
+                                }
+
+                                return Text(
+                                  '$greetingWord, $username',
+                                  style: const TextStyle(
+                                    fontSize: 26,
+                                    fontWeight: FontWeight.w900,
+                                    color: TallyTapTheme.primaryMint,
+                                    letterSpacing: -0.8,
+                                  ),
+                                );
+                              },
+                            ),
+                            const SizedBox(height: 6),
+                            RichText(
+                              text: TextSpan(
+                                style: const TextStyle(fontSize: 14, color: TallyTapTheme.textGray, height: 1.4),
+                                children: [
+                                  const TextSpan(text: "You've spent "),
+                                  TextSpan(
+                                    text: '$currency${totalSpent.toStringAsFixed(0)}',
+                                    style: const TextStyle(color: TallyTapTheme.primaryMint, fontWeight: FontWeight.bold),
+                                  ),
+                                  TextSpan(
+                                    text: ' recently.\nYou\'re on track to stay within your $currency${globalBudget.amount.toStringAsFixed(0)} ${globalBudget.period} budget.',
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            for (int i = 0; i < homeLayout.length; i++)
+                              if (widgetsMap.containsKey(homeLayout[i]))
+                                _wrapForEditMode(widgetsMap[homeLayout[i]]!, homeLayout[i], isEditMode, ref, i),
                             const SizedBox(height: 120),
                           ],
                         ),

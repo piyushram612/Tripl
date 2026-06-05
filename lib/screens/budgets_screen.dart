@@ -164,40 +164,36 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> with SingleTicker
     // Categories list
     final List<String> activeCategories = budgetLimits.keys.toList();
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const SizedBox(height: 16),
-          const Text(
-            'Budgets Hub',
-            style: TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.w900,
-              color: TallyTapTheme.primaryMint,
-              letterSpacing: -0.8,
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SizedBox(height: 16),
+            const Text(
+              'Budgets Hub',
+              style: TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.w900,
+                color: TallyTapTheme.primaryMint,
+                letterSpacing: -0.8,
+              ),
             ),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'Overview your parameters and adjust allocations directly.',
-            style: TextStyle(
-              fontSize: 14,
-              color: TallyTapTheme.textGray,
+            const SizedBox(height: 6),
+            const Text(
+              'Overview your parameters and adjust allocations directly.',
+              style: TextStyle(
+                fontSize: 14,
+                color: TallyTapTheme.textGray,
+              ),
             ),
-          ),
-          const SizedBox(height: 24),
-          
-          Expanded(
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // 1. Double Global Budgets stack at the top
-                  const Text(
-                    'GLOBAL LIMITS',
+            const SizedBox(height: 24),
+            
+            // 1. Double Global Budgets stack at the top
+            const Text(
+              'GLOBAL LIMITS',
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w800,
@@ -406,11 +402,8 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> with SingleTicker
                     }).toList(),
                     
                   const SizedBox(height: 120),
-                ],
-              ),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
