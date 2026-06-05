@@ -169,37 +169,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> with SingleTicker
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SizedBox(height: 12),
-          // Top Header
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: TallyTapTheme.obsidianCard,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: TallyTapTheme.borderGreen),
-                ),
-                child: const Icon(
-                  Icons.account_balance_wallet_outlined,
-                  color: TallyTapTheme.primaryMint,
-                  size: 20,
-                ),
-              ),
-              const Text(
-                'TallyTap',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w900,
-                  color: TallyTapTheme.textLight,
-                  letterSpacing: -1.0,
-                ),
-              ),
-              const SizedBox(width: 38), // To balance the left wallet icon container and keep TallyTap centered
-            ],
-          ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
           const Text(
             'Budgets Hub',
             style: TextStyle(

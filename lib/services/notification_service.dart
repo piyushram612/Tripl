@@ -12,17 +12,15 @@ class NotificationService {
   static Future<void> initialize() async {
     print('🔔 [NotificationService] Initializing FlutterLocalNotificationsPlugin...');
     tz.initializeTimeZones();
-    // Run timezone detection asynchronously to prevent blocking the Flutter main thread and causing launch black screens
-    Future(() async {
-      try {
-        final TimezoneInfo timeZoneInfo = await FlutterTimezone.getLocalTimezone();
-        final String timeZoneName = timeZoneInfo.identifier;
-        tz.setLocalLocation(tz.getLocation(timeZoneName));
-        print('🔔 [NotificationService] Timezone successfully set to: $timeZoneName');
-      } catch (e) {
-        print('⚠️ [NotificationService] Failed to set local timezone: $e. Falling back to UTC.');
-      }
-    });
+    // Run timezone detection synchronously to ensure tz.local is set before any scheduling happens
+    try {
+      final TimezoneInfo timeZoneInfo = await FlutterTimezone.getLocalTimezone();
+      final String timeZoneName = timeZoneInfo.identifier;
+      tz.setLocalLocation(tz.getLocation(timeZoneName));
+      print('🔔 [NotificationService] Timezone successfully set to: $timeZoneName');
+    } catch (e) {
+      print('⚠️ [NotificationService] Failed to set local timezone: $e. Falling back to UTC.');
+    }
 
     const AndroidInitializationSettings androidSettings = AndroidInitializationSettings('ic_launcher');
     const InitializationSettings settings = InitializationSettings(android: androidSettings);

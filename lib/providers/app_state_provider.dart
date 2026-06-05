@@ -87,3 +87,43 @@ class TapSensitivityNotifier extends StateNotifier<int> {
     return prefs.getInt(_key) ?? defaultMs;
   }
 }
+
+// ─── Home Screen Layout Provider ──────────────────────────────────────────────
+
+final homeEditModeProvider = StateProvider<bool>((ref) => false);
+
+final homeLayoutProvider = StateNotifierProvider<HomeLayoutNotifier, List<String>>((ref) {
+  return HomeLayoutNotifier();
+});
+
+class HomeLayoutNotifier extends StateNotifier<List<String>> {
+  static const _key = 'home_widget_layout';
+  static const defaultLayout = ['accounts', 'summary', 'breakdown', 'recent'];
+
+  HomeLayoutNotifier() : super(defaultLayout) {
+    _init();
+  }
+
+  Future<void> _init() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedLayout = prefs.getStringList(_key);
+    if (savedLayout != null && savedLayout.isNotEmpty) {
+      // Ensure all default keys exist in the saved layout (in case new ones are added later)
+      final mergedLayout = List<String>.from(savedLayout);
+      for (final key in defaultLayout) {
+        if (!mergedLayout.contains(key)) {
+          mergedLayout.add(key);
+        }
+      }
+      state = mergedLayout;
+    } else {
+      state = defaultLayout;
+    }
+  }
+
+  Future<void> updateLayout(List<String> newLayout) async {
+    state = newLayout;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_key, newLayout);
+  }
+}

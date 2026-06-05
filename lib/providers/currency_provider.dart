@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
 import '../models/transaction_model.dart';
 
 final currencyProvider = StateNotifierProvider<CurrencyNotifier, String>((ref) {
@@ -12,18 +14,74 @@ class CurrencyNotifier extends StateNotifier<String> {
     loadCurrency();
   }
 
-  static const Map<String, double> exchangeRates = {
-    '\$': 1.0,
-    '₹': 95.0,
-    '€': 0.92,
-    '£': 0.79,
-    '¥': 150.0,
+  static const Map<String, String> _symbolToCode = {
+    '\$': 'usd',
+    '₹': 'inr',
+    '€': 'eur',
+    '£': 'gbp',
+    '¥': 'jpy',
+  };
+
+  static const Map<String, double> _fallbackRatesToUsd = {
+    'usd': 1.0,
+    'inr': 1 / 83.0,
+    'eur': 1 / 0.92,
+    'gbp': 1 / 0.79,
+    'jpy': 1 / 150.0,
   };
 
   Future<void> loadCurrency() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.reload();
     state = prefs.getString('currency_symbol') ?? '₹';
+  }
+
+  Future<double> _fetchExchangeRate(String oldSymbol, String newSymbol) async {
+    final oldCode = _symbolToCode[oldSymbol];
+    final newCode = _symbolToCode[newSymbol];
+    
+    if (oldCode == null || newCode == null) return 1.0;
+    if (oldCode == newCode) return 1.0;
+
+    final prefs = await SharedPreferences.getInstance();
+
+    final urls = [
+      'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/$oldCode.json',
+      'https://latest.currency-api.pages.dev/v1/currencies/$oldCode.json'
+    ];
+
+    for (final url in urls) {
+      try {
+        final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 10));
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body);
+          if (data[oldCode] != null && data[oldCode][newCode] != null) {
+            final rate = (data[oldCode][newCode] as num).toDouble();
+            
+            // Cache the successful rate
+            await prefs.setDouble('cached_rate_${oldCode}_$newCode', rate);
+            return rate;
+          }
+        }
+      } catch (e) {
+        debugPrint('Failed to fetch from $url: $e');
+      }
+    }
+
+    // Try to fallback to cached rate
+    final cachedRate = prefs.getDouble('cached_rate_${oldCode}_$newCode');
+    if (cachedRate != null) {
+      debugPrint('Falling back to cached rate for $oldCode to $newCode: $cachedRate');
+      return cachedRate;
+    }
+
+    // Hardcoded fallback if network fails and no cache
+    final oldRateToUsd = _fallbackRatesToUsd[oldCode] ?? 1.0;
+    final newRateToUsd = _fallbackRatesToUsd[newCode] ?? 1.0;
+    final fallbackRate = oldRateToUsd / newRateToUsd;
+    debugPrint('Falling back to hardcoded rate for $oldCode to $newCode: $fallbackRate');
+    
+    return fallbackRate;
   }
 
   Future<void> setCurrency(
@@ -35,9 +93,10 @@ class CurrencyNotifier extends StateNotifier<String> {
     final oldCurrency = prefs.getString('currency_symbol') ?? '₹';
     if (oldCurrency == newCurrency) return;
 
-    final oldRate = exchangeRates[oldCurrency] ?? 95.0;
-    final newRate = exchangeRates[newCurrency] ?? 95.0;
-    final rate = convertValues ? (newRate / oldRate) : 1.0;
+    double rate = 1.0;
+    if (convertValues) {
+      rate = await _fetchExchangeRate(oldCurrency, newCurrency);
+    }
 
     // Update transactions if requested and rate is not 1.0 (or even if rate is 1.0 but convertValues is false, we don't scale)
     if (applyToExisting && rate != 1.0) {

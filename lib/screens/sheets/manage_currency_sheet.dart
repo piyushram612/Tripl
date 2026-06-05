@@ -126,30 +126,53 @@ class ManageCurrencySheet extends ConsumerWidget {
                         final convertValues = result['convertValues'] ?? true;
                         final applyToExisting = result['applyToExisting'] ?? true;
 
-                        await ref.read(currencyProvider.notifier).setCurrency(
-                          currency['symbol']!,
-                          convertValues: convertValues,
-                          applyToExisting: applyToExisting,
-                        );
-                        
-                        // Force a refresh of dependent providers
-                        ref.read(transactionListProvider.notifier).loadTransactions();
-                        ref.read(globalBudgetProvider.notifier).loadGlobalBudget();
-                        ref.read(budgetLimitsProvider.notifier).loadLimits();
-                        
                         if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Currency updated to ${currency['name']}. '
-                                '${convertValues ? "Values converted" : "Symbol changed"}'
-                                '${applyToExisting ? " for all transactions." : " for new transactions onwards."}'
-                              ),
-                              duration: const Duration(seconds: 3),
-                              behavior: SnackBarBehavior.floating,
+                          showDialog(
+                            context: context,
+                            barrierDismissible: false,
+                            builder: (context) => const Center(
+                              child: CircularProgressIndicator(color: TallyTapTheme.primaryMint),
                             ),
                           );
-                          Navigator.pop(context);
+                        }
+
+                        try {
+                          await ref.read(currencyProvider.notifier).setCurrency(
+                            currency['symbol']!,
+                            convertValues: convertValues,
+                            applyToExisting: applyToExisting,
+                          );
+                          
+                          // Force a refresh of dependent providers
+                          ref.read(transactionListProvider.notifier).loadTransactions();
+                          ref.read(globalBudgetProvider.notifier).loadGlobalBudget();
+                          ref.read(budgetLimitsProvider.notifier).loadLimits();
+                          
+                          if (context.mounted) {
+                            Navigator.pop(context); // pop loading dialog
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Currency updated to ${currency['name']}. '
+                                  '${convertValues ? "Values converted" : "Symbol changed"}'
+                                  '${applyToExisting ? " for all transactions." : " for new transactions onwards."}'
+                                ),
+                                duration: const Duration(seconds: 3),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                            Navigator.pop(context); // pop sheet
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            Navigator.pop(context); // pop loading dialog
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Failed to update currency. Please try again.'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
                         }
                       }
                     },
