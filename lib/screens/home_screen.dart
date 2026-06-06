@@ -15,6 +15,7 @@ import 'widgets/donut_chart_painter.dart';
 import 'widgets/weekly_trend_painter.dart';
 import 'widgets/transaction_item.dart';
 import 'payment_source_details_screen.dart';
+import '../services/tutorial_service.dart';
 
 final homeSummaryPeriodProvider = StateProvider<String>((ref) => 'weekly');
 final homeBreakdownPeriodProvider = StateProvider<String>((ref) => 'weekly');
@@ -340,6 +341,7 @@ class HomeScreen extends ConsumerWidget {
     }).toList()..sort((a, b) => b.amount.compareTo(a.amount));
 
     final widgetAccounts = Column(
+      key: TutorialService.homeAccountsKey,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
                   // Horizontal scrollable payment sources panel
@@ -477,6 +479,7 @@ class HomeScreen extends ConsumerWidget {
     );
 
     final widgetSummary = Column(
+      key: TutorialService.homeSummaryKey,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // CARD A: Weekly Summary Line Graph
@@ -646,6 +649,7 @@ class HomeScreen extends ConsumerWidget {
     );
 
     final widgetBreakdown = Column(
+      key: TutorialService.homeCategoryKey,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // CARD B: Spending Breakdown
@@ -793,6 +797,7 @@ class HomeScreen extends ConsumerWidget {
     );
 
     final widgetRecent = Column(
+      key: TutorialService.homeRecentTxKey,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // CARD C: Recent Reflections (Mockup Transactions)

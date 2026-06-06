@@ -1,18 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme.dart';
+import 'dart:ui';
+import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../services/tutorial_service.dart';
+import '../../providers/tutorial_provider.dart';
 
-class TipCalculatorScreen extends StatefulWidget {
+class TipCalculatorScreen extends ConsumerStatefulWidget {
   const TipCalculatorScreen({super.key});
 
   @override
-  State<TipCalculatorScreen> createState() => _TipCalculatorScreenState();
+  ConsumerState<TipCalculatorScreen> createState() => _TipCalculatorScreenState();
 }
 
-class _TipCalculatorScreenState extends State<TipCalculatorScreen> {
+class _TipCalculatorScreenState extends ConsumerState<TipCalculatorScreen> {
   final TextEditingController _billController = TextEditingController(text: "0.00");
   double _tipPercentage = 15.0;
   int _peopleCount = 1;
+  TutorialCoachMark? tutorialCoachMark;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkTutorialStatus();
+    });
+  }
 
   @override
   void dispose() {
@@ -165,6 +180,7 @@ class _TipCalculatorScreenState extends State<TipCalculatorScreen> {
 
                 // Bill Amount Card
                 Card(
+                  key: TutorialService.tipAmountKey,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
                     child: Row(
@@ -203,6 +219,7 @@ class _TipCalculatorScreenState extends State<TipCalculatorScreen> {
 
                 // Tip Percentage Section
                 Card(
+                  key: TutorialService.tipSliderKey,
                   child: Padding(
                     padding: const EdgeInsets.all(20.0),
                     child: Column(
@@ -263,6 +280,7 @@ class _TipCalculatorScreenState extends State<TipCalculatorScreen> {
 
                 // People Split Section
                 Card(
+                  key: TutorialService.tipSplitKey,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
                     child: Row(
@@ -362,4 +380,119 @@ class _TipCalculatorScreenState extends State<TipCalculatorScreen> {
       ),
     );
   }
+
+  Future<void> _checkTutorialStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    final hasSeen = prefs.getBool(kPrefTutorialTipCalc) ?? false;
+    if (!hasSeen && mounted) {
+      _initTutorial();
+    }
+  }
+
+  void _initTutorial() {
+    tutorialCoachMark = TutorialCoachMark(
+      targets: _createTargets(),
+      colorShadow: Colors.black,
+      textSkip: "SKIP",
+      paddingFocus: 10,
+      opacityShadow: 0.6,
+      imageFilter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+      beforeFocus: (target) async {
+        if (target.keyTarget?.currentContext != null) {
+          Scrollable.ensureVisible(
+            target.keyTarget!.currentContext!,
+            alignment: 0.5,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
+          await Future.delayed(const Duration(milliseconds: 350));
+        }
+      },
+      onClickOverlay: (target) {
+        tutorialCoachMark?.next();
+      },
+      onFinish: () {
+        ref.read(tutorialProvider.notifier).markCompleted(kPrefTutorialTipCalc);
+      },
+      onSkip: () {
+        ref.read(tutorialProvider.notifier).markCompleted(kPrefTutorialTipCalc);
+        return true;
+      },
+    );
+    tutorialCoachMark?.show(context: context);
+  }
+
+  Widget _buildTutorialContent(TutorialCoachMarkController controller, String title, String description) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 20)),
+        const SizedBox(height: 10),
+        Text(description, style: const TextStyle(color: Colors.white)),
+        const SizedBox(height: 16),
+        Align(
+          alignment: Alignment.centerRight,
+          child: ElevatedButton(
+            onPressed: () => controller.next(),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: TallyTapTheme.primaryMint,
+              foregroundColor: TallyTapTheme.obsidianBg,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text("Next"),
+          ),
+        ),
+      ],
+    );
+  }
+
+  List<TargetFocus> _createTargets() {
+    List<TargetFocus> targets = [];
+
+    targets.add(TargetFocus(
+      identify: "TargetBillAmount",
+      keyTarget: TutorialService.tipAmountKey,
+      alignSkip: Alignment.topRight,
+      shape: ShapeLightFocus.RRect,
+      radius: 12,
+      contents: [
+        TargetContent(
+          align: ContentAlign.bottom,
+          builder: (context, controller) => _buildTutorialContent(controller, "Bill Amount", "Enter the total pre-tip bill amount here."),
+        ),
+      ],
+    ));
+
+    targets.add(TargetFocus(
+      identify: "TargetTipSlider",
+      keyTarget: TutorialService.tipSliderKey,
+      alignSkip: Alignment.topRight,
+      shape: ShapeLightFocus.RRect,
+      radius: 12,
+      contents: [
+        TargetContent(
+          align: ContentAlign.bottom,
+          builder: (context, controller) => _buildTutorialContent(controller, "Tip Adjuster", "Use the slider or quick buttons to set the tip percentage."),
+        ),
+      ],
+    ));
+
+    targets.add(TargetFocus(
+      identify: "TargetTipSplit",
+      keyTarget: TutorialService.tipSplitKey,
+      alignSkip: Alignment.topRight,
+      shape: ShapeLightFocus.RRect,
+      radius: 12,
+      contents: [
+        TargetContent(
+          align: ContentAlign.top,
+          builder: (context, controller) => _buildTutorialContent(controller, "Split Bill", "If sharing the bill, increase the people count to split the cost evenly."),
+        ),
+      ],
+    ));
+
+    return targets;
+  }
 }
+

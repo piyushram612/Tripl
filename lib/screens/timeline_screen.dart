@@ -8,6 +8,7 @@ import '../services/transaction_service.dart';
 import 'widgets/transaction_item.dart';
 import 'widgets/timeline_filter_sheet.dart';
 import 'group_transaction_details_screen.dart';
+import '../services/tutorial_service.dart';
 
 class TimelineScreen extends ConsumerStatefulWidget {
   const TimelineScreen({super.key});
@@ -687,6 +688,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
               ),
               const SizedBox(height: 16),
               TextField(
+                key: TutorialService.timelineSearchKey,
                 controller: _searchController,
                 onChanged: (val) {
                   setState(() {

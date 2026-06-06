@@ -13,6 +13,7 @@ import '../providers/dashboard_provider.dart';
 import '../services/transaction_service.dart';
 import 'widgets/dashed_border_container.dart';
 import 'sheets/manage_budgets_sheet.dart';
+import '../services/tutorial_service.dart';
 
 class BudgetsScreen extends ConsumerStatefulWidget {
   const BudgetsScreen({super.key});
@@ -246,6 +247,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> with SingleTicker
                     animation: _animation,
                     builder: (context, child) {
                       return SingleChildScrollView(
+                        key: TutorialService.budgetsRingKey,
                         scrollDirection: Axis.horizontal,
                         physics: const BouncingScrollPhysics(),
                         child: Row(
@@ -289,6 +291,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> with SingleTicker
                   
                   // Shifted Adjust budget limits card above
                   DashedBorderContainer(
+                    key: TutorialService.budgetsManageKey,
                     child: InkWell(
                       onTap: () => _showManageBudgetsSheet(context),
                       borderRadius: BorderRadius.circular(24),
@@ -523,18 +526,19 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> with SingleTicker
                     ),
                     const SizedBox(height: 16),
                     
-                    if (filteredCategories.isEmpty)
-                      Center(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 32.0),
-                          child: Text(
-                            'No categories assigned to $_selectedIntent.',
-                            style: const TextStyle(color: TallyTapTheme.textGray, fontSize: 13),
-                          ),
-                        ),
-                      )
-                    else
-                      GridView.builder(
+                    Container(
+                      key: TutorialService.budgetsEnvelopesListKey,
+                      child: filteredCategories.isEmpty
+                        ? Center(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 32.0),
+                              child: Text(
+                                'No categories assigned to $_selectedIntent.',
+                                style: const TextStyle(color: TallyTapTheme.textGray, fontSize: 13),
+                              ),
+                            ),
+                          )
+                        : GridView.builder(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
                         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -600,6 +604,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> with SingleTicker
                           );
                         },
                       ),
+                    ),
                   ],
                     
                   const SizedBox(height: 120),

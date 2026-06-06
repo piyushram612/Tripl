@@ -127,3 +127,5 @@ class HomeLayoutNotifier extends StateNotifier<List<String>> {
     await prefs.setStringList(_key, newLayout);
   }
 }
+
+// Empty

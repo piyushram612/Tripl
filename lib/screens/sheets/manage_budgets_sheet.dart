@@ -5,6 +5,11 @@ import '../../core/theme.dart';
 import '../../providers/budget_provider.dart';
 import '../../providers/category_provider.dart';
 import '../../providers/currency_provider.dart';
+import 'dart:ui';
+import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../services/tutorial_service.dart';
+import '../../providers/tutorial_provider.dart';
 
 class ManageBudgetsSheet extends ConsumerStatefulWidget {
   const ManageBudgetsSheet({super.key});
@@ -21,6 +26,7 @@ class _ManageBudgetsSheetState extends ConsumerState<ManageBudgetsSheet> {
   String? _activeDragCategory;
   Offset _dragStartPos = Offset.zero;
   double _dragStartValue = 0.0;
+  TutorialCoachMark? tutorialCoachMark;
 
   @override
   void initState() {
@@ -44,6 +50,7 @@ class _ManageBudgetsSheetState extends ConsumerState<ManageBudgetsSheet> {
           _globalLimitController.text = globalBudget.weeklyAmount.toStringAsFixed(0);
         }
       });
+      _checkTutorialStatus();
     });
   }
 
@@ -194,8 +201,10 @@ class _ManageBudgetsSheetState extends ConsumerState<ManageBudgetsSheet> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  TextField(
-                    controller: _globalLimitController,
+                  Container(
+                    key: TutorialService.adjustBudgetGlobalKey,
+                    child: TextField(
+                      controller: _globalLimitController,
                     keyboardType: TextInputType.number,
                     style: const TextStyle(color: TallyTapTheme.textLight, fontWeight: FontWeight.bold),
                     onChanged: (_) => setState(() {}),
@@ -215,6 +224,7 @@ class _ManageBudgetsSheetState extends ConsumerState<ManageBudgetsSheet> {
                         borderSide: const BorderSide(color: TallyTapTheme.primaryMint, width: 1.5),
                       ),
                     ),
+                  ),
                   ),
                   const SizedBox(height: 24),
                   Row(
@@ -347,6 +357,7 @@ class _ManageBudgetsSheetState extends ConsumerState<ManageBudgetsSheet> {
                       final isExcluded = excludedCategories.contains(cat);
                       
                       return GestureDetector(
+                        key: categories.indexOf(cat) == 0 ? TutorialService.adjustBudgetCategoryKey : null,
                         onLongPressStart: isExcluded ? null : (details) {
                           HapticFeedback.heavyImpact();
                           setState(() {
@@ -605,5 +616,105 @@ class _ManageBudgetsSheetState extends ConsumerState<ManageBudgetsSheet> {
         ],
       ),
     );
+  }
+
+  Future<void> _checkTutorialStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    final hasSeen = prefs.getBool(kPrefTutorialAdjustBudget) ?? false;
+    if (!hasSeen && mounted) {
+      _initTutorial();
+    }
+  }
+
+  void _initTutorial() {
+    tutorialCoachMark = TutorialCoachMark(
+      targets: _createTargets(),
+      colorShadow: Colors.black,
+      textSkip: "SKIP",
+      paddingFocus: 10,
+      opacityShadow: 0.6,
+      imageFilter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+      beforeFocus: (target) async {
+        if (target.keyTarget?.currentContext != null) {
+          Scrollable.ensureVisible(
+            target.keyTarget!.currentContext!,
+            alignment: 0.5,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
+          await Future.delayed(const Duration(milliseconds: 350));
+        }
+      },
+      onClickOverlay: (target) {
+        tutorialCoachMark?.next();
+      },
+      onFinish: () {
+        ref.read(tutorialProvider.notifier).markCompleted(kPrefTutorialAdjustBudget);
+      },
+      onSkip: () {
+        ref.read(tutorialProvider.notifier).markCompleted(kPrefTutorialAdjustBudget);
+        return true;
+      },
+    );
+    tutorialCoachMark?.show(context: context);
+  }
+
+  Widget _buildTutorialContent(TutorialCoachMarkController controller, String title, String description) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 20)),
+        const SizedBox(height: 10),
+        Text(description, style: const TextStyle(color: Colors.white)),
+        const SizedBox(height: 16),
+        Align(
+          alignment: Alignment.centerRight,
+          child: ElevatedButton(
+            onPressed: () => controller.next(),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: TallyTapTheme.primaryMint,
+              foregroundColor: TallyTapTheme.obsidianBg,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text("Next"),
+          ),
+        ),
+      ],
+    );
+  }
+
+  List<TargetFocus> _createTargets() {
+    List<TargetFocus> targets = [];
+
+    targets.add(TargetFocus(
+      identify: "TargetGlobalBudget",
+      keyTarget: TutorialService.adjustBudgetGlobalKey,
+      alignSkip: Alignment.topRight,
+      shape: ShapeLightFocus.RRect,
+      radius: 12,
+      contents: [
+        TargetContent(
+          align: ContentAlign.bottom,
+          builder: (context, controller) => _buildTutorialContent(controller, "Global Budget", "Set your overall spending limit for the selected period here."),
+        ),
+      ],
+    ));
+
+    targets.add(TargetFocus(
+      identify: "TargetCategoryLimits",
+      keyTarget: TutorialService.adjustBudgetCategoryKey,
+      alignSkip: Alignment.topRight,
+      shape: ShapeLightFocus.RRect,
+      radius: 12,
+      contents: [
+        TargetContent(
+          align: ContentAlign.top,
+          builder: (context, controller) => _buildTutorialContent(controller, "Category Limits", "Long-press and drag horizontally on any category card to quickly adjust its individual budget limit."),
+        ),
+      ],
+    ));
+
+    return targets;
   }
 }

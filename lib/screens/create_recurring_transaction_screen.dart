@@ -9,6 +9,11 @@ import '../providers/category_provider.dart';
 import '../providers/currency_provider.dart';
 import '../providers/source_provider.dart';
 import 'widgets/transaction_form_components.dart';
+import 'dart:ui';
+import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/tutorial_service.dart';
+import '../providers/tutorial_provider.dart';
 
 class CreateRecurringTransactionScreen extends ConsumerStatefulWidget {
   final RecurringTransaction? existingTransaction;
@@ -42,6 +47,7 @@ class _CreateRecurringTransactionScreenState extends ConsumerState<CreateRecurri
   
   bool _autoCreate = true;
   bool _logAsPending = false;
+  TutorialCoachMark? tutorialCoachMark;
 
   @override
   void initState() {
@@ -67,6 +73,9 @@ class _CreateRecurringTransactionScreenState extends ConsumerState<CreateRecurri
     } else {
       _executionTime = TimeOfDay.now();
     }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkTutorialStatus();
+    });
   }
 
   @override
@@ -598,6 +607,7 @@ class _CreateRecurringTransactionScreenState extends ConsumerState<CreateRecurri
                       const SectionLabel(label: 'Frequency'),
                       const SizedBox(height: 12),
                       SingleChildScrollView(
+                        key: TutorialService.createRecurringTemplateKey,
                         scrollDirection: Axis.horizontal,
                         physics: const BouncingScrollPhysics(),
                         child: Row(
@@ -842,6 +852,7 @@ class _CreateRecurringTransactionScreenState extends ConsumerState<CreateRecurri
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                 child: Container(
+                  key: TutorialService.createRecurringSaveKey,
                   width: double.infinity,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(18),
@@ -889,5 +900,105 @@ class _CreateRecurringTransactionScreenState extends ConsumerState<CreateRecurri
         ),
       ),
     );
+  }
+
+  Future<void> _checkTutorialStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    final hasSeen = prefs.getBool(kPrefTutorialCreateRecurringTx) ?? false;
+    if (!hasSeen && mounted) {
+      _initTutorial();
+    }
+  }
+
+  void _initTutorial() {
+    tutorialCoachMark = TutorialCoachMark(
+      targets: _createTargets(),
+      colorShadow: Colors.black,
+      textSkip: "SKIP",
+      paddingFocus: 10,
+      opacityShadow: 0.6,
+      imageFilter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+      beforeFocus: (target) async {
+        if (target.keyTarget?.currentContext != null) {
+          Scrollable.ensureVisible(
+            target.keyTarget!.currentContext!,
+            alignment: 0.5,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
+          await Future.delayed(const Duration(milliseconds: 350));
+        }
+      },
+      onClickOverlay: (target) {
+        tutorialCoachMark?.next();
+      },
+      onFinish: () {
+        ref.read(tutorialProvider.notifier).markCompleted(kPrefTutorialCreateRecurringTx);
+      },
+      onSkip: () {
+        ref.read(tutorialProvider.notifier).markCompleted(kPrefTutorialCreateRecurringTx);
+        return true;
+      },
+    );
+    tutorialCoachMark?.show(context: context);
+  }
+
+  Widget _buildTutorialContent(TutorialCoachMarkController controller, String title, String description) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 20)),
+        const SizedBox(height: 10),
+        Text(description, style: const TextStyle(color: Colors.white)),
+        const SizedBox(height: 16),
+        Align(
+          alignment: Alignment.centerRight,
+          child: ElevatedButton(
+            onPressed: () => controller.next(),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: TallyTapTheme.primaryMint,
+              foregroundColor: TallyTapTheme.obsidianBg,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text("Next"),
+          ),
+        ),
+      ],
+    );
+  }
+
+  List<TargetFocus> _createTargets() {
+    List<TargetFocus> targets = [];
+
+    targets.add(TargetFocus(
+      identify: "TargetFrequency",
+      keyTarget: TutorialService.createRecurringTemplateKey,
+      alignSkip: Alignment.topRight,
+      shape: ShapeLightFocus.RRect,
+      radius: 12,
+      contents: [
+        TargetContent(
+          align: ContentAlign.bottom,
+          builder: (context, controller) => _buildTutorialContent(controller, "Frequency", "Set how often this transaction repeats (e.g., Weekly, Monthly)."),
+        ),
+      ],
+    ));
+
+    targets.add(TargetFocus(
+      identify: "TargetSave",
+      keyTarget: TutorialService.createRecurringSaveKey,
+      alignSkip: Alignment.topRight,
+      shape: ShapeLightFocus.RRect,
+      radius: 12,
+      contents: [
+        TargetContent(
+          align: ContentAlign.top,
+          builder: (context, controller) => _buildTutorialContent(controller, "Save Recurring Transaction", "Tap here to save your recurring transaction."),
+        ),
+      ],
+    ));
+
+    return targets;
   }
 }
