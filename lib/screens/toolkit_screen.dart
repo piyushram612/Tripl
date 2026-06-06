@@ -1266,6 +1266,66 @@ class ToolkitScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 20),
 
+            // Card: Tools & Calculators
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(left: 20.0, top: 16.0, bottom: 8.0),
+                      child: Text(
+                        'TOOLS & CALCULATORS',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.5,
+                          color: TallyTapTheme.primaryMint,
+                        ),
+                      ),
+                    ),
+                    _buildSettingsTile(
+                      icon: Icons.splitscreen_rounded,
+                      title: 'Expense Splitter',
+                      subtitle: 'Split bills equally between friends',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const ExpenseSplitterScreen()),
+                        );
+                      },
+                    ),
+                    const Divider(color: TallyTapTheme.borderGreen, height: 1, indent: 20, endIndent: 20),
+                    _buildSettingsTile(
+                      icon: Icons.monetization_on_outlined,
+                      title: 'Tip Calculator',
+                      subtitle: 'Calculate tip percentages and splits',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const TipCalculatorScreen()),
+                        );
+                      },
+                    ),
+                    const Divider(color: TallyTapTheme.borderGreen, height: 1, indent: 20, endIndent: 20),
+                    _buildSettingsTile(
+                      icon: Icons.handshake_outlined,
+                      title: 'Outstanding Ledger',
+                      subtitle: 'Track who owes you money & who you owe',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const OutstandingLedgerScreen()),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
             // Card B2: Notifications
             Card(
               child: Padding(
@@ -1345,117 +1405,6 @@ class ToolkitScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 20),
 
-            // Card D: Danger Zone
-            Card(
-              color: const Color(0xFF1F1212),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: BorderSide(color: Colors.redAccent.withOpacity(0.3), width: 1.0),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Padding(
-                      padding: EdgeInsets.only(left: 20.0, top: 16.0, bottom: 8.0),
-                      child: Text(
-                        'DANGER ZONE',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.5,
-                          color: Colors.redAccent,
-                        ),
-                      ),
-                    ),
-                    ListTile(
-                      onTap: () => _handleDeleteAllTransactions(context, ref),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                      leading: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF2C1616),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.redAccent.withOpacity(0.3), width: 0.5),
-                        ),
-                        child: const Icon(Icons.delete_forever_rounded, color: Colors.redAccent, size: 20),
-                      ),
-                      title: const Text(
-                        'Delete All Transactions',
-                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.redAccent),
-                      ),
-                      subtitle: const Text(
-                        'Permanently erase all transaction data from this device',
-                        style: TextStyle(fontSize: 12, color: TallyTapTheme.textGray),
-                      ),
-                      trailing: const Icon(Icons.chevron_right_rounded, color: Colors.redAccent),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Padding(
-                      padding: EdgeInsets.only(left: 20.0, top: 16.0, bottom: 8.0),
-                      child: Text(
-                        'TOOLS & CALCULATORS',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.5,
-                          color: TallyTapTheme.primaryMint,
-                        ),
-                      ),
-                    ),
-                    _buildSettingsTile(
-                      icon: Icons.splitscreen_rounded,
-                      title: 'Expense Splitter',
-                      subtitle: 'Split bills equally between friends',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const ExpenseSplitterScreen()),
-                        );
-                      },
-                    ),
-                    const Divider(color: TallyTapTheme.borderGreen, height: 1, indent: 20, endIndent: 20),
-                    _buildSettingsTile(
-                      icon: Icons.monetization_on_outlined,
-                      title: 'Tip Calculator',
-                      subtitle: 'Calculate tip percentages and splits',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const TipCalculatorScreen()),
-                        );
-                      },
-                    ),
-                    const Divider(color: TallyTapTheme.borderGreen, height: 1, indent: 20, endIndent: 20),
-                    _buildSettingsTile(
-                      icon: Icons.handshake_outlined,
-                      title: 'Outstanding Ledger',
-                      subtitle: 'Track who owes you money & who you owe',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const OutstandingLedgerScreen()),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-
             // Shortcut Guide Card
             Card(
               child: Padding(
@@ -1501,6 +1450,58 @@ class ToolkitScreen extends ConsumerWidget {
                     Text(
                       'Long press any widget on the Home page to enter Edit Mode. From there, you can drag and drop cards to reorder your personalized dashboard layout.',
                       style: TextStyle(fontSize: 12, color: TallyTapTheme.textGray, height: 1.3),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Card D: Danger Zone
+            Card(
+              color: const Color(0xFF1F1212),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: Colors.redAccent.withOpacity(0.3), width: 1.0),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(left: 20.0, top: 16.0, bottom: 8.0),
+                      child: Text(
+                        'DANGER ZONE',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.5,
+                          color: Colors.redAccent,
+                        ),
+                      ),
+                    ),
+                    ListTile(
+                      onTap: () => _handleDeleteAllTransactions(context, ref),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2C1616),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.redAccent.withOpacity(0.3), width: 0.5),
+                        ),
+                        child: const Icon(Icons.delete_forever_rounded, color: Colors.redAccent, size: 20),
+                      ),
+                      title: const Text(
+                        'Delete All Transactions',
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.redAccent),
+                      ),
+                      subtitle: const Text(
+                        'Permanently erase all transaction data from this device',
+                        style: TextStyle(fontSize: 12, color: TallyTapTheme.textGray),
+                      ),
+                      trailing: const Icon(Icons.chevron_right_rounded, color: Colors.redAccent),
                     ),
                   ],
                 ),

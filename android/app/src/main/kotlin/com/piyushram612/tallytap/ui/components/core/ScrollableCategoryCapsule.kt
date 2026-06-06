@@ -21,17 +21,18 @@ import com.piyushram612.tallytap.ui.components.outerGlow
 fun ScrollableCategoryCapsule(
     label: String,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    accentColor: Color = GreenPrimary
 ) {
     Box(
         modifier = Modifier
             .height(42.dp)
-            .then(if (isSelected) Modifier.outerGlow(color = GreenPrimary, radius = 12.dp, alpha = 0.35f, cornerRadius = 100.dp) else Modifier)
+            .then(if (isSelected) Modifier.outerGlow(color = accentColor, radius = 12.dp, alpha = 0.35f, cornerRadius = 100.dp) else Modifier)
             .clip(RoundedCornerShape(100.dp))
-            .background(if (isSelected) GreenPrimary.copy(alpha = 0.15f) else InactivePill)
+            .background(if (isSelected) accentColor.copy(alpha = 0.15f) else InactivePill)
             .border(
                 width = 1.0.dp,
-                color = if (isSelected) GreenPrimary else Color.Transparent,
+                color = if (isSelected) accentColor else Color.Transparent,
                 shape = RoundedCornerShape(100.dp)
             )
             .clickable { onClick() }
@@ -43,7 +44,7 @@ fun ScrollableCategoryCapsule(
             style = TextStyle(
                 fontSize = 13.sp,
                 fontWeight = FontWeight.W700,
-                color = if (isSelected) GreenPrimary else Color.White.copy(alpha = 0.8f)
+                color = if (isSelected) accentColor else Color.White.copy(alpha = 0.8f)
             ),
             maxLines = 1
         )

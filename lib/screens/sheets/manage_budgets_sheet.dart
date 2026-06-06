@@ -86,6 +86,7 @@ class _ManageBudgetsSheetState extends ConsumerState<ManageBudgetsSheet> {
   Widget build(BuildContext context) {
     final categories = ref.watch(categoriesListProvider);
     final currency = ref.watch(currencyProvider);
+    final excludedCategories = ref.watch(excludedCategoriesProvider);
 
     return Padding(
       padding: EdgeInsets.only(
@@ -265,11 +266,16 @@ class _ManageBudgetsSheetState extends ConsumerState<ManageBudgetsSheet> {
                   ),
                   const SizedBox(height: 16),
                   // Live Allocation Tracker inside Wizard
-                  Builder(
-                    builder: (context) {
+                  Consumer(
+                    builder: (context, ref, child) {
+                      final excludedCategories = ref.watch(excludedCategoriesProvider);
                       double totalAllocated = 0.0;
-                      for (final ctrl in _categoryControllers.values) {
-                        totalAllocated += double.tryParse(ctrl.text) ?? 0.0;
+                      for (final entry in _categoryControllers.entries) {
+                        final cat = entry.key;
+                        final ctrl = entry.value;
+                        if (!excludedCategories.contains(cat)) {
+                          totalAllocated += double.tryParse(ctrl.text) ?? 0.0;
+                        }
                       }
                       final double globalLimit = double.tryParse(_globalLimitController.text) ?? 0.0;
                       final bool isOverallocated = totalAllocated > globalLimit;
@@ -338,8 +344,10 @@ class _ManageBudgetsSheetState extends ConsumerState<ManageBudgetsSheet> {
                     ...categories.map((cat) {
                       final ctrl = _categoryControllers[cat] ??= TextEditingController();
                       final isDragging = _activeDragCategory == cat;
+                      final isExcluded = excludedCategories.contains(cat);
+                      
                       return GestureDetector(
-                        onLongPressStart: (details) {
+                        onLongPressStart: isExcluded ? null : (details) {
                           HapticFeedback.heavyImpact();
                           setState(() {
                             _activeDragCategory = cat;
@@ -347,7 +355,7 @@ class _ManageBudgetsSheetState extends ConsumerState<ManageBudgetsSheet> {
                             _dragStartValue = double.tryParse(ctrl.text) ?? 0.0;
                           });
                         },
-                        onLongPressMoveUpdate: (details) {
+                        onLongPressMoveUpdate: isExcluded ? null : (details) {
                           final double deltaX = details.globalPosition.dx - _dragStartPos.dx;
                           double val = _dragStartValue + (deltaX * 5.0);
                           val = val.clamp(0.0, double.infinity);
@@ -361,7 +369,7 @@ class _ManageBudgetsSheetState extends ConsumerState<ManageBudgetsSheet> {
                             });
                           }
                         },
-                        onLongPressEnd: (details) {
+                        onLongPressEnd: isExcluded ? null : (details) {
                           HapticFeedback.mediumImpact();
                           setState(() {
                             _activeDragCategory = null;
@@ -372,7 +380,7 @@ class _ManageBudgetsSheetState extends ConsumerState<ManageBudgetsSheet> {
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 150),
                             curve: Curves.easeInOut,
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                             margin: const EdgeInsets.only(bottom: 12.0),
                             decoration: BoxDecoration(
                               color: isDragging ? const Color(0xFF132A22) : TallyTapTheme.obsidianCard,
@@ -393,77 +401,102 @@ class _ManageBudgetsSheetState extends ConsumerState<ManageBudgetsSheet> {
                             ),
                             child: Row(
                               children: [
-                                Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF0F1B17),
-                                    borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(color: TallyTapTheme.borderGreen, width: 0.5),
-                                  ),
-                                  child: Icon(
-                                    _getIconForCategory(cat),
-                                    color: TallyTapTheme.primaryMint,
-                                    size: 16,
+                                Checkbox(
+                                  value: !isExcluded,
+                                  activeColor: TallyTapTheme.primaryMint,
+                                  checkColor: TallyTapTheme.obsidianBg,
+                                  onChanged: (val) {
+                                    HapticFeedback.selectionClick();
+                                    ref.read(excludedCategoriesProvider.notifier).toggleExclusion(cat);
+                                    ref.read(budgetLimitsProvider.notifier).loadLimits();
+                                  },
+                                ),
+                                const SizedBox(width: 4),
+                                Opacity(
+                                  opacity: isExcluded ? 0.4 : 1.0,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF0F1B17),
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(color: TallyTapTheme.borderGreen, width: 0.5),
+                                    ),
+                                    child: Icon(
+                                      _getIconForCategory(cat),
+                                      color: TallyTapTheme.primaryMint,
+                                      size: 16,
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        cat,
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.bold,
-                                          color: TallyTapTheme.textLight,
-                                        ),
-                                      ),
-                                      if (isDragging) ...[
-                                        const SizedBox(height: 2),
-                                        const Text(
-                                          '← Drag left/right to adjust →',
-                                          style: TextStyle(
-                                            fontSize: 9,
+                                  child: Opacity(
+                                    opacity: isExcluded ? 0.4 : 1.0,
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          cat,
+                                          style: const TextStyle(
+                                            fontSize: 14,
                                             fontWeight: FontWeight.bold,
-                                            color: TallyTapTheme.primaryMint,
+                                            color: TallyTapTheme.textLight,
                                           ),
                                         ),
+                                        if (isDragging && !isExcluded) ...[
+                                          const SizedBox(height: 2),
+                                          const Text(
+                                            '← Drag left/right to adjust →',
+                                            style: TextStyle(
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.bold,
+                                              color: TallyTapTheme.primaryMint,
+                                            ),
+                                          ),
+                                        ],
                                       ],
-                                    ],
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(width: 12),
                                 SizedBox(
                                   width: 100,
                                   height: 42,
-                                  child: TextField(
-                                    controller: ctrl,
-                                    keyboardType: TextInputType.number,
-                                    style: const TextStyle(
-                                      color: TallyTapTheme.textLight,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                    onChanged: (_) => setState(() {}),
-                                    decoration: InputDecoration(
-                                      hintText: 'e.g. 500',
-                                      hintStyle: const TextStyle(color: TallyTapTheme.textGray, fontSize: 12),
-                                      prefixText: currency,
-                                      prefixStyle: const TextStyle(
-                                        color: TallyTapTheme.primaryMint,
+                                  child: Opacity(
+                                    opacity: isExcluded ? 0.4 : 1.0,
+                                    child: TextField(
+                                      controller: ctrl,
+                                      enabled: !isExcluded,
+                                      keyboardType: TextInputType.number,
+                                      style: const TextStyle(
+                                        color: TallyTapTheme.textLight,
+                                        fontSize: 13,
                                         fontWeight: FontWeight.bold,
                                       ),
-                                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                                      filled: true,
-                                      fillColor: TallyTapTheme.obsidianCard,
-                                      enabledBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                        borderSide: const BorderSide(color: TallyTapTheme.borderGreen),
-                                      ),
-                                      focusedBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                        borderSide: const BorderSide(color: TallyTapTheme.primaryMint, width: 1.2),
+                                      onChanged: (_) => setState(() {}),
+                                      decoration: InputDecoration(
+                                        hintText: 'e.g. 500',
+                                        hintStyle: const TextStyle(color: TallyTapTheme.textGray, fontSize: 12),
+                                        prefixText: currency,
+                                        prefixStyle: const TextStyle(
+                                          color: TallyTapTheme.primaryMint,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                        filled: true,
+                                        fillColor: TallyTapTheme.obsidianCard,
+                                        enabledBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                          borderSide: const BorderSide(color: TallyTapTheme.borderGreen),
+                                        ),
+                                        focusedBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                          borderSide: const BorderSide(color: TallyTapTheme.primaryMint, width: 1.2),
+                                        ),
+                                        disabledBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                          borderSide: const BorderSide(color: TallyTapTheme.borderGreen, width: 0.5),
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -474,100 +507,100 @@ class _ManageBudgetsSheetState extends ConsumerState<ManageBudgetsSheet> {
                         ),
                       );
                     }).toList(),
-                  const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () {
-                            final double? limit = double.tryParse(_globalLimitController.text);
-                            if (limit != null && limit >= 0) {
-                              ref.read(globalBudgetProvider.notifier).setGlobalBudget(limit, _globalPeriod);
-                              Navigator.pop(context);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    'Global $_globalPeriod budget set to $currency${limit.toStringAsFixed(0)}! Categories skipped.',
-                                    style: const TextStyle(fontWeight: FontWeight.bold, color: TallyTapTheme.obsidianBg),
-                                  ),
-                                  backgroundColor: TallyTapTheme.primaryMint,
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
-                            }
-                          },
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: TallyTapTheme.borderGreen),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                          ),
-                          child: const Text(
-                            'SKIP & SAVE',
-                            style: TextStyle(
-                              color: TallyTapTheme.primaryMint,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () {
-                            final double? limit = double.tryParse(_globalLimitController.text);
-                            if (limit != null && limit >= 0) {
-                              // 1. Save global budget
-                              ref.read(globalBudgetProvider.notifier).setGlobalBudget(limit, _globalPeriod);
-                              
-                              // 2. Save entered category budgets
-                              final Map<String, double> categoryBudgetsToSave = {};
-                              for (final cat in categories) {
-                                final ctrl = _categoryControllers[cat];
-                                if (ctrl != null && ctrl.text.isNotEmpty) {
-                                  final double? catLimit = double.tryParse(ctrl.text);
-                                  if (catLimit != null && catLimit >= 0) {
-                                    categoryBudgetsToSave[cat] = catLimit;
-                                  }
-                                }
-                              }
-                              
-                              if (categoryBudgetsToSave.isNotEmpty) {
-                                ref.read(budgetLimitsProvider.notifier).setMultipleLimits(categoryBudgetsToSave);
-                              }
-                              
-                              Navigator.pop(context);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    'Global $_globalPeriod budget and category budgets saved!',
-                                    style: const TextStyle(fontWeight: FontWeight.bold, color: TallyTapTheme.obsidianBg),
-                                  ),
-                                  backgroundColor: TallyTapTheme.primaryMint,
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: TallyTapTheme.primaryMint,
-                            foregroundColor: TallyTapTheme.obsidianBg,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            elevation: 0,
-                          ),
-                          child: const Text(
-                            'SAVE ALL',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 0.5),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
                 ],
               ),
             ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () {
+                    final double? limit = double.tryParse(_globalLimitController.text);
+                    if (limit != null && limit >= 0) {
+                      ref.read(globalBudgetProvider.notifier).setGlobalBudget(limit, _globalPeriod);
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Global $_globalPeriod budget set to $currency${limit.toStringAsFixed(0)}! Categories skipped.',
+                            style: const TextStyle(fontWeight: FontWeight.bold, color: TallyTapTheme.obsidianBg),
+                          ),
+                          backgroundColor: TallyTapTheme.primaryMint,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  },
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: TallyTapTheme.borderGreen),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  child: const Text(
+                    'SKIP & SAVE',
+                    style: TextStyle(
+                      color: TallyTapTheme.primaryMint,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () {
+                    final double? limit = double.tryParse(_globalLimitController.text);
+                    if (limit != null && limit >= 0) {
+                      // 1. Save global budget
+                      ref.read(globalBudgetProvider.notifier).setGlobalBudget(limit, _globalPeriod);
+                      
+                      // 2. Save entered category budgets
+                      final Map<String, double> categoryBudgetsToSave = {};
+                      for (final cat in categories) {
+                        final ctrl = _categoryControllers[cat];
+                        if (ctrl != null && ctrl.text.isNotEmpty) {
+                          final double? catLimit = double.tryParse(ctrl.text);
+                          if (catLimit != null && catLimit >= 0) {
+                            categoryBudgetsToSave[cat] = catLimit;
+                          }
+                        }
+                      }
+                      
+                      if (categoryBudgetsToSave.isNotEmpty) {
+                        ref.read(budgetLimitsProvider.notifier).setMultipleLimits(categoryBudgetsToSave);
+                      }
+                      
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Global $_globalPeriod budget and category budgets saved!',
+                            style: const TextStyle(fontWeight: FontWeight.bold, color: TallyTapTheme.obsidianBg),
+                          ),
+                          backgroundColor: TallyTapTheme.primaryMint,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: TallyTapTheme.primaryMint,
+                    foregroundColor: TallyTapTheme.obsidianBg,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    elevation: 0,
+                  ),
+                  child: const Text(
+                    'SAVE ALL',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 0.5),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'manage_items_sheet.dart';
 import '../../providers/source_provider.dart';
+import '../../providers/customization_provider.dart';
 import '../../services/transaction_service.dart';
 import '../../models/transaction_model.dart';
 
@@ -24,6 +25,7 @@ class ManageSourcesSheet extends ConsumerWidget {
         await ref.read(sourcesListProvider.notifier).deleteSource(name);
       },
       onUpdate: (oldName, newName) async {
+        await ref.read(customizationProvider.notifier).migrateSourceCustomizations(oldName, newName);
         await ref.read(sourcesListProvider.notifier).updateSource(oldName, newName);
         
         // Proactively update all transactions using this source name to maintain integrity

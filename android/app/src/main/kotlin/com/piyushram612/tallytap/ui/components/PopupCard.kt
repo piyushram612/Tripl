@@ -104,6 +104,8 @@ fun PopupCard(
     val currency = remember(context) { TransactionManager.getGlobalCurrency(context) }
     val categories = remember(context) { TransactionManager.getCustomCategories(context) }
     val sources = remember(context) { TransactionManager.getCustomSources(context) }
+    val categoryColors = remember(context) { TransactionManager.getCategoryColors(context) }
+    val sourceColors = remember(context) { TransactionManager.getSourceColors(context) }
 
     var visible by remember { mutableStateOf(false) }
     var isExpanded by remember { mutableStateOf(false) }
@@ -299,7 +301,8 @@ fun PopupCard(
                                 ScrollableCategoryCapsule(
                                     label = cat,
                                     isSelected = (selectedCategory == cat),
-                                    onClick = { selectedCategory = cat }
+                                    onClick = { selectedCategory = cat },
+                                    accentColor = categoryColors[cat]?.let { Color(it) } ?: GreenPrimary
                                 )
                             }
                         }
@@ -318,7 +321,8 @@ fun PopupCard(
                                 ScrollableCategoryCapsule(
                                     label = src,
                                     isSelected = (selectedSource == src),
-                                    onClick = { selectedSource = src }
+                                    onClick = { selectedSource = src },
+                                    accentColor = sourceColors[src]?.let { Color(it) } ?: GreenPrimary
                                 )
                             }
                         }

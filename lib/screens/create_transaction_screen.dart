@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../core/theme.dart';
 import '../models/transaction_model.dart';
+import '../providers/budget_alerts_provider.dart';
+import '../providers/budget_provider.dart';
 import '../providers/category_provider.dart';
 import '../providers/currency_provider.dart';
 import '../providers/source_provider.dart';
@@ -144,6 +146,11 @@ class _CreateTransactionScreenState
         ? _merchantController.text.trim()
         : (_isIncome ? 'Quick Income' : 'Quick Expense');
 
+    // Snapshot pre-save alerts to detect NEW threshold crossings
+    final preAlerts = _isIncome
+        ? <String, BudgetAlertSeverity>{}
+        : {for (final a in ref.read(budgetAlertsProvider)) a.category: a.severity};
+
     final tx = ExpenseTransaction(
       id: _generateUuid(),
       amount: amount,
@@ -169,7 +176,70 @@ class _CreateTransactionScreenState
     if (tx.needsVerification && tx.reminderDate != null) {
       NotificationService.scheduleTransactionReminder(tx);
     }
+
     Navigator.of(context).pop();
+
+    // Check for newly crossed thresholds (only for expense categories)
+    if (!_isIncome) {
+      final postAlerts = ref.read(budgetAlertsProvider);
+      final currency = ref.read(currencyProvider);
+      final limits = ref.read(budgetLimitsProvider);
+
+      BudgetAlert? triggeredAlert;
+      for (final alert in postAlerts) {
+        if (alert.category.toLowerCase() != category.toLowerCase()) continue;
+        final prevSeverity = preAlerts[alert.category];
+        // Show alert if this is a new crossing (no previous alert, or severity escalated)
+        if (prevSeverity == null || alert.severity.index > prevSeverity.index) {
+          triggeredAlert = alert;
+          break;
+        }
+      }
+
+      if (triggeredAlert != null) {
+        final alert = triggeredAlert;
+        final limit = limits[alert.category] ?? 0.0;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: alert.severity.color,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            duration: const Duration(seconds: 5),
+            content: Row(
+              children: [
+                Icon(alert.severity.icon, color: Colors.white, size: 20),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${alert.category} — ${alert.severity.label}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          fontSize: 13,
+                        ),
+                      ),
+                      Text(
+                        '$currency${alert.spent.toStringAsFixed(0)} spent of $currency${limit.toStringAsFixed(0)} budget (${alert.percentUsed.toStringAsFixed(0)}%)',
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+        return; // Don't show the default 'Expense logged!' snackbar
+      }
+    }
+
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text('${_isIncome ? 'Income' : 'Expense'} logged!'),
       backgroundColor: TallyTapTheme.primaryMint,

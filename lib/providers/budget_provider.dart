@@ -7,6 +7,34 @@ final budgetLimitsProvider = StateNotifierProvider<BudgetLimitsNotifier, Map<Str
   return BudgetLimitsNotifier();
 });
 
+final excludedCategoriesProvider = StateNotifierProvider<ExcludedCategoriesNotifier, List<String>>((ref) {
+  return ExcludedCategoriesNotifier();
+});
+
+class ExcludedCategoriesNotifier extends StateNotifier<List<String>> {
+  ExcludedCategoriesNotifier() : super([]) {
+    loadExcluded();
+  }
+
+  Future<void> loadExcluded() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.reload();
+    state = prefs.getStringList('excluded_budget_categories') ?? [];
+  }
+
+  Future<void> toggleExclusion(String category) async {
+    final prefs = await SharedPreferences.getInstance();
+    final current = List<String>.from(state);
+    if (current.contains(category)) {
+      current.remove(category);
+    } else {
+      current.add(category);
+    }
+    await prefs.setStringList('excluded_budget_categories', current);
+    state = current;
+  }
+}
+
 class BudgetLimitsNotifier extends StateNotifier<Map<String, double>> {
   BudgetLimitsNotifier() : super({}) {
     loadLimits();
@@ -27,6 +55,8 @@ class BudgetLimitsNotifier extends StateNotifier<Map<String, double>> {
       } catch (_) {}
     }
 
+    final excludedCats = prefs.getStringList('excluded_budget_categories') ?? [];
+
     final defaultLimits = {
       'Dining': 800.0,
       'Commute': 400.0,
@@ -36,6 +66,9 @@ class BudgetLimitsNotifier extends StateNotifier<Map<String, double>> {
     };
 
     for (final cat in activeCategories) {
+      if (excludedCats.contains(cat)) {
+        continue;
+      }
       final key = 'budget_limit_$cat';
       final defaultLimit = defaultLimits[cat] ?? 500.0;
       loaded[cat] = prefs.getDouble(key) ?? defaultLimit;
