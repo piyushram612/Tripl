@@ -76,3 +76,24 @@ class CustomizationNotifier extends StateNotifier<void> {
 final customizationProvider = StateNotifierProvider<CustomizationNotifier, void>((ref) {
   return CustomizationNotifier();
 });
+
+final snoozeDurationProvider = StateNotifierProvider<SnoozeDurationNotifier, int>((ref) {
+  return SnoozeDurationNotifier();
+});
+
+class SnoozeDurationNotifier extends StateNotifier<int> {
+  SnoozeDurationNotifier() : super(240) {
+    _load();
+  }
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    state = prefs.getInt('tallytap_snooze_duration_mins') ?? 240;
+  }
+
+  Future<void> setDuration(int minutes) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('tallytap_snooze_duration_mins', minutes);
+    state = minutes;
+  }
+}

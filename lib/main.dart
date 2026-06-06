@@ -7,32 +7,73 @@ import 'screens/main_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/calibration_screen.dart';
 import 'services/notification_service.dart';
+import 'services/transaction_service.dart';
+import 'dart:isolate';
+import 'dart:ui';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'providers/recurring_transaction_provider.dart';
+
+final ProviderContainer appContainer = ProviderContainer();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  NotificationService.initialize();
+  
+  final ReceivePort port = ReceivePort();
+  IsolateNameServer.removePortNameMapping('notification_action_port');
+  IsolateNameServer.registerPortWithName(port.sendPort, 'notification_action_port');
+  port.listen((dynamic message) {
+    if (message is Map<String, dynamic>) {
+      final response = NotificationResponse(
+        id: message['id'],
+        actionId: message['actionId'],
+        input: message['input'],
+        payload: message['payload'],
+        notificationResponseType: NotificationResponseType.values[message['notificationResponseType']],
+      );
+      NotificationService.handleForegroundAction(response);
+    }
+  });
+
+  NotificationService.initialize(appContainer);
   runApp(
-    const ProviderScope(
-      child: TallyTapApp(),
+    UncontrolledProviderScope(
+      container: appContainer,
+      child: const TallyTapApp(),
     ),
   );
 }
 
-class TallyTapApp extends StatefulWidget {
+class TallyTapApp extends ConsumerStatefulWidget {
   const TallyTapApp({super.key});
 
   @override
-  State<TallyTapApp> createState() => _TallyTapAppState();
+  ConsumerState<TallyTapApp> createState() => _TallyTapAppState();
 }
 
-class _TallyTapAppState extends State<TallyTapApp> {
+class _TallyTapAppState extends ConsumerState<TallyTapApp> with WidgetsBindingObserver {
   // Store the future so it's not recreated on every rebuild
   late final Future<_AppStartState> _startStateFuture;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _startStateFuture = _resolveStartState();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Refresh providers when returning from background (since background isolate may have modified data)
+      ref.read(transactionListProvider.notifier).loadTransactions();
+      ref.read(recurringTransactionsProvider.notifier).checkDueTransactions();
+    }
   }
 
   static Future<_AppStartState> _resolveStartState() async {

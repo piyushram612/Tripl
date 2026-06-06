@@ -32,6 +32,38 @@ class ExpenseTransaction {
     this.groupId,
   });
 
+  ExpenseTransaction copyWith({
+    String? id,
+    double? amount,
+    String? merchant,
+    DateTime? date,
+    String? paymentMethod,
+    String? category,
+    String? notes,
+    String? paidTo,
+    bool? needsVerification,
+    DateTime? reminderDate,
+    bool? wasFinishLater,
+    bool? hideFromLedger,
+    String? groupId,
+  }) {
+    return ExpenseTransaction(
+      id: id ?? this.id,
+      amount: amount ?? this.amount,
+      merchant: merchant ?? this.merchant,
+      date: date ?? this.date,
+      paymentMethod: paymentMethod ?? this.paymentMethod,
+      category: category ?? this.category,
+      notes: notes ?? this.notes,
+      paidTo: paidTo ?? this.paidTo,
+      needsVerification: needsVerification ?? this.needsVerification,
+      reminderDate: reminderDate ?? this.reminderDate,
+      wasFinishLater: wasFinishLater ?? this.wasFinishLater,
+      hideFromLedger: hideFromLedger ?? this.hideFromLedger,
+      groupId: groupId ?? this.groupId,
+    );
+  }
+
   Map<String, dynamic> toMap() {
     return {
       'id': id,

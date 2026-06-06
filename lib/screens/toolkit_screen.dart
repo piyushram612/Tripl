@@ -18,6 +18,8 @@ import 'recurring_transactions_list_screen.dart';
 import 'tools/expense_splitter_screen.dart';
 import 'tools/tip_calculator_screen.dart';
 import 'tools/outstanding_ledger_screen.dart';
+import '../providers/customization_provider.dart';
+import 'sheets/snooze_duration_sheet.dart';
 
 class ToolkitScreen extends ConsumerWidget {
   const ToolkitScreen({super.key});
@@ -1255,6 +1257,47 @@ class ToolkitScreen extends ConsumerWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(builder: (context) => const RecurringTransactionsListScreen()),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Card B2: Notifications
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(left: 20.0, top: 16.0, bottom: 8.0),
+                      child: Text(
+                        'NOTIFICATIONS',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.5,
+                          color: TallyTapTheme.primaryMint,
+                        ),
+                      ),
+                    ),
+                    _buildSettingsTile(
+                      icon: Icons.snooze_rounded,
+                      title: 'Remind Later Duration',
+                      subtitle: 'Current: ${ref.watch(snoozeDurationProvider)} minutes',
+                      onTap: () {
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: TallyTapTheme.obsidianBg,
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                          ),
+                          builder: (context) => const SnoozeDurationSheet(),
                         );
                       },
                     ),
