@@ -6,14 +6,14 @@ final usernameProvider = StateNotifierProvider<UsernameNotifier, String>((ref) {
 });
 
 class UsernameNotifier extends StateNotifier<String> {
-  UsernameNotifier() : super('Alex') {
+  UsernameNotifier() : super('User') {
     _loadUsername();
   }
 
   Future<void> _loadUsername() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.reload();
-    state = prefs.getString('user_profile_name') ?? 'Alex';
+    state = prefs.getString('user_profile_name') ?? 'User';
   }
 
   Future<void> setUsername(String name) async {

@@ -163,7 +163,7 @@ class _ManageItemsSheetState extends ConsumerState<ManageItemsSheet> {
     );
   }
 
-  Widget _buildItemsList(BuildContext context) {
+  Widget _buildItemsList(BuildContext context, {ScrollController? scrollController}) {
     if (widget.items.isEmpty) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 12.0),
@@ -278,8 +278,10 @@ class _ManageItemsSheetState extends ConsumerState<ManageItemsSheet> {
     );
 
     // Scrollable container for the active items list.
-    // This scrollable is independent of the draggable scroll controller to avoid scroll conflict when browsing items.
+    // Uses the DraggableScrollableSheet's controller so dragging up expands
+    // the sheet first, then scrolls content once fully expanded.
     return SingleChildScrollView(
+      controller: scrollController,
       physics: const BouncingScrollPhysics(),
       child: Padding(
         padding: const EdgeInsets.only(bottom: 16.0),
@@ -293,213 +295,155 @@ class _ManageItemsSheetState extends ConsumerState<ManageItemsSheet> {
     ref.watch(customizationProvider); // Dynamic UI updates
     final hasScrollController = widget.scrollController != null;
 
-    Widget buildContent() {
-      return Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (hasScrollController)
-            SingleChildScrollView(
-              controller: widget.scrollController,
-              physics: const AlwaysScrollableScrollPhysics(),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Drag handle
-                  Center(
-                    child: Container(
-                      margin: const EdgeInsets.only(bottom: 16),
-                      width: 36,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: TallyTapTheme.borderGreen,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        widget.title,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w900,
-                          color: TallyTapTheme.primaryMint,
-                          letterSpacing: -0.5,
-                        ),
-                      ),
-                      Row(
-                        children: [
-                          IconButton(
-                            icon: Icon(
-                              _isReordering ? Icons.grid_view_rounded : Icons.swap_vert_rounded,
-                              color: _isReordering ? TallyTapTheme.primaryMint : TallyTapTheme.textGray,
-                              size: 22,
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                _isReordering = !_isReordering;
-                                _controller.clear();
-                                _focusNode.unfocus();
-                              });
-                            },
-                            tooltip: _isReordering ? 'Grid View' : 'Reorder Items',
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.close_rounded, color: TallyTapTheme.textGray),
-                            onPressed: () => Navigator.pop(context),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    _isReordering
-                        ? 'REORDER ${widget.itemLabel.toUpperCase()}S (DRAG TO SORT)'
-                        : 'ACTIVE ${widget.itemLabel.toUpperCase()}S (TAP TO EDIT, \'X\' TO DELETE)',
-                    style: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.5,
-                      color: TallyTapTheme.textGray,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                ],
-              ),
-            )
-          else ...[
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  widget.title,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                    color: TallyTapTheme.primaryMint,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                Row(
-                  children: [
-                    IconButton(
-                      icon: Icon(
-                        _isReordering ? Icons.grid_view_rounded : Icons.swap_vert_rounded,
-                        color: _isReordering ? TallyTapTheme.primaryMint : TallyTapTheme.textGray,
-                        size: 22,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _isReordering = !_isReordering;
-                          _controller.clear();
-                          _focusNode.unfocus();
-                        });
-                      },
-                      tooltip: _isReordering ? 'Grid View' : 'Reorder Items',
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded, color: TallyTapTheme.textGray),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
+    // Shared header widgets — no drag handle pill here; it lives in the parent sheet
+    Widget buildHeader() => Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
             Text(
-              _isReordering
-                  ? 'REORDER ${widget.itemLabel.toUpperCase()}S (DRAG TO SORT)'
-                  : 'ACTIVE ${widget.itemLabel.toUpperCase()}S (TAP TO EDIT, \'X\' TO DELETE)',
+              widget.title,
               style: const TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1.5,
-                color: TallyTapTheme.textGray,
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+                color: TallyTapTheme.primaryMint,
+                letterSpacing: -0.5,
               ),
             ),
-            const SizedBox(height: 12),
-          ],
-          
-          if (hasScrollController)
-            Expanded(
-              child: _buildItemsList(context),
-            )
-          else
-            _buildItemsList(context),
-
-          if (!_isReordering) ...[
-            const SizedBox(height: 24),
-            Text(
-              'ADD NEW ${widget.itemLabel.toUpperCase()}',
-              style: const TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1.5,
-                color: TallyTapTheme.textGray,
-              ),
-            ),
-            const SizedBox(height: 12),
             Row(
               children: [
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    focusNode: _focusNode,
-                    style: const TextStyle(color: TallyTapTheme.textLight, fontWeight: FontWeight.bold, fontSize: 13),
-                    decoration: InputDecoration(
-                      hintText: widget.hintText,
-                      hintStyle: const TextStyle(color: TallyTapTheme.textGray, fontSize: 13),
-                      filled: true,
-                      fillColor: TallyTapTheme.obsidianCard,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: TallyTapTheme.borderGreen),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: TallyTapTheme.primaryMint, width: 1.0),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
                 IconButton(
-                  onPressed: () async {
-                    final text = _controller.text.trim();
-                    if (text.isEmpty) return;
-
-                    await widget.onAdd(text);
-                    _controller.clear();
-                    _focusNode.unfocus();
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Added ${widget.itemLabel.toLowerCase()}: $text'),
-                          duration: const Duration(seconds: 2),
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
-                    }
-                  },
-                  icon: const Icon(
-                    Icons.add_circle_rounded,
-                    color: TallyTapTheme.primaryMint,
-                    size: 36,
+                  icon: Icon(
+                    _isReordering ? Icons.grid_view_rounded : Icons.swap_vert_rounded,
+                    color: _isReordering ? TallyTapTheme.primaryMint : TallyTapTheme.textGray,
+                    size: 22,
                   ),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
+                  onPressed: () {
+                    setState(() {
+                      _isReordering = !_isReordering;
+                      _controller.clear();
+                      _focusNode.unfocus();
+                    });
+                  },
+                  tooltip: _isReordering ? 'Grid View' : 'Reorder Items',
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded, color: TallyTapTheme.textGray),
+                  onPressed: () => Navigator.pop(context),
                 ),
               ],
             ),
           ],
-        ],
+        ),
+        const SizedBox(height: 16),
+        Text(
+          _isReordering
+              ? 'REORDER ${widget.itemLabel.toUpperCase()}S (DRAG TO SORT)'
+              : 'ACTIVE ${widget.itemLabel.toUpperCase()}S (TAP TO EDIT, \'X\' TO DELETE)',
+          style: const TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.5,
+            color: TallyTapTheme.textGray,
+          ),
+        ),
+        const SizedBox(height: 12),
+      ],
+    );
+
+    Widget buildAddRow() => Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 24),
+        Text(
+          'ADD NEW ${widget.itemLabel.toUpperCase()}',
+          style: const TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.5,
+            color: TallyTapTheme.textGray,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _controller,
+                focusNode: _focusNode,
+                style: const TextStyle(color: TallyTapTheme.textLight, fontWeight: FontWeight.bold, fontSize: 13),
+                decoration: InputDecoration(
+                  hintText: widget.hintText,
+                  hintStyle: const TextStyle(color: TallyTapTheme.textGray, fontSize: 13),
+                  filled: true,
+                  fillColor: TallyTapTheme.obsidianCard,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: TallyTapTheme.borderGreen),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: TallyTapTheme.primaryMint, width: 1.0),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            IconButton(
+              onPressed: () async {
+                final text = _controller.text.trim();
+                if (text.isEmpty) return;
+                await widget.onAdd(text);
+                _controller.clear();
+                _focusNode.unfocus();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Added ${widget.itemLabel.toLowerCase()}: $text'),
+                      duration: const Duration(seconds: 2),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              },
+              icon: const Icon(
+                Icons.add_circle_rounded,
+                color: TallyTapTheme.primaryMint,
+                size: 36,
+              ),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+            ),
+          ],
+        ),
+      ],
+    );
+
+    // When inside a DraggableScrollableSheet we get a finite height — use a
+    // Column with Expanded so the items list fills remaining space and the
+    // add-row stays pinned at the bottom without overflowing.
+    if (hasScrollController) {
+      return Padding(
+        padding: EdgeInsets.only(
+          left: 24,
+          right: 24,
+          top: 24,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            buildHeader(),
+          Expanded(child: _buildItemsList(context, scrollController: widget.scrollController)),
+            if (!_isReordering) buildAddRow(),
+          ],
+        ),
       );
     }
 
+    // No scroll controller — sheet sizes to content, wrap in scroll view.
     return Padding(
       padding: EdgeInsets.only(
         left: 24,
@@ -507,12 +451,18 @@ class _ManageItemsSheetState extends ConsumerState<ManageItemsSheet> {
         top: 24,
         bottom: MediaQuery.of(context).viewInsets.bottom + 24,
       ),
-      child: hasScrollController
-          ? buildContent()
-          : SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              child: buildContent(),
-            ),
+      child: SingleChildScrollView(
+        controller: widget.scrollController,
+        physics: const BouncingScrollPhysics(),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            buildHeader(),
+            _buildItemsList(context),            if (!_isReordering) buildAddRow(),
+          ],
+        ),
+      ),
     );
   }
 }

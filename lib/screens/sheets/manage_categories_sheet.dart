@@ -8,17 +8,34 @@ import '../../services/transaction_service.dart';
 import '../../models/transaction_model.dart';
 import '../../core/theme.dart';
 
-class ManageCategoriesSheet extends ConsumerWidget {
+class ManageCategoriesSheet extends ConsumerStatefulWidget {
   const ManageCategoriesSheet({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ManageCategoriesSheet> createState() => _ManageCategoriesSheetState();
+}
+
+class _ManageCategoriesSheetState extends ConsumerState<ManageCategoriesSheet> {
+  final DraggableScrollableController _sheetController = DraggableScrollableController();
+
+  static const double _minSize = 0.35;
+  static const double _maxSize = 0.95;
+
+  @override
+  void dispose() {
+    _sheetController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final categories = ref.watch(categoriesListProvider);
 
     return DraggableScrollableSheet(
+      controller: _sheetController,
       initialChildSize: 0.55,
-      minChildSize: 0.35,
-      maxChildSize: 0.95,
+      minChildSize: _minSize,
+      maxChildSize: _maxSize,
       expand: false,
       builder: (context, scrollController) {
         return Container(
@@ -26,12 +43,47 @@ class ManageCategoriesSheet extends ConsumerWidget {
             color: TallyTapTheme.obsidianBg,
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
-          child: ManageItemsSheet(
-            title: 'Manage Categories',
-            itemLabel: 'Category',
-            hintText: 'Category name (e.g. Health)',
-            items: categories,
-            scrollController: scrollController,
+          child: Column(
+            children: [
+              // Drag handle pill — dedicated gesture so it always expands/collapses
+              // regardless of inner scroll position.
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onVerticalDragUpdate: (details) {
+                  final screenH = MediaQuery.of(context).size.height;
+                  final delta = -details.primaryDelta! / screenH;
+                  final next = (_sheetController.size + delta).clamp(_minSize, _maxSize);
+                  _sheetController.jumpTo(next);
+                },
+                onTap: () {
+                  final target = _sheetController.size < 0.7 ? _maxSize : _minSize;
+                  _sheetController.animateTo(
+                    target,
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                  );
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Center(
+                    child: Container(
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: TallyTapTheme.borderGreen,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: ManageItemsSheet(
+                  title: 'Manage Categories',
+                  itemLabel: 'Category',
+                  hintText: 'Category name (e.g. Health)',
+                  items: categories,
+                  scrollController: scrollController,
             onAdd: (name) async {
               await ref.read(categoriesListProvider.notifier).addCategory(name);
               await ref.read(budgetLimitsProvider.notifier).loadLimits();
@@ -68,6 +120,9 @@ class ManageCategoriesSheet extends ConsumerWidget {
               await ref.read(categoriesListProvider.notifier).reorderCategories(oldIndex, newIndex);
               await ref.read(budgetLimitsProvider.notifier).loadLimits();
             },
+                ),
+              ),
+            ],
           ),
         );
       },
