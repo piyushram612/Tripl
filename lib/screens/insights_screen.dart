@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../core/theme.dart';
 import '../providers/currency_provider.dart';
 import '../providers/insights_provider.dart';
@@ -15,6 +16,7 @@ class InsightsScreen extends ConsumerWidget {
     final currency = ref.watch(currencyProvider);
     final insights = ref.watch(insightsProvider);
     final splitTargets = ref.watch(budgetSplitProvider);
+    final filter = ref.watch(insightsPeriodFilterProvider);
 
     return SafeArea(
       child: SingleChildScrollView(
@@ -25,19 +27,28 @@ class InsightsScreen extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 16),
-              const Text(
-                'Monthly Intentionality',
-                style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w900,
-                  color: TallyTapTheme.primaryMint,
-                  letterSpacing: -0.8,
-                ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Spend Intentionality',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w900,
+                        color: TallyTapTheme.primaryMint,
+                        letterSpacing: -0.8,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  _buildPeriodSelectorChip(context, ref, filter),
+                ],
               ),
               const SizedBox(height: 6),
-              const Text(
-                'A high-level overview of where your resources flowed this period, categorized by intent.',
-                style: TextStyle(
+              Text(
+                'Overview of resources from ${_formatDateRange(filter)}, categorized by intent.',
+                style: const TextStyle(
                   fontSize: 14,
                   color: TallyTapTheme.textGray,
                   height: 1.4,
@@ -123,28 +134,36 @@ class InsightsScreen extends ConsumerWidget {
                         ),
                       ),
                       const SizedBox(height: 20),
-                      _buildCategoryProgressRow(
-                        'Housing & Utilities',
-                        insights.otherSpent + insights.utilitiesSpent,
-                        (insights.otherLimit + insights.utilitiesLimit) > 0
-                            ? ((insights.otherSpent + insights.utilitiesSpent) / (insights.otherLimit + insights.utilitiesLimit)).clamp(0.0, 1.0)
-                            : 0.0,
-                        currency,
-                      ),
-                      const SizedBox(height: 20),
-                      _buildCategoryProgressRow(
-                        'Food & Dining',
-                        insights.diningSpent,
-                        insights.diningLimit > 0 ? (insights.diningSpent / insights.diningLimit).clamp(0.0, 1.0) : 0.0,
-                        currency,
-                      ),
-                      const SizedBox(height: 20),
-                      _buildCategoryProgressRow(
-                        'Transportation',
-                        insights.commuteSpent,
-                        insights.commuteLimit > 0 ? (insights.commuteSpent / insights.commuteLimit).clamp(0.0, 1.0) : 0.0,
-                        currency,
-                      ),
+                      if (insights.categoryBreakdowns.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 20.0),
+                          child: Center(
+                            child: Text(
+                              'No category breakdown data available for this period.',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: TallyTapTheme.textGray,
+                              ),
+                            ),
+                          ),
+                        )
+                      else
+                        ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: insights.categoryBreakdowns.length,
+                          separatorBuilder: (context, index) => const SizedBox(height: 20),
+                          itemBuilder: (context, index) {
+                            final entry = insights.categoryBreakdowns[index];
+                            return _buildCategoryProgressRow(
+                              entry.category,
+                              entry.spent,
+                              entry.proportion,
+                              currency,
+                              entry.percentOfTotal,
+                            );
+                          },
+                        ),
                     ],
                   ),
                 ),
@@ -154,6 +173,61 @@ class InsightsScreen extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+
+  String _formatDateRange(InsightsPeriodFilter filter) {
+    if (filter.start == null || filter.end == null) {
+      return 'all-time history';
+    }
+    final df = DateFormat('MMM d, yyyy');
+    return '${df.format(filter.start!)} to ${df.format(filter.end!)}';
+  }
+
+  Widget _buildPeriodSelectorChip(BuildContext context, WidgetRef ref, InsightsPeriodFilter filter) {
+    return InkWell(
+      onTap: () => _showPeriodSelectorSheet(context, ref),
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: TallyTapTheme.obsidianCard,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: TallyTapTheme.borderGreen),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.calendar_today_rounded, color: TallyTapTheme.primaryMint, size: 12),
+            const SizedBox(width: 6),
+            Text(
+              filter.label,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: TallyTapTheme.textLight,
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.keyboard_arrow_down_rounded, color: TallyTapTheme.textGray, size: 14),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showPeriodSelectorSheet(BuildContext context, WidgetRef ref) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: TallyTapTheme.obsidianBg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        side: BorderSide(color: TallyTapTheme.borderGreen, width: 1.0),
+      ),
+      builder: (context) {
+        return const _PeriodSelectorSheet();
+      },
     );
   }
 
@@ -183,20 +257,30 @@ class InsightsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildCategoryProgressRow(String title, double amount, double proportion, String currency) {
+  Widget _buildCategoryProgressRow(String title, double amount, double proportion, String currency, String percentOfTotal) {
+    final color = TallyTapTheme.getColorForCategory(title);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              title,
-              style: const TextStyle(fontSize: 13, color: TallyTapTheme.textLight, fontWeight: FontWeight.w500),
+            Row(
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(fontSize: 13, color: TallyTapTheme.textLight, fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  '($percentOfTotal)',
+                  style: const TextStyle(fontSize: 11, color: TallyTapTheme.textGray, fontWeight: FontWeight.normal),
+                ),
+              ],
             ),
             Text(
               '$currency${amount.toStringAsFixed(0).replaceAllMapped(RegExp(r"(\d{1,3})(?=(\d{3})+(?!\d))"), (Match m) => "${m[1]},")}',
-              style: const TextStyle(fontSize: 13, color: TallyTapTheme.primaryMint, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 13, color: color, fontWeight: FontWeight.bold),
             ),
           ],
         ),
@@ -205,7 +289,7 @@ class InsightsScreen extends ConsumerWidget {
           height: 8,
           width: double.infinity,
           decoration: BoxDecoration(
-            color: const Color(0xFF14241F),
+            color: color.withOpacity(0.08),
             borderRadius: BorderRadius.circular(100),
           ),
           child: FractionallySizedBox(
@@ -213,7 +297,7 @@ class InsightsScreen extends ConsumerWidget {
             widthFactor: proportion,
             child: Container(
               decoration: BoxDecoration(
-                color: TallyTapTheme.primaryMint,
+                color: color,
                 borderRadius: BorderRadius.circular(100),
               ),
             ),
@@ -710,4 +794,291 @@ class _BudgetSplitCardState extends ConsumerState<_BudgetSplitCard> {
       ],
     );
   }
+}
+
+class _PeriodSelectorSheet extends ConsumerWidget {
+  const _PeriodSelectorSheet();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final activeFilter = ref.watch(insightsPeriodFilterProvider);
+    final availableMonths = ref.watch(availableMonthsProvider);
+    final notifier = ref.read(insightsPeriodFilterProvider.notifier);
+
+    // List of standard presets:
+    final presets = [
+      _PeriodPresetItem(
+        label: 'This Month',
+        icon: Icons.calendar_today_rounded,
+        isSelected: activeFilter.label == 'This Month',
+        onTap: () {
+          notifier.setThisMonth();
+          Navigator.pop(context);
+        },
+      ),
+      _PeriodPresetItem(
+        label: 'Last Month',
+        icon: Icons.history_rounded,
+        isSelected: activeFilter.label == 'Last Month',
+        onTap: () {
+          notifier.setLastMonth();
+          Navigator.pop(context);
+        },
+      ),
+      _PeriodPresetItem(
+        label: 'Last 30 Days',
+        icon: Icons.date_range_rounded,
+        isSelected: activeFilter.label == 'Last 30 Days',
+        onTap: () {
+          notifier.setLast30Days();
+          Navigator.pop(context);
+        },
+      ),
+      _PeriodPresetItem(
+        label: 'Last 90 Days',
+        icon: Icons.date_range_outlined,
+        isSelected: activeFilter.label == 'Last 90 Days',
+        onTap: () {
+          notifier.setLast90Days();
+          Navigator.pop(context);
+        },
+      ),
+      _PeriodPresetItem(
+        label: 'All Time',
+        icon: Icons.all_inclusive_rounded,
+        isSelected: activeFilter.label == 'All Time',
+        onTap: () {
+          notifier.setAllTime();
+          Navigator.pop(context);
+        },
+      ),
+    ];
+
+    return Container(
+      padding: EdgeInsets.only(
+        top: 8,
+        left: 20,
+        right: 20,
+        bottom: MediaQuery.of(context).padding.bottom + 20,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Drag handle
+          Center(
+            child: Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: TallyTapTheme.textGray.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Filter Insights',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: TallyTapTheme.primaryMint,
+                ),
+              ),
+              IconButton(
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.close_rounded, color: TallyTapTheme.textGray, size: 20),
+                style: IconButton.styleFrom(
+                  backgroundColor: TallyTapTheme.borderGreen.withOpacity(0.3),
+                  padding: EdgeInsets.zero,
+                  minimumSize: const Size(32, 32),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Custom Date Range Option
+          InkWell(
+            onTap: () async {
+              Navigator.pop(context);
+              final initialRange = activeFilter.start != null && activeFilter.end != null
+                  ? DateTimeRange(start: activeFilter.start!, end: activeFilter.end!)
+                  : null;
+              final pickedRange = await showDateRangePicker(
+                context: context,
+                firstDate: DateTime(2020),
+                lastDate: DateTime.now().add(const Duration(days: 365)),
+                initialDateRange: initialRange,
+                builder: (context, child) {
+                  return Theme(
+                    data: Theme.of(context).copyWith(
+                      colorScheme: const ColorScheme.dark(
+                        primary: TallyTapTheme.primaryMint,
+                        onPrimary: TallyTapTheme.obsidianBg,
+                        surface: TallyTapTheme.obsidianCard,
+                        onSurface: TallyTapTheme.textLight,
+                      ),
+                      dialogBackgroundColor: TallyTapTheme.obsidianBg,
+                    ),
+                    child: child!,
+                  );
+                },
+              );
+              if (pickedRange != null) {
+                notifier.setCustomRange(pickedRange.start, pickedRange.end);
+              }
+            },
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: const Color(0xFF14241F),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: TallyTapTheme.primaryMint.withOpacity(0.3)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.date_range_rounded, color: TallyTapTheme.primaryMint, size: 18),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Choose Custom Range...',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: TallyTapTheme.primaryMint,
+                      ),
+                    ),
+                  ),
+                  Icon(Icons.chevron_right_rounded, color: TallyTapTheme.primaryMint, size: 20),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Presets
+          const Text(
+            'PRESETS',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.5,
+              color: TallyTapTheme.textGray,
+            ),
+          ),
+          const SizedBox(height: 8),
+          ...presets.map((preset) => Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: _buildPeriodTile(context, preset),
+              )),
+
+          if (availableMonths.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            const Text(
+              'MONTHLY ARCHIVE',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.5,
+                color: TallyTapTheme.textGray,
+              ),
+            ),
+            const SizedBox(height: 8),
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.25,
+              ),
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: availableMonths.length,
+                itemBuilder: (context, index) {
+                  final monthDate = availableMonths[index];
+                  final label = DateFormat('MMMM yyyy').format(monthDate);
+                  final isSelected = activeFilter.label == label;
+
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0),
+                    child: _buildPeriodTile(
+                      context,
+                      _PeriodPresetItem(
+                        label: label,
+                        icon: Icons.calendar_month_rounded,
+                        isSelected: isSelected,
+                        onTap: () {
+                          notifier.setCustomMonth(monthDate);
+                          Navigator.pop(context);
+                        },
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPeriodTile(BuildContext context, _PeriodPresetItem item) {
+    return InkWell(
+      onTap: item.onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: item.isSelected ? TallyTapTheme.borderGreen.withOpacity(0.5) : TallyTapTheme.obsidianCard,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: item.isSelected ? TallyTapTheme.primaryMint.withOpacity(0.5) : TallyTapTheme.borderGreen,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              item.icon,
+              color: item.isSelected ? TallyTapTheme.primaryMint : TallyTapTheme.textGray,
+              size: 18,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                item.label,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: item.isSelected ? FontWeight.bold : FontWeight.w500,
+                  color: item.isSelected ? TallyTapTheme.textLight : TallyTapTheme.textGray,
+                ),
+              ),
+            ),
+            if (item.isSelected)
+              const Icon(
+                Icons.check_circle_rounded,
+                color: TallyTapTheme.primaryMint,
+                size: 18,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PeriodPresetItem {
+  final String label;
+  final IconData icon;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  _PeriodPresetItem({
+    required this.label,
+    required this.icon,
+    required this.isSelected,
+    required this.onTap,
+  });
 }

@@ -83,14 +83,24 @@ class _BudgetRingGraphState extends State<BudgetRingGraph> with SingleTickerProv
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    '${widget.currency}${animatedSpent.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}',
-                    style: const TextStyle(
-                      fontSize: 24,
-                      color: TallyTapTheme.textLight,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: -0.5,
-                    ),
+                  Builder(
+                    builder: (context) {
+                      Color spentColor = TallyTapTheme.textLight;
+                      if (proportion >= 0.75) {
+                        spentColor = const Color(0xFFEF4444);
+                      } else if (proportion >= 0.50) {
+                        spentColor = const Color(0xFFF59E0B);
+                      }
+                      return Text(
+                        '${widget.currency}${animatedSpent.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}',
+                        style: TextStyle(
+                          fontSize: 24,
+                          color: spentColor,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.5,
+                        ),
+                      );
+                    }
                   ),
                   const SizedBox(height: 2),
                   Text(
@@ -128,8 +138,15 @@ class _BudgetRingPainter extends CustomPainter {
 
     canvas.drawCircle(Offset(size.width / 2, size.height / 2), size.width / 2, trackPaint);
 
+    Color progressColor = TallyTapTheme.primaryMint;
+    if (proportion >= 0.75) {
+      progressColor = const Color(0xFFEF4444);
+    } else if (proportion >= 0.50) {
+      progressColor = const Color(0xFFF59E0B);
+    }
+
     final Paint progressPaint = Paint()
-      ..color = TallyTapTheme.primaryMint
+      ..color = progressColor
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round;

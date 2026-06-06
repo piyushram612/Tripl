@@ -95,6 +95,40 @@ object TransactionManager {
 
     fun getGlobalCurrency(context: Context): String {
         val prefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-        return prefs.getString("flutter.currency_symbol", "$") ?: "$"
+        return prefs.getString("flutter.currency_symbol", "₹") ?: "₹"
+    }
+
+    /**
+     * Reads the user-assigned category colors from SharedPreferences.
+     * Returns a map of category name → ARGB int color.
+     */
+    fun getCategoryColors(context: Context): Map<String, Int> {
+        val prefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+        return try {
+            val json = prefs.getString("flutter.custom_category_colors", null) ?: return emptyMap()
+            val obj = org.json.JSONObject(json)
+            val map = mutableMapOf<String, Int>()
+            obj.keys().forEach { key -> map[key] = obj.getInt(key) }
+            map
+        } catch (e: Exception) {
+            emptyMap()
+        }
+    }
+
+    /**
+     * Reads the user-assigned source colors from SharedPreferences.
+     * Returns a map of source name → ARGB int color.
+     */
+    fun getSourceColors(context: Context): Map<String, Int> {
+        val prefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+        return try {
+            val json = prefs.getString("flutter.custom_source_colors", null) ?: return emptyMap()
+            val obj = org.json.JSONObject(json)
+            val map = mutableMapOf<String, Int>()
+            obj.keys().forEach { key -> map[key] = obj.getInt(key) }
+            map
+        } catch (e: Exception) {
+            emptyMap()
+        }
     }
 }

@@ -55,50 +55,119 @@ class _PaymentSourceDetailsScreenState extends ConsumerState<PaymentSourceDetail
       const Color(0xFF84CC16), // Lime Green
     ];
 
+    // Track the locally-selected color; only applied on Save
+    Color selectedColor = TallyTapTheme.getColorForSource(widget.sourceName);
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: TallyTapTheme.obsidianCard,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: TallyTapTheme.borderGreen, width: 1.5),
-        ),
-        title: const Text(
-          'Choose Accent Color',
-          style: TextStyle(color: TallyTapTheme.primaryMint, fontWeight: FontWeight.bold),
-        ),
-        content: SizedBox(
-          width: 300,
-          child: GridView.builder(
-            shrinkWrap: true,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) {
+          return AlertDialog(
+            backgroundColor: TallyTapTheme.obsidianCard,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: const BorderSide(color: TallyTapTheme.borderGreen, width: 1.5),
             ),
-            itemCount: colorPalette.length,
-            itemBuilder: (context, idx) {
-              final color = colorPalette[idx];
-              return GestureDetector(
-                onTap: () async {
-                  HapticFeedback.lightImpact();
-                  await ref.read(customizationProvider.notifier).updateSourceColor(widget.sourceName, color);
-                  if (context.mounted) {
-                    Navigator.pop(context);
-                    setState(() {}); // Force local rebuild
-                  }
-                },
-                child: Container(
+            title: Row(
+              children: [
+                Container(
+                  width: 18,
+                  height: 18,
                   decoration: BoxDecoration(
-                    color: color,
+                    color: selectedColor,
                     shape: BoxShape.circle,
-                    border: Border.all(color: TallyTapTheme.borderGreen, width: 2),
                   ),
                 ),
-              );
-            },
-          ),
-        ),
+                const SizedBox(width: 10),
+                const Text(
+                  'Choose Accent Color',
+                  style: TextStyle(
+                    color: TallyTapTheme.textLight,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
+            ),
+            content: SizedBox(
+              width: 300,
+              child: GridView.builder(
+                shrinkWrap: true,
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 4,
+                  crossAxisSpacing: 14,
+                  mainAxisSpacing: 14,
+                ),
+                itemCount: colorPalette.length,
+                itemBuilder: (context, idx) {
+                  final color = colorPalette[idx];
+                  final isSelected = selectedColor.value == color.value;
+                  return GestureDetector(
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      // Only update local state — no provider call yet
+                      setDialogState(() => selectedColor = color);
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      decoration: BoxDecoration(
+                        color: color,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isSelected ? Colors.white : Colors.transparent,
+                          width: 2.5,
+                        ),
+                        boxShadow: isSelected
+                            ? [BoxShadow(
+                                color: color.withValues(alpha: 0.6),
+                                blurRadius: 10,
+                                spreadRadius: 2,
+                              )]
+                            : null,
+                      ),
+                      child: isSelected
+                          ? const Icon(
+                              Icons.check_rounded,
+                              color: Colors.white,
+                              size: 18,
+                            )
+                          : null,
+                    ),
+                  );
+                },
+              ),
+            ),
+            actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text(
+                  'Cancel',
+                  style: TextStyle(color: TallyTapTheme.textGray),
+                ),
+              ),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.check_circle_rounded, size: 16),
+                label: const Text('Save'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: selectedColor,
+                  foregroundColor: TallyTapTheme.obsidianBg,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                ),
+                onPressed: () async {
+                  HapticFeedback.mediumImpact();
+                  Navigator.pop(dialogContext);
+                  // Apply the selection — revision counter bumps, all watchers rebuild
+                  await ref.read(customizationProvider.notifier)
+                      .updateSourceColor(widget.sourceName, selectedColor);
+                },
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -318,6 +387,7 @@ class _PaymentSourceDetailsScreenState extends ConsumerState<PaymentSourceDetail
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(customizationProvider); // Rebuild when source/category colors change
     final transactions = ref.watch(transactionListProvider);
     final currency = ref.watch(currencyProvider);
     final startingBalances = ref.watch(sourceStartingBalancesProvider);

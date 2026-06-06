@@ -7,6 +7,7 @@ import '../providers/app_state_provider.dart';
 import '../providers/budget_provider.dart';
 import '../providers/category_provider.dart';
 import '../providers/currency_provider.dart';
+import '../providers/customization_provider.dart';
 import '../providers/profile_provider.dart';
 import '../providers/source_provider.dart';
 import '../services/transaction_service.dart';
@@ -143,6 +144,7 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(customizationProvider); // Rebuild when source/category colors change
     final transactions = ref.watch(transactionListProvider);
     final categories = ref.watch(categoriesListProvider);
     final globalBudget = ref.watch(globalBudgetProvider);

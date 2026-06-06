@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../core/theme.dart';
 import '../providers/app_state_provider.dart';
+import '../providers/budget_alerts_provider.dart';
 import '../providers/budget_provider.dart';
+import '../providers/category_provider.dart';
 import '../providers/currency_provider.dart';
 import '../providers/dashboard_provider.dart';
 import '../services/transaction_service.dart';
@@ -27,6 +29,22 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> with SingleTicker
 
   late AnimationController _controller;
   late Animation<double> _animation;
+
+  String _selectedIntent = CategoryIntent.essential;
+
+  static const Map<String, Color> _intentColors = {
+    CategoryIntent.essential: Color(0xFF4EDEA3),
+    CategoryIntent.joyful: Color(0xFF9FB6DF),
+    CategoryIntent.avoidable: Color(0xFFFFB5B5),
+    CategoryIntent.investments: Color(0xFF8B5CF6),
+  };
+
+  static const Map<String, IconData> _intentIcons = {
+    CategoryIntent.essential: Icons.shield_outlined,
+    CategoryIntent.joyful: Icons.favorite_outline_rounded,
+    CategoryIntent.avoidable: Icons.do_not_disturb_alt_outlined,
+    CategoryIntent.investments: Icons.trending_up_outlined,
+  };
 
   @override
   void initState() {
@@ -117,6 +135,10 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> with SingleTicker
     final transactions = ref.watch(transactionListProvider);
     final dashboard = ref.watch(dashboardProvider);
     final spentPerCategory = dashboard.spentPerCategory;
+    final intents = ref.watch(categoryIntentsProvider);
+    final budgetAlerts = ref.watch(budgetAlertsProvider);
+    // Build a lookup map: category → alert severity
+    final alertMap = {for (final a in budgetAlerts) a.category: a};
 
     // Reset/clear local limits when not dragging to keep in sync with provider updates
     if (_activeDragCategory == null) {
@@ -163,6 +185,22 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> with SingleTicker
 
     // Categories list
     final List<String> activeCategories = budgetLimits.keys.toList();
+
+    // Calculate active category counts per intent tab
+    final Map<String, int> intentCounts = {
+      for (var intent in CategoryIntent.all) intent: 0,
+    };
+    for (final cat in activeCategories) {
+      final intent = intents[cat] ?? CategoryIntent.essential;
+      if (intentCounts.containsKey(intent)) {
+        intentCounts[intent] = intentCounts[intent]! + 1;
+      }
+    }
+
+    final List<String> filteredCategories = activeCategories.where((cat) {
+      final intent = intents[cat] ?? CategoryIntent.essential;
+      return intent == _selectedIntent;
+    }).toList();
 
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
@@ -320,6 +358,85 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> with SingleTicker
                       ),
                     ),
                   ],
+
+                  // Overspending Alerts Banner
+                  if (budgetAlerts.isNotEmpty) ...[
+                    Padding(
+                      padding: const EdgeInsets.only(top: 20.0),
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1E1809),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFF59E0B), width: 1.0),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.local_fire_department_rounded, color: Color(0xFFF59E0B), size: 20),
+                                const SizedBox(width: 10),
+                                Text(
+                                  '${budgetAlerts.length} ${budgetAlerts.length == 1 ? 'category is' : 'categories are'} over threshold',
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: TallyTapTheme.textLight,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            ...budgetAlerts.map((alert) {
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 8.0),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 8,
+                                      height: 8,
+                                      decoration: BoxDecoration(
+                                        color: alert.severity.color,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        alert.category,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: TallyTapTheme.textLight,
+                                        ),
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: alert.severity.color.withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(100),
+                                        border: Border.all(color: alert.severity.color.withValues(alpha: 0.4)),
+                                      ),
+                                      child: Text(
+                                        '${alert.percentUsed.toStringAsFixed(0)}% — ${alert.severity.label}',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w700,
+                                          color: alert.severity.color,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                   
                   const SizedBox(height: 32),
                   
@@ -345,61 +462,145 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> with SingleTicker
                         ),
                       ),
                     )
-                  else
-                    ...activeCategories.asMap().entries.map((entry) {
-                      final index = entry.key;
-                      final cat = entry.value;
-                      final spent = spentPerCategory[cat] ?? 0.0;
-                      final limit = _localLimits[cat] ?? budgetLimits[cat] ?? 500.0;
-                      final icon = _getIconForCategory(cat);
-                      final color = _getColorForCategory(cat, index);
-                      final proportion = limit > 0 ? (spent / limit).clamp(0.0, 1.0) : 0.0;
-                      final isDragging = _activeDragCategory == cat;
-
-                      return GestureDetector(
-                        onLongPressStart: (details) {
-                          HapticFeedback.heavyImpact();
-                          setState(() {
-                            _activeDragCategory = cat;
-                            _dragStartPos = details.globalPosition;
-                            _dragStartValue = limit;
-                            _localLimits[cat] = limit;
-                          });
-                        },
-                        onLongPressMoveUpdate: (details) {
-                          final double deltaX = details.globalPosition.dx - _dragStartPos.dx;
-                          double val = _dragStartValue + (deltaX * 5.0);
-                          val = val.clamp(0.0, double.infinity);
+                  else ...[
+                    // Intent tabs row
+                    SizedBox(
+                      height: 38,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        itemCount: CategoryIntent.all.length,
+                        itemBuilder: (context, index) {
+                          final intent = CategoryIntent.all[index];
+                          final isSelected = _selectedIntent == intent;
+                          final count = intentCounts[intent] ?? 0;
+                          final color = _intentColors[intent] ?? TallyTapTheme.primaryMint;
+                          final icon = _intentIcons[intent] ?? Icons.shield_outlined;
                           
-                          final roundedVal = (val / 10).round() * 10.0;
-                          final oldVal = _localLimits[cat] ?? _dragStartValue;
-                          if (oldVal != roundedVal) {
-                            HapticFeedback.selectionClick();
-                            setState(() {
-                              _localLimits[cat] = roundedVal;
-                            });
-                          }
+                          return GestureDetector(
+                            onTap: () {
+                              HapticFeedback.selectionClick();
+                              setState(() {
+                                _selectedIntent = intent;
+                              });
+                            },
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 150),
+                              margin: const EdgeInsets.only(right: 10),
+                              padding: const EdgeInsets.symmetric(horizontal: 14),
+                              decoration: BoxDecoration(
+                                color: isSelected ? color.withOpacity(0.15) : TallyTapTheme.obsidianCard,
+                                borderRadius: BorderRadius.circular(100),
+                                border: Border.all(
+                                  color: isSelected ? color.withOpacity(0.5) : TallyTapTheme.borderGreen,
+                                  width: isSelected ? 1.5 : 1.0,
+                                ),
+                              ),
+                              alignment: Alignment.center,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    icon,
+                                    color: isSelected ? color : TallyTapTheme.textGray,
+                                    size: 13,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    '$intent ($count)',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
+                                      color: isSelected ? color : TallyTapTheme.textLight,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
                         },
-                        onLongPressEnd: (details) {
-                          HapticFeedback.mediumImpact();
-                          final finalVal = _localLimits[cat] ?? _dragStartValue;
-                          ref.read(budgetLimitsProvider.notifier).setLimit(cat, finalVal);
-                          setState(() {
-                            _activeDragCategory = null;
-                          });
-                        },
-                        child: _buildCategoryBudgetCard(
-                          title: cat,
-                          spent: spent,
-                          limit: limit,
-                          icon: icon,
-                          proportion: proportion,
-                          progressColor: color,
-                          currency: currency,
-                          isDragging: isDragging,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    if (filteredCategories.isEmpty)
+                      Center(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 32.0),
+                          child: Text(
+                            'No categories assigned to $_selectedIntent.',
+                            style: const TextStyle(color: TallyTapTheme.textGray, fontSize: 13),
+                          ),
                         ),
-                      );
-                    }).toList(),
+                      )
+                    else
+                      GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                          childAspectRatio: 1.75,
+                        ),
+                        itemCount: filteredCategories.length,
+                        itemBuilder: (context, index) {
+                          final cat = filteredCategories[index];
+                          final spent = spentPerCategory[cat] ?? 0.0;
+                          final limit = _localLimits[cat] ?? budgetLimits[cat] ?? 500.0;
+                          final icon = _getIconForCategory(cat);
+                          final color = _getColorForCategory(cat, index);
+                          final proportion = limit > 0 ? (spent / limit).clamp(0.0, 1.0) : 0.0;
+                          final isDragging = _activeDragCategory == cat;
+                          final alert = alertMap[cat];
+
+                          return GestureDetector(
+                            onLongPressStart: (details) {
+                              HapticFeedback.heavyImpact();
+                              setState(() {
+                                _activeDragCategory = cat;
+                                _dragStartPos = details.globalPosition;
+                                _dragStartValue = limit;
+                                _localLimits[cat] = limit;
+                              });
+                            },
+                            onLongPressMoveUpdate: (details) {
+                              final double deltaX = details.globalPosition.dx - _dragStartPos.dx;
+                              double val = _dragStartValue + (deltaX * 5.0);
+                              val = val.clamp(0.0, double.infinity);
+                              
+                              final roundedVal = (val / 10).round() * 10.0;
+                              final oldVal = _localLimits[cat] ?? _dragStartValue;
+                              if (oldVal != roundedVal) {
+                                HapticFeedback.selectionClick();
+                                setState(() {
+                                  _localLimits[cat] = roundedVal;
+                                });
+                              }
+                            },
+                            onLongPressEnd: (details) {
+                              HapticFeedback.mediumImpact();
+                              final finalVal = _localLimits[cat] ?? _dragStartValue;
+                              ref.read(budgetLimitsProvider.notifier).setLimit(cat, finalVal);
+                              setState(() {
+                                _activeDragCategory = null;
+                              });
+                            },
+                            child: _buildCategoryBudgetCard(
+                              title: cat,
+                              spent: spent,
+                              limit: limit,
+                              icon: icon,
+                              proportion: proportion,
+                              progressColor: color,
+                              currency: currency,
+                              isDragging: isDragging,
+                              alertSeverity: alert?.severity,
+                            ),
+                          );
+                        },
+                      ),
+                  ],
                     
                   const SizedBox(height: 120),
           ],
@@ -417,19 +618,20 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> with SingleTicker
     required Color progressColor,
     required String currency,
     required bool isDragging,
+    BudgetAlertSeverity? alertSeverity,
   }) {
     final percent = (proportion * 100).toStringAsFixed(0);
-    final activeColor = progressColor;
+    final isExceeded = spent > limit;
+    final activeColor = isExceeded ? const Color(0xFFEF4444) : progressColor;
 
     return Transform.scale(
       scale: isDragging ? 1.04 : 1.0,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
         curve: Curves.easeInOut,
-        margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
           color: isDragging ? const Color(0xFF132A22) : TallyTapTheme.obsidianCard,
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isDragging ? TallyTapTheme.primaryMint : TallyTapTheme.borderGreen,
             width: isDragging ? 1.5 : 1.0,
@@ -445,75 +647,115 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> with SingleTicker
               : null,
         ),
         child: Padding(
-          padding: const EdgeInsets.all(18.0),
+          padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 10.0),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0F1B17),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: TallyTapTheme.borderGreen, width: 0.5),
-                    ),
-                    child: Icon(icon, color: TallyTapTheme.primaryMint, size: 20),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: TallyTapTheme.textLight),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(5),
+                        decoration: BoxDecoration(
+                          color: isExceeded ? const Color(0xFF2C1616) : const Color(0xFF0F1B17),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: isExceeded ? const Color(0xFF5A1E1E) : TallyTapTheme.borderGreen, width: 0.5),
                         ),
-                        if (isDragging) ...[
-                          const SizedBox(height: 2),
-                          const Text(
-                            '← Drag left/right to adjust →',
-                            style: TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.bold,
-                              color: TallyTapTheme.primaryMint,
+                        child: Icon(
+                          icon,
+                          color: isExceeded ? const Color(0xFFEF4444) : TallyTapTheme.primaryMint,
+                          size: 14,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: isExceeded ? const Color(0xFFEF4444) : TallyTapTheme.textLight,
+                              ),
                             ),
+                            if (isDragging) ...[
+                              const SizedBox(height: 1),
+                              const Text(
+                                'Adjusting...',
+                                style: TextStyle(
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.bold,
+                                  color: TallyTapTheme.primaryMint,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      // Alert severity badge chip
+                      if (alertSeverity != null && !isDragging)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: alertSeverity.color.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(100),
+                            border: Border.all(color: alertSeverity.color.withValues(alpha: 0.5), width: 0.8),
                           ),
-                        ],
-                      ],
-                    ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(alertSeverity.icon, size: 9, color: alertSeverity.color),
+                              const SizedBox(width: 3),
+                              Text(
+                                alertSeverity.label,
+                                style: TextStyle(
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.w800,
+                                  color: alertSeverity.color,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      else
+                        Text(
+                          '$percent%',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: isExceeded ? const Color(0xFFEF4444) : TallyTapTheme.textLight.withValues(alpha: 0.8),
+                          ),
+                        ),
+                    ],
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF13221E),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      '$percent%',
-                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: TallyTapTheme.textLight),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: CrossAxisAlignment.baseline,
                 textBaseline: TextBaseline.alphabetic,
                 children: [
-                  Text(
-                    '$currency${spent.toStringAsFixed(0).replaceAllMapped(RegExp(r"(\d{1,3})(?=(\d{3})+(?!\d))"), (Match m) => "${m[1]},")}',
-                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: TallyTapTheme.textLight),
+                  Expanded(
+                    child: Text(
+                      '$currency${spent.toStringAsFixed(0).replaceAllMapped(RegExp(r"(\d{1,3})(?=(\d{3})+(?!\d))"), (Match m) => "${m[1]},")}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: TallyTapTheme.textLight),
+                    ),
                   ),
+                  const SizedBox(width: 4),
                   Text(
                     '/ $currency${limit.toStringAsFixed(0).replaceAllMapped(RegExp(r"(\d{1,3})(?=(\d{3})+(?!\d))"), (Match m) => "${m[1]},")}',
-                    style: const TextStyle(fontSize: 12, color: TallyTapTheme.textGray, fontWeight: FontWeight.w600),
+                    style: const TextStyle(fontSize: 9, color: TallyTapTheme.textGray, fontWeight: FontWeight.w600),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
               Container(
-                height: 6,
+                height: 3.5,
                 width: double.infinity,
                 decoration: BoxDecoration(
                   color: const Color(0xFF14241F),
@@ -582,22 +824,32 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> with SingleTicker
             SizedBox(
               width: 80,
               height: 80,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  CustomPaint(
-                    size: const Size(70, 70),
-                    painter: _MiniBudgetRingPainter(proportion: proportion),
-                  ),
-                  Text(
-                    '$percent%',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w900,
-                      color: TallyTapTheme.textLight,
-                    ),
-                  ),
-                ],
+              child: Builder(
+                builder: (context) {
+                  Color ringColor = TallyTapTheme.textLight;
+                  if (proportion >= 0.75) {
+                    ringColor = const Color(0xFFEF4444);
+                  } else if (proportion >= 0.50) {
+                    ringColor = const Color(0xFFF59E0B);
+                  }
+                  return Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      CustomPaint(
+                        size: const Size(70, 70),
+                        painter: _MiniBudgetRingPainter(proportion: proportion),
+                      ),
+                      Text(
+                        '$percent%',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w900,
+                          color: ringColor,
+                        ),
+                      ),
+                    ],
+                  );
+                }
               ),
             ),
             const SizedBox(width: 16),
@@ -698,8 +950,15 @@ class _MiniBudgetRingPainter extends CustomPainter {
 
     canvas.drawCircle(Offset(size.width / 2, size.height / 2), size.width / 2, trackPaint);
 
+    Color progressColor = TallyTapTheme.primaryMint;
+    if (proportion >= 0.75) {
+      progressColor = const Color(0xFFEF4444);
+    } else if (proportion >= 0.50) {
+      progressColor = const Color(0xFFF59E0B);
+    }
+
     final Paint progressPaint = Paint()
-      ..color = TallyTapTheme.primaryMint
+      ..color = progressColor
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round;
