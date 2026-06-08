@@ -563,21 +563,16 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
       beforeFocus: (target) async {
         final identify = target.identify.toString();
         
-        // Automatically switch tabs based on the upcoming target
-        if (identify.startsWith("TargetBudgets")) {
+        // Automatically switch tabs based on the upcoming target (skip for the tab targets themselves)
+        if (identify.startsWith("TargetBudgets") && identify != "TargetBudgetsTab") {
           ref.read(activeTabProvider.notifier).state = 1;
-        } else if (identify.startsWith("TargetInsights")) {
+        } else if (identify.startsWith("TargetInsights") && identify != "TargetInsightsTab") {
           ref.read(activeTabProvider.notifier).state = 2;
-        } else if (identify.startsWith("TargetTimeline")) {
+        } else if (identify.startsWith("TargetTimeline") && identify != "TargetTimelineTab") {
           ref.read(activeTabProvider.notifier).state = 3;
-        } else if (identify.startsWith("TargetToolkit")) {
+        } else if (identify.startsWith("TargetToolkit") && identify != "TargetToolkitTab") {
           ref.read(activeTabProvider.notifier).state = 4;
-        } else if (identify.startsWith("TargetHome") || 
-                   identify == "TargetAccounts" || 
-                   identify == "TargetSummary" || 
-                   identify == "TargetCategoryBreakdown" || 
-                   identify == "TargetRecentTx" || 
-                   identify == "TargetFAB") {
+        } else if (identify == "TargetHomeDashboard" || identify == "TargetFAB") {
           ref.read(activeTabProvider.notifier).state = 0;
         }
 
@@ -585,10 +580,7 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
         await Future.delayed(const Duration(milliseconds: 250));
 
         if (target.keyTarget?.currentContext != null) {
-          if (identify == "TargetInsightsPillEssential" ||
-              identify == "TargetInsightsPillJoyful" ||
-              identify == "TargetInsightsPillAvoidable" ||
-              identify == "TargetInsightsPillInvest") {
+          if (identify == "TargetInsightsPills") {
             return;
           }
           Scrollable.ensureVisible(
@@ -601,7 +593,15 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
         }
       },
       onClickOverlay: (target) {
-        tutorialCoachMark?.next();
+        final identify = target.identify.toString();
+        if (identify == "TargetBudgetsTab" || 
+            identify == "TargetInsightsTab" || 
+            identify == "TargetTimelineTab" || 
+            identify == "TargetToolkitTab") {
+          // Do nothing, force user to tap the target
+        } else {
+          tutorialCoachMark?.next();
+        }
       },
       onFinish: () {
         ref.read(tutorialProvider.notifier).markCompleted(kPrefTutorialPrimary);
@@ -625,7 +625,7 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
     tutorialCoachMark?.show(context: context);
   }
 
-  Widget _buildTutorialContent(TutorialCoachMarkController controller, String title, String description) {
+  Widget _buildTutorialContent(TutorialCoachMarkController controller, String title, String description, {bool hideNext = false, String nextText = "Next"}) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -634,18 +634,19 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
         const SizedBox(height: 10),
         Text(description, style: const TextStyle(color: Colors.white)),
         const SizedBox(height: 16),
-        Align(
-          alignment: Alignment.centerRight,
-          child: ElevatedButton(
-            onPressed: () => controller.next(),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: TallyTapTheme.primaryMint,
-              foregroundColor: TallyTapTheme.obsidianBg,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        if (!hideNext)
+          Align(
+            alignment: Alignment.centerRight,
+            child: ElevatedButton(
+              onPressed: () => controller.next(),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: TallyTapTheme.primaryMint,
+                foregroundColor: TallyTapTheme.obsidianBg,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: Text(nextText, style: const TextStyle(fontWeight: FontWeight.bold)),
             ),
-            child: const Text("Next"),
           ),
-        ),
       ],
     );
   }
@@ -653,6 +654,7 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
   List<TargetFocus> _createTargets() {
     List<TargetFocus> targets = [];
 
+    // HOME TAB
     targets.add(TargetFocus(
       identify: "TargetHomeTab",
       keyTarget: TutorialService.mainNavHomeKey,
@@ -662,13 +664,13 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
       contents: [
         TargetContent(
           align: ContentAlign.top,
-          builder: (context, controller) => _buildTutorialContent(controller, "Home", "This is your customizable dashboard. Long-press any card here to enter Edit Mode, where you can drag and reorder the widgets to your liking."),
+          builder: (context, controller) => _buildTutorialContent(controller, "Home", "Welcome to your Dashboard. Here you can see a quick overview of your finances."),
         ),
       ],
     ));
 
     targets.add(TargetFocus(
-      identify: "TargetAccounts",
+      identify: "TargetHomeDashboard",
       keyTarget: TutorialService.homeAccountsKey,
       alignSkip: Alignment.topRight,
       shape: ShapeLightFocus.RRect,
@@ -676,49 +678,7 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
       contents: [
         TargetContent(
           align: ContentAlign.bottom,
-          builder: (context, controller) => _buildTutorialContent(controller, "Accounts & Balances", "Your payment sources and current balances. Tap any card to view its specific transactions."),
-        ),
-      ],
-    ));
-
-    targets.add(TargetFocus(
-      identify: "TargetSummary",
-      keyTarget: TutorialService.homeSummaryKey,
-      alignSkip: Alignment.topRight,
-      shape: ShapeLightFocus.RRect,
-      radius: 12,
-      contents: [
-        TargetContent(
-          align: ContentAlign.bottom,
-          builder: (context, controller) => _buildTutorialContent(controller, "Weekly Summary Graph", "Keep track of your spending trends over time. Swipe left/right to view past periods."),
-        ),
-      ],
-    ));
-
-    targets.add(TargetFocus(
-      identify: "TargetCategoryBreakdown",
-      keyTarget: TutorialService.homeCategoryKey,
-      alignSkip: Alignment.topRight,
-      shape: ShapeLightFocus.RRect,
-      radius: 12,
-      contents: [
-        TargetContent(
-          align: ContentAlign.bottom,
-          builder: (context, controller) => _buildTutorialContent(controller, "Category Breakdown", "Quickly see where your money is going this period."),
-        ),
-      ],
-    ));
-
-    targets.add(TargetFocus(
-      identify: "TargetRecentTx",
-      keyTarget: TutorialService.homeRecentTxKey,
-      alignSkip: Alignment.topRight,
-      shape: ShapeLightFocus.RRect,
-      radius: 12,
-      contents: [
-        TargetContent(
-          align: ContentAlign.top,
-          builder: (context, controller) => _buildTutorialContent(controller, "Recent Reflections", "Your latest transactions appear right here on your dashboard."),
+          builder: (context, controller) => _buildTutorialContent(controller, "Dashboard Widgets", "View your accounts, summaries, and categories. Long-press any card here to enter Edit Mode, where you can drag and reorder them."),
         ),
       ],
     ));
@@ -737,6 +697,7 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
       ],
     ));
 
+    // BUDGETS TAB
     targets.add(TargetFocus(
       identify: "TargetBudgetsTab",
       keyTarget: TutorialService.mainNavBudgetsKey,
@@ -746,7 +707,12 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
       contents: [
         TargetContent(
           align: ContentAlign.top,
-          builder: (context, controller) => _buildTutorialContent(controller, "Budgets", "Monitor your spending limits here. Tap the gear icon in the top right to configure your global and category-specific budgets."),
+          builder: (context, controller) => _buildTutorialContent(
+            controller, 
+            "Budgets", 
+            "Monitor your spending limits and control your money here.\n\nTap here to continue.",
+            hideNext: true,
+          ),
         ),
       ],
     ));
@@ -774,25 +740,12 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
       contents: [
         TargetContent(
           align: ContentAlign.top,
-          builder: (context, controller) => _buildTutorialContent(controller, "Manage Envelopes", "Create specific budgets for categories like Groceries or Entertainment here."),
+          builder: (context, controller) => _buildTutorialContent(controller, "Category Envelopes", "Track specific categories here. Tap to manage or create new envelope budgets for things like Groceries or Entertainment."),
         ),
       ],
     ));
 
-    targets.add(TargetFocus(
-      identify: "TargetBudgetsEnvelopesList",
-      keyTarget: TutorialService.budgetsEnvelopesListKey,
-      alignSkip: Alignment.topRight,
-      shape: ShapeLightFocus.RRect,
-      radius: 12,
-      contents: [
-        TargetContent(
-          align: ContentAlign.top,
-          builder: (context, controller) => _buildTutorialContent(controller, "Envelope Limits", "Track specific categories here. As you spend, these envelopes fill up."),
-        ),
-      ],
-    ));
-
+    // INSIGHTS TAB
     targets.add(TargetFocus(
       identify: "TargetInsightsTab",
       keyTarget: TutorialService.mainNavInsightsKey,
@@ -802,7 +755,12 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
       contents: [
         TargetContent(
           align: ContentAlign.top,
-          builder: (context, controller) => _buildTutorialContent(controller, "Insights", "Dive deep into your financial habits with detailed charts and trend analysis. Tap on different categories to filter the views."),
+          builder: (context, controller) => _buildTutorialContent(
+            controller, 
+            "Insights", 
+            "Dive deep into your financial habits with detailed charts and trend analysis.\n\nTap here to continue.",
+            hideNext: true,
+          ),
         ),
       ],
     ));
@@ -816,13 +774,13 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
       contents: [
         TargetContent(
           align: ContentAlign.bottom,
-          builder: (context, controller) => _buildTutorialContent(controller, "Spend Intentionality", "See your spending categorized by intent: Essential, Joyful, Avoidable, and Investments. This ring summarizes your financial behavior."),
+          builder: (context, controller) => _buildTutorialContent(controller, "Spend Intentionality", "See your spending categorized by intent. This ring summarizes your financial behavior at a glance."),
         ),
       ],
     ));
 
     targets.add(TargetFocus(
-      identify: "TargetInsightsPillEssential",
+      identify: "TargetInsightsPills",
       keyTarget: TutorialService.insightsPillEssentialKey,
       alignSkip: Alignment.topRight,
       shape: ShapeLightFocus.RRect,
@@ -830,99 +788,13 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
       paddingFocus: 20,
       contents: [
         TargetContent(
-          align: ContentAlign.top,
-          builder: (context, controller) => _buildTutorialContent(controller, "Essential Spending", "Expenses necessary for living, like Rent and Groceries."),
+          align: ContentAlign.bottom,
+          builder: (context, controller) => _buildTutorialContent(controller, "Intent Categories", "We categorize spending into Essential, Joyful, Avoidable, and Investments to help you understand your habits better."),
         ),
       ],
     ));
 
-    targets.add(TargetFocus(
-      identify: "TargetInsightsPillJoyful",
-      keyTarget: TutorialService.insightsPillJoyfulKey,
-      alignSkip: Alignment.topRight,
-      shape: ShapeLightFocus.RRect,
-      radius: 12,
-      paddingFocus: 20,
-      contents: [
-        TargetContent(
-          align: ContentAlign.top,
-          builder: (context, controller) => _buildTutorialContent(controller, "Joyful Spending", "Expenses that bring you happiness, like Hobbies and Dining Out."),
-        ),
-      ],
-    ));
-
-    targets.add(TargetFocus(
-      identify: "TargetInsightsPillAvoidable",
-      keyTarget: TutorialService.insightsPillAvoidableKey,
-      alignSkip: Alignment.topRight,
-      shape: ShapeLightFocus.RRect,
-      radius: 12,
-      paddingFocus: 20,
-      contents: [
-        TargetContent(
-          align: ContentAlign.top,
-          builder: (context, controller) => _buildTutorialContent(controller, "Avoidable Spending", "Expenses you might want to cut down on, like Fees or Impulse Buys."),
-        ),
-      ],
-    ));
-
-    targets.add(TargetFocus(
-      identify: "TargetInsightsPillInvest",
-      keyTarget: TutorialService.insightsPillInvestKey,
-      alignSkip: Alignment.topRight,
-      shape: ShapeLightFocus.RRect,
-      radius: 12,
-      paddingFocus: 20,
-      contents: [
-        TargetContent(
-          align: ContentAlign.top,
-          builder: (context, controller) => _buildTutorialContent(controller, "Investments", "Money you are saving or investing for the future."),
-        ),
-      ],
-    ));
-
-    targets.add(TargetFocus(
-      identify: "TargetInsightsBudgetSplit",
-      keyTarget: TutorialService.insightsBudgetSplitKey,
-      alignSkip: Alignment.topRight,
-      shape: ShapeLightFocus.RRect,
-      radius: 12,
-      contents: [
-        TargetContent(
-          align: ContentAlign.top,
-          builder: (context, controller) => _buildTutorialContent(controller, "Budget Split", "See how your spending compares to your target limits across each intent category."),
-        ),
-      ],
-    ));
-
-    targets.add(TargetFocus(
-      identify: "TargetInsightsDaily",
-      keyTarget: TutorialService.insightsDailyKey,
-      alignSkip: Alignment.topRight,
-      shape: ShapeLightFocus.RRect,
-      radius: 12,
-      contents: [
-        TargetContent(
-          align: ContentAlign.top,
-          builder: (context, controller) => _buildTutorialContent(controller, "Insight of the Day", "Actionable tips and summaries based on your recent spending habits."),
-        ),
-      ],
-    ));
-
-    targets.add(TargetFocus(
-      identify: "TargetInsightsCategoryBreakdown",
-      keyTarget: TutorialService.insightsCategoryBreakdownKey,
-      alignSkip: Alignment.topRight,
-      shape: ShapeLightFocus.RRect,
-      radius: 12,
-      contents: [
-        TargetContent(
-          align: ContentAlign.top,
-          builder: (context, controller) => _buildTutorialContent(controller, "Category Breakdown", "A detailed breakdown of all your specific categories and how much was spent."),
-        ),
-      ],
-    ));
-
+    // TIMELINE TAB
     targets.add(TargetFocus(
       identify: "TargetTimelineTab",
       keyTarget: TutorialService.mainNavTimelineKey,
@@ -932,7 +804,12 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
       contents: [
         TargetContent(
           align: ContentAlign.top,
-          builder: (context, controller) => _buildTutorialContent(controller, "Timeline", "Your entire transaction history is here. Use the search bar to find specific entries, or filter by tags, people, and payment methods."),
+          builder: (context, controller) => _buildTutorialContent(
+            controller, 
+            "Timeline", 
+            "Your entire transaction history is here.\n\nTap here to continue.",
+            hideNext: true,
+          ),
         ),
       ],
     ));
@@ -951,6 +828,7 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
       ],
     ));
 
+    // TOOLKIT TAB
     targets.add(TargetFocus(
       identify: "TargetToolkitTab",
       keyTarget: TutorialService.mainNavToolkitKey,
@@ -960,77 +838,31 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
       contents: [
         TargetContent(
           align: ContentAlign.top,
-          builder: (context, controller) => _buildTutorialContent(controller, "Toolkit", "Access powerful financial tools like the Tip Calculator, Expense Splitter, and Outstanding Ledger all in one place."),
+          builder: (context, controller) => _buildTutorialContent(
+            controller, 
+            "Toolkit", 
+            "Access powerful financial tools, calculators, settings, and exports.\n\nTap here to continue.",
+            hideNext: true,
+          ),
         ),
       ],
     ));
 
     targets.add(TargetFocus(
-      identify: "TargetToolkitDataConfig",
-      keyTarget: TutorialService.toolkitDataConfigKey,
-      alignSkip: Alignment.topRight,
-      shape: ShapeLightFocus.RRect,
-      radius: 12,
-      contents: [
-        TargetContent(
-          align: ContentAlign.bottom,
-          builder: (context, controller) => _buildTutorialContent(controller, "Data Configuration", "Customize your profile, categories, and payment sources here."),
-        ),
-      ],
-    ));
-
-    targets.add(TargetFocus(
-      identify: "TargetToolkitTools",
-      keyTarget: TutorialService.toolkitToolsKey,
-      alignSkip: Alignment.topRight,
-      shape: ShapeLightFocus.RRect,
-      radius: 12,
-      contents: [
-        TargetContent(
-          align: ContentAlign.bottom,
-          builder: (context, controller) => _buildTutorialContent(controller, "Tools & Calculators", "Split expenses, calculate tips, and manage shared debts."),
-        ),
-      ],
-    ));
-
-    targets.add(TargetFocus(
-      identify: "TargetToolkitNotifications",
-      keyTarget: TutorialService.toolkitNotificationsKey,
-      alignSkip: Alignment.topRight,
-      shape: ShapeLightFocus.RRect,
-      radius: 12,
-      contents: [
-        TargetContent(
-          align: ContentAlign.bottom,
-          builder: (context, controller) => _buildTutorialContent(controller, "Notifications", "Configure your snooze durations for reminders here."),
-        ),
-      ],
-    ));
-
-    targets.add(TargetFocus(
-      identify: "TargetToolkitExport",
-      keyTarget: TutorialService.toolkitExportKey,
-      alignSkip: Alignment.topRight,
-      shape: ShapeLightFocus.RRect,
-      radius: 12,
-      contents: [
-        TargetContent(
-          align: ContentAlign.bottom,
-          builder: (context, controller) => _buildTutorialContent(controller, "Export & Backup", "Export your private transaction log or import from a CSV."),
-        ),
-      ],
-    ));
-
-    targets.add(TargetFocus(
-      identify: "TargetToolkitShortcut",
-      keyTarget: TutorialService.toolkitShortcutKey,
+      identify: "TargetToolkitReplay",
+      keyTarget: TutorialService.toolkitReplayKey,
       alignSkip: Alignment.topRight,
       shape: ShapeLightFocus.RRect,
       radius: 12,
       contents: [
         TargetContent(
           align: ContentAlign.top,
-          builder: (context, controller) => _buildTutorialContent(controller, "Shortcut Guide", "Read up on hidden gestures and shortcuts to speed up your workflow."),
+          builder: (context, controller) => _buildTutorialContent(
+            controller, 
+            "Reset Tutorial", 
+            "If you ever want to see this tour again or reset the individual tool guides, you can do it here.",
+            nextText: "Finish",
+          ),
         ),
       ],
     ));

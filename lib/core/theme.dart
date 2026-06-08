@@ -176,4 +176,65 @@ class TallyTapTheme {
       return Icons.payments_outlined;
     }
   }
+
+  static const List<IconData> availableIcons = [
+    // Defaults & Fallbacks
+    Icons.local_mall_outlined,
+    Icons.arrow_downward_rounded,
+
+    // Food & Drink
+    Icons.local_cafe_outlined,
+    Icons.restaurant_outlined,
+    Icons.fastfood_outlined,
+    Icons.lunch_dining_outlined,
+    Icons.local_pizza_outlined,
+    Icons.icecream_outlined,
+    Icons.liquor_outlined,
+    
+    // Transport & Travel
+    Icons.directions_transit_filled_outlined,
+    Icons.directions_car_filled_outlined,
+    Icons.flight_outlined,
+    Icons.pedal_bike_outlined,
+    Icons.directions_boat_outlined,
+    Icons.luggage_outlined,
+
+    // Shopping & Fashion
+    Icons.local_grocery_store_outlined,
+    Icons.shopping_bag_outlined,
+    Icons.checkroom_outlined,
+    Icons.watch_outlined,
+
+    // Bills & Utilities
+    Icons.bolt_outlined,
+    Icons.water_drop_outlined,
+    Icons.phone_android_outlined,
+    Icons.wifi_rounded,
+    Icons.home_outlined,
+
+    // Health, Care & Fitness
+    Icons.local_hospital_outlined,
+    Icons.medication_outlined,
+    Icons.fitness_center_outlined,
+    Icons.spa_outlined,
+    Icons.pets_outlined,
+
+    // Entertainment, Hobby & Gifts
+    Icons.subscriptions_outlined,
+    Icons.sports_esports_outlined,
+    Icons.music_note_outlined,
+    Icons.movie_outlined,
+    Icons.palette_outlined,
+    Icons.camera_alt_outlined,
+    Icons.card_giftcard_outlined,
+    Icons.celebration_outlined,
+
+    // Education, Work & Other
+    Icons.school_outlined,
+    Icons.work_outline_rounded,
+    Icons.payments_outlined,
+    Icons.handyman_outlined,
+    Icons.star_outline_rounded,
+    Icons.favorite_outline_rounded,
+  ];
 }
