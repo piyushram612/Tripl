@@ -79,6 +79,7 @@ class _RecurringTransactionsListScreenState extends ConsumerState<RecurringTrans
           children: [
             // Search Bar
             Padding(
+              key: TutorialService.recurringTxListKey,
               padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12),
               child: TextField(
                 style: const TextStyle(color: TallyTapTheme.textLight),
@@ -103,12 +104,27 @@ class _RecurringTransactionsListScreenState extends ConsumerState<RecurringTrans
                   final isSelected = _selectedFilter == filter;
                   return Padding(
                     padding: const EdgeInsets.only(right: 8.0),
-                    child: ChoiceChip(
-                      label: Text(filter, style: TextStyle(color: isSelected ? TallyTapTheme.obsidianBg : TallyTapTheme.textLight, fontWeight: FontWeight.bold)),
-                      selected: isSelected,
-                      selectedColor: TallyTapTheme.primaryMint,
-                      backgroundColor: TallyTapTheme.obsidianCard,
-                      onSelected: (val) => setState(() => _selectedFilter = filter),
+                    child: GestureDetector(
+                      onTap: () => setState(() => _selectedFilter = filter),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: isSelected ? TallyTapTheme.primaryMint.withOpacity(0.15) : TallyTapTheme.obsidianCard,
+                          borderRadius: BorderRadius.circular(100),
+                          border: Border.all(
+                            color: isSelected ? TallyTapTheme.primaryMint.withOpacity(0.5) : TallyTapTheme.borderGreen,
+                            width: isSelected ? 1.5 : 1.0,
+                          ),
+                        ),
+                        child: Text(
+                          filter,
+                          style: TextStyle(
+                            color: isSelected ? TallyTapTheme.primaryMint : TallyTapTheme.textLight,
+                            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
                     ),
                   );
                 }).toList(),
@@ -118,7 +134,6 @@ class _RecurringTransactionsListScreenState extends ConsumerState<RecurringTrans
 
             // List
             Expanded(
-              key: TutorialService.recurringTxListKey,
               child: filtered.isEmpty
                   ? const Center(child: Text('No recurring payments found.', style: TextStyle(color: TallyTapTheme.textGray)))
                   : ListView.separated(

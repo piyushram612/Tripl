@@ -14,6 +14,7 @@ import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/tutorial_service.dart';
 import '../providers/tutorial_provider.dart';
+import 'sheets/manage_categories_sheet.dart';
 
 class CreateRecurringTransactionScreen extends ConsumerStatefulWidget {
   final RecurringTransaction? existingTransaction;
@@ -41,6 +42,7 @@ class _CreateRecurringTransactionScreenState extends ConsumerState<CreateRecurri
   TimeOfDay? _executionTime;
   EndConditionType _endCondition = EndConditionType.never;
   DateTime? _endDate;
+  List<int> _selectedDays = [];
 
   bool _reminderEnabled = true;
   ReminderTiming _reminderTiming = ReminderTiming.oneDayBefore;
@@ -65,6 +67,7 @@ class _CreateRecurringTransactionScreenState extends ConsumerState<CreateRecurri
       _executionTime = TimeOfDay(hour: tx.startDate.hour, minute: tx.startDate.minute);
       _endCondition = tx.endCondition;
       _endDate = tx.endDate;
+      _selectedDays = tx.weeklyDays != null ? List<int>.from(tx.weeklyDays!) : [];
       _endOccurrencesController.text = tx.endOccurrences?.toString() ?? '';
       _reminderEnabled = tx.reminderEnabled;
       _reminderTiming = tx.reminderTiming ?? ReminderTiming.oneDayBefore;
@@ -221,6 +224,18 @@ class _CreateRecurringTransactionScreenState extends ConsumerState<CreateRecurri
         if (interval < 1) interval = 1;
       }
 
+      List<int>? weeklyDays = _frequency == RecurrenceFrequency.weekly && _selectedDays.isNotEmpty ? _selectedDays : null;
+      DateTime initialNextDue = effectiveStartDate;
+      if (widget.existingTransaction == null && weeklyDays != null && !weeklyDays.contains(effectiveStartDate.weekday)) {
+        initialNextDue = RecurringTransaction.calculateNextDueDate(
+          effectiveStartDate.subtract(const Duration(days: 1)),
+          RecurrenceFrequency.weekly,
+          interval: 1,
+          weeklyDays: weeklyDays,
+        );
+        initialNextDue = DateTime(initialNextDue.year, initialNextDue.month, initialNextDue.day, effectiveStartDate.hour, effectiveStartDate.minute);
+      }
+
       final tx = RecurringTransaction(
         id: widget.existingTransaction?.id,
         type: _type,
@@ -229,6 +244,7 @@ class _CreateRecurringTransactionScreenState extends ConsumerState<CreateRecurri
         category: categoryToSave,
         frequency: _frequency,
         frequencyInterval: interval,
+        weeklyDays: weeklyDays,
         startDate: effectiveStartDate,
         endCondition: _endCondition,
         endDate: _endDate,
@@ -239,7 +255,7 @@ class _CreateRecurringTransactionScreenState extends ConsumerState<CreateRecurri
         logAsPending: _logAsPending,
         paymentMethod: sourceToSave,
         merchant: _titleController.text, // Using title as merchant
-        nextDueDate: widget.existingTransaction?.nextDueDate ?? effectiveStartDate,
+        nextDueDate: widget.existingTransaction?.nextDueDate ?? initialNextDue,
       );
 
       if (widget.existingTransaction == null) {
@@ -320,6 +336,7 @@ class _CreateRecurringTransactionScreenState extends ConsumerState<CreateRecurri
                       // QUICK TEMPLATES (Only if new)
                       if (widget.existingTransaction == null) ...[
                         SingleChildScrollView(
+                          key: TutorialService.createRecurringQuickTemplatesKey,
                           scrollDirection: Axis.horizontal,
                           physics: const BouncingScrollPhysics(),
                           child: Row(
@@ -388,12 +405,23 @@ class _CreateRecurringTransactionScreenState extends ConsumerState<CreateRecurri
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             const SectionLabel(label: 'Select Category'),
-                            Text(
-                              'Manage All',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: activeColor,
-                                fontWeight: FontWeight.w700,
+                            GestureDetector(
+                              onTap: () {
+                                HapticFeedback.selectionClick();
+                                showModalBottomSheet(
+                                  context: context,
+                                  isScrollControlled: true,
+                                  backgroundColor: Colors.transparent,
+                                  builder: (context) => const ManageCategoriesSheet(),
+                                );
+                              },
+                              child: Text(
+                                'Manage All',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: activeColor,
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
                             ),
                           ],
@@ -642,6 +670,52 @@ class _CreateRecurringTransactionScreenState extends ConsumerState<CreateRecurri
                           }).toList(),
                         ),
                       ),
+                      if (_frequency == RecurrenceFrequency.weekly) ...[
+                        const SizedBox(height: 16),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            for (int i = 1; i <= 7; i++) ...[
+                              GestureDetector(
+                                onTap: () {
+                                  HapticFeedback.selectionClick();
+                                  setState(() {
+                                    if (_selectedDays.contains(i)) {
+                                      _selectedDays.remove(i);
+                                    } else {
+                                      _selectedDays.add(i);
+                                    }
+                                  });
+                                },
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    color: _selectedDays.contains(i) ? activeColor.withOpacity(0.15) : TallyTapTheme.obsidianCard,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: _selectedDays.contains(i) ? activeColor : TallyTapTheme.borderGreen,
+                                      width: _selectedDays.contains(i) ? 1.5 : 1.0,
+                                    ),
+                                    boxShadow: _selectedDays.contains(i) ? [BoxShadow(color: activeColor.withOpacity(0.2), blurRadius: 8, offset: const Offset(0, 2))] : null,
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      ['M', 'T', 'W', 'T', 'F', 'S', 'S'][i - 1],
+                                      style: TextStyle(
+                                        color: _selectedDays.contains(i) ? activeColor : TallyTapTheme.textGray,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ],
                       if (_frequency == RecurrenceFrequency.custom) ...[
                         const SizedBox(height: 16),
                         Row(
@@ -672,6 +746,7 @@ class _CreateRecurringTransactionScreenState extends ConsumerState<CreateRecurri
                       const SectionLabel(label: 'End Condition'),
                       const SizedBox(height: 12),
                       SingleChildScrollView(
+                        key: TutorialService.createRecurringEndConditionKey,
                         scrollDirection: Axis.horizontal,
                         physics: const BouncingScrollPhysics(),
                         child: Row(
@@ -762,6 +837,7 @@ class _CreateRecurringTransactionScreenState extends ConsumerState<CreateRecurri
                       
                       // AUTOMATION & REMINDERS
                       Container(
+                        key: TutorialService.createRecurringAutoLogKey,
                         decoration: BoxDecoration(
                           color: TallyTapTheme.obsidianCard,
                           borderRadius: BorderRadius.circular(16),
@@ -971,6 +1047,22 @@ class _CreateRecurringTransactionScreenState extends ConsumerState<CreateRecurri
   List<TargetFocus> _createTargets() {
     List<TargetFocus> targets = [];
 
+    if (widget.existingTransaction == null) {
+      targets.add(TargetFocus(
+        identify: "TargetQuickTemplates",
+        keyTarget: TutorialService.createRecurringQuickTemplatesKey,
+        alignSkip: Alignment.topRight,
+        shape: ShapeLightFocus.RRect,
+        radius: 12,
+        contents: [
+          TargetContent(
+            align: ContentAlign.bottom,
+            builder: (context, controller) => _buildTutorialContent(controller, "Quick Templates", "Use these templates to quickly set up common recurring payments like Rent or Netflix."),
+          ),
+        ],
+      ));
+    }
+
     targets.add(TargetFocus(
       identify: "TargetFrequency",
       keyTarget: TutorialService.createRecurringTemplateKey,
@@ -986,6 +1078,34 @@ class _CreateRecurringTransactionScreenState extends ConsumerState<CreateRecurri
     ));
 
     targets.add(TargetFocus(
+      identify: "TargetEndCondition",
+      keyTarget: TutorialService.createRecurringEndConditionKey,
+      alignSkip: Alignment.topRight,
+      shape: ShapeLightFocus.RRect,
+      radius: 12,
+      contents: [
+        TargetContent(
+          align: ContentAlign.top,
+          builder: (context, controller) => _buildTutorialContent(controller, "End Condition", "Set when this recurring payment should stop, or let it repeat forever."),
+        ),
+      ],
+    ));
+
+    targets.add(TargetFocus(
+      identify: "TargetAutomation",
+      keyTarget: TutorialService.createRecurringAutoLogKey,
+      alignSkip: Alignment.topRight,
+      shape: ShapeLightFocus.RRect,
+      radius: 12,
+      contents: [
+        TargetContent(
+          align: ContentAlign.top,
+          builder: (context, controller) => _buildTutorialContent(controller, "Automation", "Choose whether to auto-log transactions or draft them for your manual review."),
+        ),
+      ],
+    ));
+
+    targets.add(TargetFocus(
       identify: "TargetSave",
       keyTarget: TutorialService.createRecurringSaveKey,
       alignSkip: Alignment.topRight,
@@ -994,7 +1114,7 @@ class _CreateRecurringTransactionScreenState extends ConsumerState<CreateRecurri
       contents: [
         TargetContent(
           align: ContentAlign.top,
-          builder: (context, controller) => _buildTutorialContent(controller, "Save Recurring Transaction", "Tap here to save your recurring transaction."),
+          builder: (context, controller) => _buildTutorialContent(controller, "Save", "Tap here to save your recurring transaction."),
         ),
       ],
     ));

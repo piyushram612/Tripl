@@ -18,6 +18,7 @@ import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/tutorial_service.dart';
 import '../providers/tutorial_provider.dart';
+import 'sheets/manage_categories_sheet.dart';
 
 class CreateTransactionScreen extends ConsumerStatefulWidget {
   const CreateTransactionScreen({super.key});
@@ -412,12 +413,23 @@ class _CreateTransactionScreenState
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             SectionLabel(label: 'Select Category'),
-                            Text(
-                              'Manage All',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: activeColor,
-                                fontWeight: FontWeight.w700,
+                            GestureDetector(
+                              onTap: () {
+                                HapticFeedback.selectionClick();
+                                showModalBottomSheet(
+                                  context: context,
+                                  isScrollControlled: true,
+                                  backgroundColor: Colors.transparent,
+                                  builder: (context) => const ManageCategoriesSheet(),
+                                );
+                              },
+                              child: Text(
+                                'Manage All',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: activeColor,
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
                             ),
                           ],

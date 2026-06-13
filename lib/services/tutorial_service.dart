@@ -60,8 +60,10 @@ class TutorialService {
   static final GlobalKey recurringTxFabKey = GlobalKey();
 
   // Create Recurring Transaction Targets
+  static final GlobalKey createRecurringQuickTemplatesKey = GlobalKey();
   static final GlobalKey createRecurringTemplateKey = GlobalKey();
   static final GlobalKey createRecurringAutoLogKey = GlobalKey();
+  static final GlobalKey createRecurringEndConditionKey = GlobalKey();
   static final GlobalKey createRecurringSaveKey = GlobalKey();
 
   // Recurring Details Targets

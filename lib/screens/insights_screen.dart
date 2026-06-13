@@ -1038,10 +1038,11 @@ class _PeriodSelectorSheet extends ConsumerWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: item.isSelected ? TallyTapTheme.borderGreen.withOpacity(0.5) : TallyTapTheme.obsidianCard,
+          color: item.isSelected ? TallyTapTheme.primaryMint.withOpacity(0.15) : TallyTapTheme.obsidianCard,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: item.isSelected ? TallyTapTheme.primaryMint.withOpacity(0.5) : TallyTapTheme.borderGreen,
+            width: item.isSelected ? 1.5 : 1.0,
           ),
         ),
         child: Row(

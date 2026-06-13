@@ -308,14 +308,24 @@ class _RecurringTransactionDetailsScreenState extends ConsumerState<RecurringTra
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Previous/Start Date
+          // Start Date
           _TimelineStep(
-            title: tx.lastProcessedDate != null ? 'Last Processed' : 'Start Date',
-            date: tx.lastProcessedDate ?? tx.startDate,
+            title: 'Start Date',
+            date: tx.startDate,
             isCompleted: true,
             color: TallyTapTheme.textGray,
             isLast: false,
           ),
+          
+          // Last Processed Date
+          if (tx.lastProcessedDate != null)
+            _TimelineStep(
+              title: 'Last Processed',
+              date: tx.lastProcessedDate!,
+              isCompleted: true,
+              color: TallyTapTheme.textGray,
+              isLast: false,
+            ),
           
           // Current Due Date
           _TimelineStep(
@@ -670,7 +680,7 @@ class _RecurringTransactionDetailsScreenState extends ConsumerState<RecurringTra
       radius: 12,
       contents: [
         TargetContent(
-          align: ContentAlign.bottom,
+          align: ContentAlign.top,
           builder: (context, controller) => _buildTutorialContent(controller, "Status & Schedule", "See when the next payment is due and review the schedule details."),
         ),
       ],
@@ -684,8 +694,8 @@ class _RecurringTransactionDetailsScreenState extends ConsumerState<RecurringTra
       radius: 12,
       contents: [
         TargetContent(
-          align: ContentAlign.bottom,
-          builder: (context, controller) => _buildTutorialContent(controller, "History", "A complete log of every time this recurring transaction was processed."),
+          align: ContentAlign.top,
+          builder: (context, controller) => _buildTutorialContent(controller, "Configuration", "View your automation settings, end conditions, and complete payment source details here."),
         ),
       ],
     ));

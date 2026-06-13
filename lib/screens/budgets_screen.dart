@@ -423,7 +423,9 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> with SingleTicker
                                         border: Border.all(color: alert.severity.color.withValues(alpha: 0.4)),
                                       ),
                                       child: Text(
-                                        '${alert.percentUsed.toStringAsFixed(0)}% — ${alert.severity.label}',
+                                        alert.severity == BudgetAlertSeverity.exceeded
+                                            ? '+$currency${alert.overspendAmount.toStringAsFixed(0).replaceAllMapped(RegExp(r"(\d{1,3})(?=(\d{3})+(?!\d))"), (Match m) => "${m[1]},")} — ${alert.severity.label}'
+                                            : '$currency${alert.remainingAmount.toStringAsFixed(0).replaceAllMapped(RegExp(r"(\d{1,3})(?=(\d{3})+(?!\d))"), (Match m) => "${m[1]},")} left — ${alert.severity.label}',
                                         style: TextStyle(
                                           fontSize: 10,
                                           fontWeight: FontWeight.w700,

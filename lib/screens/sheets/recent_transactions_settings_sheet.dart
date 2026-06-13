@@ -157,21 +157,12 @@ class RecentTransactionsSettingsSheet extends ConsumerWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? TallyTapTheme.primaryMint.withOpacity(0.05) : TallyTapTheme.obsidianCard,
+          color: isSelected ? TallyTapTheme.primaryMint.withOpacity(0.15) : TallyTapTheme.obsidianCard,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected ? TallyTapTheme.primaryMint : TallyTapTheme.obsidianCard,
-            width: 1,
+            color: isSelected ? TallyTapTheme.primaryMint.withOpacity(0.5) : TallyTapTheme.borderGreen,
+            width: isSelected ? 1.5 : 1.0,
           ),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: TallyTapTheme.primaryMint.withOpacity(0.3),
-                    blurRadius: 12,
-                    spreadRadius: 1,
-                  )
-                ]
-              : null,
         ),
         child: Text(
           label,

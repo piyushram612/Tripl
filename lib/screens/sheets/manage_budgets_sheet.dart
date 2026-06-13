@@ -144,46 +144,70 @@ class _ManageBudgetsSheetState extends ConsumerState<ManageBudgetsSheet> {
                   Row(
                     children: [
                       Expanded(
-                        child: ChoiceChip(
-                          label: const Text('Monthly', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
-                          selected: _globalPeriod == 'monthly',
-                          onSelected: (selected) {
-                            if (selected) _onPeriodSelected('monthly');
-                          },
-                          selectedColor: TallyTapTheme.primaryMint,
-                          backgroundColor: TallyTapTheme.obsidianCard,
-                          checkmarkColor: TallyTapTheme.obsidianBg,
-                          labelStyle: TextStyle(
-                            color: _globalPeriod == 'monthly' ? TallyTapTheme.obsidianBg : TallyTapTheme.textLight,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            side: BorderSide(
-                              color: _globalPeriod == 'monthly' ? TallyTapTheme.primaryMint : TallyTapTheme.borderGreen,
-                              width: 1.0,
+                        child: GestureDetector(
+                          onTap: () => _onPeriodSelected('monthly'),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            decoration: BoxDecoration(
+                              color: _globalPeriod == 'monthly' ? TallyTapTheme.primaryMint.withOpacity(0.15) : TallyTapTheme.obsidianCard,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: _globalPeriod == 'monthly' ? TallyTapTheme.primaryMint.withOpacity(0.5) : TallyTapTheme.borderGreen,
+                                width: _globalPeriod == 'monthly' ? 1.5 : 1.0,
+                              ),
+                            ),
+                            alignment: Alignment.center,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                if (_globalPeriod == 'monthly') ...[
+                                  const Icon(Icons.check_rounded, color: TallyTapTheme.primaryMint, size: 16),
+                                  const SizedBox(width: 4),
+                                ],
+                                Text(
+                                  'Monthly',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
+                                    color: _globalPeriod == 'monthly' ? TallyTapTheme.primaryMint : TallyTapTheme.textLight,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: ChoiceChip(
-                          label: const Text('Weekly', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
-                          selected: _globalPeriod == 'weekly',
-                          onSelected: (selected) {
-                            if (selected) _onPeriodSelected('weekly');
-                          },
-                          selectedColor: TallyTapTheme.primaryMint,
-                          backgroundColor: TallyTapTheme.obsidianCard,
-                          checkmarkColor: TallyTapTheme.obsidianBg,
-                          labelStyle: TextStyle(
-                            color: _globalPeriod == 'weekly' ? TallyTapTheme.obsidianBg : TallyTapTheme.textLight,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            side: BorderSide(
-                              color: _globalPeriod == 'weekly' ? TallyTapTheme.primaryMint : TallyTapTheme.borderGreen,
-                              width: 1.0,
+                        child: GestureDetector(
+                          onTap: () => _onPeriodSelected('weekly'),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            decoration: BoxDecoration(
+                              color: _globalPeriod == 'weekly' ? TallyTapTheme.primaryMint.withOpacity(0.15) : TallyTapTheme.obsidianCard,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: _globalPeriod == 'weekly' ? TallyTapTheme.primaryMint.withOpacity(0.5) : TallyTapTheme.borderGreen,
+                                width: _globalPeriod == 'weekly' ? 1.5 : 1.0,
+                              ),
+                            ),
+                            alignment: Alignment.center,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                if (_globalPeriod == 'weekly') ...[
+                                  const Icon(Icons.check_rounded, color: TallyTapTheme.primaryMint, size: 16),
+                                  const SizedBox(width: 4),
+                                ],
+                                Text(
+                                  'Weekly',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
+                                    color: _globalPeriod == 'weekly' ? TallyTapTheme.primaryMint : TallyTapTheme.textLight,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
