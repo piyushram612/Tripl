@@ -4,6 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme.dart';
 import '../../models/transaction_model.dart';
 import '../../services/transaction_service.dart';
+import 'dart:ui';
+import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../services/tutorial_service.dart';
+import '../../providers/tutorial_provider.dart';
 
 class ExpenseSplitterScreen extends ConsumerStatefulWidget {
   const ExpenseSplitterScreen({super.key});
@@ -18,11 +23,15 @@ class _ExpenseSplitterScreenState extends ConsumerState<ExpenseSplitterScreen> {
   int _peopleCount = 4;
   final List<TextEditingController> _friendControllers = [];
   final List<bool> _friendVerificationFlags = [];
+  TutorialCoachMark? tutorialCoachMark;
 
   @override
   void initState() {
     super.initState();
     _updateFriendControllers();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkTutorialStatus();
+    });
   }
 
   @override
@@ -151,6 +160,7 @@ class _ExpenseSplitterScreenState extends ConsumerState<ExpenseSplitterScreen> {
               children: [
                 // Split Results Panel
                 Container(
+                  key: TutorialService.splitterResultKey,
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
@@ -259,6 +269,7 @@ class _ExpenseSplitterScreenState extends ConsumerState<ExpenseSplitterScreen> {
 
                 // Amount paid card
                 Card(
+                  key: TutorialService.splitterAmountKey,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
                     child: Row(
@@ -491,4 +502,105 @@ class _ExpenseSplitterScreenState extends ConsumerState<ExpenseSplitterScreen> {
       ),
     );
   }
+
+  Future<void> _checkTutorialStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    final hasSeen = prefs.getBool(kPrefTutorialExpenseSplitter) ?? false;
+    if (!hasSeen && mounted) {
+      _initTutorial();
+    }
+  }
+
+  void _initTutorial() {
+    tutorialCoachMark = TutorialCoachMark(
+      targets: _createTargets(),
+      colorShadow: Colors.black,
+      textSkip: "SKIP",
+      paddingFocus: 10,
+      opacityShadow: 0.6,
+      imageFilter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+      beforeFocus: (target) async {
+        if (target.keyTarget?.currentContext != null) {
+          Scrollable.ensureVisible(
+            target.keyTarget!.currentContext!,
+            alignment: 0.5,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
+          await Future.delayed(const Duration(milliseconds: 350));
+        }
+      },
+      onClickOverlay: (target) {
+        tutorialCoachMark?.next();
+      },
+      onFinish: () {
+        ref.read(tutorialProvider.notifier).markCompleted(kPrefTutorialExpenseSplitter);
+      },
+      onSkip: () {
+        ref.read(tutorialProvider.notifier).markCompleted(kPrefTutorialExpenseSplitter);
+        return true;
+      },
+    );
+    tutorialCoachMark?.show(context: context);
+  }
+
+  Widget _buildTutorialContent(TutorialCoachMarkController controller, String title, String description) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 20)),
+        const SizedBox(height: 10),
+        Text(description, style: const TextStyle(color: Colors.white)),
+        const SizedBox(height: 16),
+        Align(
+          alignment: Alignment.centerRight,
+          child: ElevatedButton(
+            onPressed: () => controller.next(),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: TallyTapTheme.primaryMint,
+              foregroundColor: TallyTapTheme.obsidianBg,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text("Next"),
+          ),
+        ),
+      ],
+    );
+  }
+
+  List<TargetFocus> _createTargets() {
+    List<TargetFocus> targets = [];
+
+    targets.add(TargetFocus(
+      identify: "TargetAmountPaid",
+      keyTarget: TutorialService.splitterAmountKey,
+      alignSkip: Alignment.topRight,
+      shape: ShapeLightFocus.RRect,
+      radius: 12,
+      contents: [
+        TargetContent(
+          align: ContentAlign.bottom,
+          builder: (context, controller) => _buildTutorialContent(controller, "Total Amount Paid", "Enter the total bill amount that you paid here."),
+        ),
+      ],
+    ));
+
+    targets.add(TargetFocus(
+      identify: "TargetSplitResults",
+      keyTarget: TutorialService.splitterResultKey,
+      alignSkip: Alignment.topRight,
+      shape: ShapeLightFocus.RRect,
+      radius: 12,
+      contents: [
+        TargetContent(
+          align: ContentAlign.bottom,
+          builder: (context, controller) => _buildTutorialContent(controller, "Split Results", "See exactly how much each person owes you. When logged, it creates grouped transactions for easy tracking."),
+        ),
+      ],
+    ));
+
+    return targets;
+  }
 }
+

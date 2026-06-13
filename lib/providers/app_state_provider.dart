@@ -126,4 +126,54 @@ class HomeLayoutNotifier extends StateNotifier<List<String>> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(_key, newLayout);
   }
+
+  Future<void> resetLayout() async {
+    state = defaultLayout;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_key, defaultLayout);
+  }
 }
+
+// Empty
+
+// ─── Generic SharedPreferences Notifier ───────────────────────────────────────
+
+class PrefNotifier<T> extends StateNotifier<T> {
+  final String key;
+  final T defaultValue;
+
+  PrefNotifier(this.key, this.defaultValue) : super(defaultValue) {
+    _init();
+  }
+
+  Future<void> _init() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (T == int) {
+      state = (prefs.getInt(key) ?? defaultValue) as T;
+    } else if (T == String) {
+      state = (prefs.getString(key) ?? defaultValue) as T;
+    } else if (T == bool) {
+      state = (prefs.getBool(key) ?? defaultValue) as T;
+    }
+  }
+
+  Future<void> updateVal(T value) async {
+    state = value;
+    final prefs = await SharedPreferences.getInstance();
+    if (T == int) {
+      await prefs.setInt(key, value as int);
+    } else if (T == String) {
+      await prefs.setString(key, value as String);
+    } else if (T == bool) {
+      await prefs.setBool(key, value as bool);
+    }
+  }
+}
+
+// ─── Recent Reflections Settings Providers ────────────────────────────────────
+
+final homeRecentCountProvider = StateNotifierProvider<PrefNotifier<int>, int>((ref) => PrefNotifier<int>('recent_ref_count', 5));
+final homeRecentTypeProvider = StateNotifierProvider<PrefNotifier<String>, String>((ref) => PrefNotifier<String>('recent_ref_type', 'all'));
+final homeRecentSortProvider = StateNotifierProvider<PrefNotifier<String>, String>((ref) => PrefNotifier<String>('recent_ref_sort', 'newest'));
+final homeRecentDensityProvider = StateNotifierProvider<PrefNotifier<String>, String>((ref) => PrefNotifier<String>('recent_ref_density', 'comfortable'));
+final homeRecentTimeframeProvider = StateNotifierProvider<PrefNotifier<String>, String>((ref) => PrefNotifier<String>('recent_ref_time', 'all'));

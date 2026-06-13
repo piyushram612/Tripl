@@ -8,7 +8,11 @@ import '../providers/recurring_transaction_provider.dart';
 import '../providers/currency_provider.dart';
 import 'create_recurring_transaction_screen.dart';
 import 'recurring_transaction_details_screen.dart';
-
+import 'dart:ui';
+import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/tutorial_service.dart';
+import '../providers/tutorial_provider.dart';
 class RecurringTransactionsListScreen extends ConsumerStatefulWidget {
   const RecurringTransactionsListScreen({super.key});
 
@@ -19,6 +23,15 @@ class RecurringTransactionsListScreen extends ConsumerStatefulWidget {
 class _RecurringTransactionsListScreenState extends ConsumerState<RecurringTransactionsListScreen> {
   String _searchQuery = '';
   String _selectedFilter = 'All';
+  TutorialCoachMark? tutorialCoachMark;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkTutorialStatus();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -50,6 +63,7 @@ class _RecurringTransactionsListScreenState extends ConsumerState<RecurringTrans
         ),
         actions: [
           IconButton(
+            key: TutorialService.recurringTxFabKey,
             icon: const Icon(Icons.add_rounded, color: TallyTapTheme.primaryMint),
             onPressed: () {
               Navigator.push(
@@ -65,6 +79,7 @@ class _RecurringTransactionsListScreenState extends ConsumerState<RecurringTrans
           children: [
             // Search Bar
             Padding(
+              key: TutorialService.recurringTxListKey,
               padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12),
               child: TextField(
                 style: const TextStyle(color: TallyTapTheme.textLight),
@@ -89,12 +104,27 @@ class _RecurringTransactionsListScreenState extends ConsumerState<RecurringTrans
                   final isSelected = _selectedFilter == filter;
                   return Padding(
                     padding: const EdgeInsets.only(right: 8.0),
-                    child: ChoiceChip(
-                      label: Text(filter, style: TextStyle(color: isSelected ? TallyTapTheme.obsidianBg : TallyTapTheme.textLight, fontWeight: FontWeight.bold)),
-                      selected: isSelected,
-                      selectedColor: TallyTapTheme.primaryMint,
-                      backgroundColor: TallyTapTheme.obsidianCard,
-                      onSelected: (val) => setState(() => _selectedFilter = filter),
+                    child: GestureDetector(
+                      onTap: () => setState(() => _selectedFilter = filter),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: isSelected ? TallyTapTheme.primaryMint.withOpacity(0.15) : TallyTapTheme.obsidianCard,
+                          borderRadius: BorderRadius.circular(100),
+                          border: Border.all(
+                            color: isSelected ? TallyTapTheme.primaryMint.withOpacity(0.5) : TallyTapTheme.borderGreen,
+                            width: isSelected ? 1.5 : 1.0,
+                          ),
+                        ),
+                        child: Text(
+                          filter,
+                          style: TextStyle(
+                            color: isSelected ? TallyTapTheme.primaryMint : TallyTapTheme.textLight,
+                            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
                     ),
                   );
                 }).toList(),
@@ -253,5 +283,105 @@ class _RecurringTransactionsListScreenState extends ConsumerState<RecurringTrans
         ),
       ),
     );
+  }
+
+  Future<void> _checkTutorialStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    final hasSeen = prefs.getBool(kPrefTutorialRecurringTx) ?? false;
+    if (!hasSeen && mounted) {
+      _initTutorial();
+    }
+  }
+
+  void _initTutorial() {
+    tutorialCoachMark = TutorialCoachMark(
+      targets: _createTargets(),
+      colorShadow: Colors.black,
+      textSkip: "SKIP",
+      paddingFocus: 10,
+      opacityShadow: 0.6,
+      imageFilter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+      beforeFocus: (target) async {
+        if (target.keyTarget?.currentContext != null) {
+          Scrollable.ensureVisible(
+            target.keyTarget!.currentContext!,
+            alignment: 0.5,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
+          await Future.delayed(const Duration(milliseconds: 350));
+        }
+      },
+      onClickOverlay: (target) {
+        tutorialCoachMark?.next();
+      },
+      onFinish: () {
+        ref.read(tutorialProvider.notifier).markCompleted(kPrefTutorialRecurringTx);
+      },
+      onSkip: () {
+        ref.read(tutorialProvider.notifier).markCompleted(kPrefTutorialRecurringTx);
+        return true;
+      },
+    );
+    tutorialCoachMark?.show(context: context);
+  }
+
+  Widget _buildTutorialContent(TutorialCoachMarkController controller, String title, String description) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 20)),
+        const SizedBox(height: 10),
+        Text(description, style: const TextStyle(color: Colors.white)),
+        const SizedBox(height: 16),
+        Align(
+          alignment: Alignment.centerRight,
+          child: ElevatedButton(
+            onPressed: () => controller.next(),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: TallyTapTheme.primaryMint,
+              foregroundColor: TallyTapTheme.obsidianBg,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text("Next"),
+          ),
+        ),
+      ],
+    );
+  }
+
+  List<TargetFocus> _createTargets() {
+    List<TargetFocus> targets = [];
+
+    targets.add(TargetFocus(
+      identify: "TargetList",
+      keyTarget: TutorialService.recurringTxListKey,
+      alignSkip: Alignment.topRight,
+      shape: ShapeLightFocus.RRect,
+      radius: 12,
+      contents: [
+        TargetContent(
+          align: ContentAlign.bottom,
+          builder: (context, controller) => _buildTutorialContent(controller, "Recurring Hub", "All your scheduled and recurring transactions live here. Tap any item to manage or pause it."),
+        ),
+      ],
+    ));
+
+    targets.add(TargetFocus(
+      identify: "TargetFab",
+      keyTarget: TutorialService.recurringTxFabKey,
+      alignSkip: Alignment.topRight,
+      shape: ShapeLightFocus.RRect,
+      radius: 12,
+      contents: [
+        TargetContent(
+          align: ContentAlign.bottom,
+          builder: (context, controller) => _buildTutorialContent(controller, "New Schedule", "Tap here to create a new recurring transaction."),
+        ),
+      ],
+    ));
+
+    return targets;
   }
 }

@@ -20,6 +20,8 @@ import 'tools/tip_calculator_screen.dart';
 import 'tools/outstanding_ledger_screen.dart';
 import '../providers/customization_provider.dart';
 import 'sheets/snooze_duration_sheet.dart';
+import '../providers/tutorial_provider.dart';
+import '../services/tutorial_service.dart';
 
 class ToolkitScreen extends ConsumerWidget {
   const ToolkitScreen({super.key});
@@ -1204,6 +1206,7 @@ class ToolkitScreen extends ConsumerWidget {
 
             // Card B: Data Configuration
             Card(
+              key: TutorialService.toolkitDataConfigKey,
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8.0),
                 child: Column(
@@ -1268,6 +1271,7 @@ class ToolkitScreen extends ConsumerWidget {
 
             // Card: Tools & Calculators
             Card(
+              key: TutorialService.toolkitToolsKey,
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8.0),
                 child: Column(
@@ -1328,6 +1332,7 @@ class ToolkitScreen extends ConsumerWidget {
 
             // Card B2: Notifications
             Card(
+              key: TutorialService.toolkitNotificationsKey,
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8.0),
                 child: Column(
@@ -1369,6 +1374,7 @@ class ToolkitScreen extends ConsumerWidget {
 
             // Card C: Export & Backup
             Card(
+              key: TutorialService.toolkitExportKey,
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8.0),
                 child: Column(
@@ -1407,6 +1413,7 @@ class ToolkitScreen extends ConsumerWidget {
 
             // Shortcut Guide Card
             Card(
+              key: TutorialService.toolkitShortcutKey,
               child: Padding(
                 padding: const EdgeInsets.all(20.0),
                 child: Column(
@@ -1457,8 +1464,71 @@ class ToolkitScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 20),
 
+            // Card: App Guides
+            Card(
+              key: TutorialService.toolkitReplayKey,
+              color: TallyTapTheme.obsidianCard,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: TallyTapTheme.borderGreen.withOpacity(0.5), width: 1.0),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(left: 20.0, top: 16.0, bottom: 8.0),
+                      child: Text(
+                        'APP GUIDES',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.5,
+                          color: TallyTapTheme.primaryMint,
+                        ),
+                      ),
+                    ),
+                    ListTile(
+                      onTap: () {
+                        ref.read(tutorialProvider.notifier).resetAll();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('App guides reset. Redirecting to tour...'),
+                            behavior: SnackBarBehavior.floating,
+                            backgroundColor: TallyTapTheme.primaryMint,
+                          ),
+                        );
+                      },
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0F1B17),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: TallyTapTheme.borderGreen, width: 0.5),
+                        ),
+                        child: const Icon(Icons.refresh_rounded, color: TallyTapTheme.primaryMint, size: 20),
+                      ),
+                      title: const Text(
+                        'Reset All App Guides',
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: TallyTapTheme.textLight),
+                      ),
+                      subtitle: const Text(
+                        'Reset the main tour and all contextual tutorials',
+                        style: TextStyle(fontSize: 12, color: TallyTapTheme.textGray),
+                      ),
+                      trailing: const Icon(Icons.chevron_right_rounded, color: TallyTapTheme.textGray),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
             // Card D: Danger Zone
             Card(
+              key: TutorialService.toolkitDangerKey,
               color: const Color(0xFF1F1212),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),

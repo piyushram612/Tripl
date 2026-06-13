@@ -7,7 +7,11 @@ import '../models/recurring_transaction_model.dart';
 import '../providers/currency_provider.dart';
 import '../providers/recurring_transaction_provider.dart';
 import 'create_recurring_transaction_screen.dart';
-
+import 'dart:ui';
+import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/tutorial_service.dart';
+import '../providers/tutorial_provider.dart';
 class RecurringTransactionDetailsScreen extends ConsumerStatefulWidget {
   final RecurringTransaction transaction;
 
@@ -22,6 +26,16 @@ class RecurringTransactionDetailsScreen extends ConsumerStatefulWidget {
 }
 
 class _RecurringTransactionDetailsScreenState extends ConsumerState<RecurringTransactionDetailsScreen> {
+  TutorialCoachMark? tutorialCoachMark;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkTutorialStatus();
+    });
+  }
+
   void _confirmDelete() {
     showDialog(
       context: context,
@@ -158,13 +172,29 @@ class _RecurringTransactionDetailsScreenState extends ConsumerState<RecurringTra
                   children: [
                     _buildHeaderCard(tx, currency, activeColor),
                     const SizedBox(height: 24),
-                    const _SectionLabel(label: 'Schedule Timeline'),
-                    const SizedBox(height: 12),
-                    _buildTimelineCard(tx, activeColor),
+                    Container(
+                      key: TutorialService.recurringDetailsTimelineKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const _SectionLabel(label: 'Schedule Timeline'),
+                          const SizedBox(height: 12),
+                          _buildTimelineCard(tx, activeColor),
+                        ],
+                      ),
+                    ),
                     const SizedBox(height: 24),
-                    const _SectionLabel(label: 'Configuration Details'),
-                    const SizedBox(height: 12),
-                    _buildDetailsGrid(tx),
+                    Container(
+                      key: TutorialService.recurringDetailsActionsKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const _SectionLabel(label: 'Configuration Details'),
+                          const SizedBox(height: 12),
+                          _buildDetailsGrid(tx),
+                        ],
+                      ),
+                    ),
                     if (tx.notes != null && tx.notes!.isNotEmpty) ...[
                       const SizedBox(height: 24),
                       const _SectionLabel(label: 'Notes'),
@@ -278,14 +308,24 @@ class _RecurringTransactionDetailsScreenState extends ConsumerState<RecurringTra
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Previous/Start Date
+          // Start Date
           _TimelineStep(
-            title: tx.lastProcessedDate != null ? 'Last Processed' : 'Start Date',
-            date: tx.lastProcessedDate ?? tx.startDate,
+            title: 'Start Date',
+            date: tx.startDate,
             isCompleted: true,
             color: TallyTapTheme.textGray,
             isLast: false,
           ),
+          
+          // Last Processed Date
+          if (tx.lastProcessedDate != null)
+            _TimelineStep(
+              title: 'Last Processed',
+              date: tx.lastProcessedDate!,
+              isCompleted: true,
+              color: TallyTapTheme.textGray,
+              isLast: false,
+            ),
           
           // Current Due Date
           _TimelineStep(
@@ -561,6 +601,106 @@ class _RecurringTransactionDetailsScreenState extends ConsumerState<RecurringTra
       return 'After ${tx.endOccurrences} payments (${tx.occurrencesCompleted} done)';
     }
     return 'Never';
+  }
+
+  Future<void> _checkTutorialStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    final hasSeen = prefs.getBool(kPrefTutorialRecurringTxDetails) ?? false;
+    if (!hasSeen && mounted) {
+      _initTutorial();
+    }
+  }
+
+  void _initTutorial() {
+    tutorialCoachMark = TutorialCoachMark(
+      targets: _createTargets(),
+      colorShadow: Colors.black,
+      textSkip: "SKIP",
+      paddingFocus: 10,
+      opacityShadow: 0.6,
+      imageFilter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+      beforeFocus: (target) async {
+        if (target.keyTarget?.currentContext != null) {
+          Scrollable.ensureVisible(
+            target.keyTarget!.currentContext!,
+            alignment: 0.5,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
+          await Future.delayed(const Duration(milliseconds: 350));
+        }
+      },
+      onClickOverlay: (target) {
+        tutorialCoachMark?.next();
+      },
+      onFinish: () {
+        ref.read(tutorialProvider.notifier).markCompleted(kPrefTutorialRecurringTxDetails);
+      },
+      onSkip: () {
+        ref.read(tutorialProvider.notifier).markCompleted(kPrefTutorialRecurringTxDetails);
+        return true;
+      },
+    );
+    tutorialCoachMark?.show(context: context);
+  }
+
+  Widget _buildTutorialContent(TutorialCoachMarkController controller, String title, String description) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 20)),
+        const SizedBox(height: 10),
+        Text(description, style: const TextStyle(color: Colors.white)),
+        const SizedBox(height: 16),
+        Align(
+          alignment: Alignment.centerRight,
+          child: ElevatedButton(
+            onPressed: () => controller.next(),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: TallyTapTheme.primaryMint,
+              foregroundColor: TallyTapTheme.obsidianBg,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text("Next"),
+          ),
+        ),
+      ],
+    );
+  }
+
+  List<TargetFocus> _createTargets() {
+    List<TargetFocus> targets = [];
+
+    targets.add(TargetFocus(
+      identify: "TargetInfo",
+      keyTarget: TutorialService.recurringDetailsTimelineKey,
+      alignSkip: Alignment.topRight,
+      shape: ShapeLightFocus.RRect,
+      radius: 12,
+      contents: [
+        TargetContent(
+          align: ContentAlign.top,
+          builder: (context, controller) => _buildTutorialContent(controller, "Status & Schedule", "See when the next payment is due and review the schedule details."),
+        ),
+      ],
+    ));
+
+    targets.add(TargetFocus(
+      identify: "TargetHistory",
+      keyTarget: TutorialService.recurringDetailsActionsKey,
+      alignSkip: Alignment.topRight,
+      shape: ShapeLightFocus.RRect,
+      radius: 12,
+      contents: [
+        TargetContent(
+          align: ContentAlign.top,
+          builder: (context, controller) => _buildTutorialContent(controller, "Configuration", "View your automation settings, end conditions, and complete payment source details here."),
+        ),
+      ],
+    ));
+
+    return targets;
   }
 }
 

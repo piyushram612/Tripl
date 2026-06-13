@@ -132,14 +132,32 @@ class RecurringTransaction {
     );
   }
 
-  static DateTime calculateNextDueDate(DateTime start, RecurrenceFrequency freq, {int interval = 1}) {
+  static DateTime calculateNextDueDate(DateTime start, RecurrenceFrequency freq, {int interval = 1, List<int>? weeklyDays}) {
     DateTime next = start;
     switch (freq) {
       case RecurrenceFrequency.daily:
         next = next.add(Duration(days: 1 * interval));
         break;
       case RecurrenceFrequency.weekly:
-        next = next.add(Duration(days: 7 * interval));
+        if (weeklyDays != null && weeklyDays.isNotEmpty) {
+          final sortedDays = List<int>.from(weeklyDays)..sort();
+          int currentDay = next.weekday;
+          int? nextDay;
+          for (int day in sortedDays) {
+            if (day > currentDay) {
+              nextDay = day;
+              break;
+            }
+          }
+          if (nextDay != null) {
+            next = next.add(Duration(days: nextDay - currentDay));
+          } else {
+            int daysToAdd = (7 - currentDay) + (7 * (interval - 1)) + sortedDays.first;
+            next = next.add(Duration(days: daysToAdd));
+          }
+        } else {
+          next = next.add(Duration(days: 7 * interval));
+        }
         break;
       case RecurrenceFrequency.monthly:
         next = DateTime(next.year, next.month + interval, next.day, next.hour, next.minute);
@@ -170,7 +188,7 @@ class RecurringTransaction {
   }
 
   RecurringTransaction advance({bool skip = false}) {
-    final nextDate = calculateNextDueDate(nextDueDate, frequency, interval: frequencyInterval);
+    final nextDate = calculateNextDueDate(nextDueDate, frequency, interval: frequencyInterval, weeklyDays: weeklyDays);
     final newOccurrences = occurrencesCompleted + (skip ? 0 : 1);
     final newStatus = isCompleted(nextDate, newOccurrences) ? RecurringStatus.completed : status;
 

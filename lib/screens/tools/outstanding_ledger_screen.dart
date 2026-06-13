@@ -9,6 +9,11 @@ import '../../providers/outstanding_provider.dart';
 import '../../providers/currency_provider.dart';
 import '../../providers/source_provider.dart';
 import '../../services/notification_service.dart';
+import 'dart:ui';
+import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../services/tutorial_service.dart';
+import '../../providers/tutorial_provider.dart';
 
 class OutstandingLedgerScreen extends ConsumerStatefulWidget {
   const OutstandingLedgerScreen({super.key});
@@ -20,6 +25,15 @@ class OutstandingLedgerScreen extends ConsumerStatefulWidget {
 class _OutstandingLedgerScreenState extends ConsumerState<OutstandingLedgerScreen> {
   String _activeFilter = 'Active'; // 'Active', 'Settled', 'All'
   final Set<String> _expandedPersons = {};
+  TutorialCoachMark? tutorialCoachMark;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkTutorialStatus();
+    });
+  }
 
   void _togglePersonExpanded(String person) {
     setState(() {
@@ -124,6 +138,7 @@ class _OutstandingLedgerScreenState extends ConsumerState<OutstandingLedgerScree
                     Row(
                       children: [
                         Expanded(
+                          key: TutorialService.ledgerWhoOwesMeKey,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -155,6 +170,7 @@ class _OutstandingLedgerScreenState extends ConsumerState<OutstandingLedgerScree
                         ),
                         const SizedBox(width: 20),
                         Expanded(
+                          key: TutorialService.ledgerWhoIOweKey,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -1314,4 +1330,105 @@ class _OutstandingLedgerScreenState extends ConsumerState<OutstandingLedgerScree
       ),
     );
   }
+
+  Future<void> _checkTutorialStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    final hasSeen = prefs.getBool(kPrefTutorialLedger) ?? false;
+    if (!hasSeen && mounted) {
+      _initTutorial();
+    }
+  }
+
+  void _initTutorial() {
+    tutorialCoachMark = TutorialCoachMark(
+      targets: _createTargets(),
+      colorShadow: Colors.black,
+      textSkip: "SKIP",
+      paddingFocus: 10,
+      opacityShadow: 0.6,
+      imageFilter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+      beforeFocus: (target) async {
+        if (target.keyTarget?.currentContext != null) {
+          Scrollable.ensureVisible(
+            target.keyTarget!.currentContext!,
+            alignment: 0.5,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
+          await Future.delayed(const Duration(milliseconds: 350));
+        }
+      },
+      onClickOverlay: (target) {
+        tutorialCoachMark?.next();
+      },
+      onFinish: () {
+        ref.read(tutorialProvider.notifier).markCompleted(kPrefTutorialLedger);
+      },
+      onSkip: () {
+        ref.read(tutorialProvider.notifier).markCompleted(kPrefTutorialLedger);
+        return true;
+      },
+    );
+    tutorialCoachMark?.show(context: context);
+  }
+
+  Widget _buildTutorialContent(TutorialCoachMarkController controller, String title, String description) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 20)),
+        const SizedBox(height: 10),
+        Text(description, style: const TextStyle(color: Colors.white)),
+        const SizedBox(height: 16),
+        Align(
+          alignment: Alignment.centerRight,
+          child: ElevatedButton(
+            onPressed: () => controller.next(),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: TallyTapTheme.primaryMint,
+              foregroundColor: TallyTapTheme.obsidianBg,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text("Next"),
+          ),
+        ),
+      ],
+    );
+  }
+
+  List<TargetFocus> _createTargets() {
+    List<TargetFocus> targets = [];
+
+    targets.add(TargetFocus(
+      identify: "TargetWhoOwesMe",
+      keyTarget: TutorialService.ledgerWhoOwesMeKey,
+      alignSkip: Alignment.topRight,
+      shape: ShapeLightFocus.RRect,
+      radius: 12,
+      contents: [
+        TargetContent(
+          align: ContentAlign.bottom,
+          builder: (context, controller) => _buildTutorialContent(controller, "Pending Receivables", "This shows money others owe you. Note: Transactions marked as 'Finish later' (pending) are automatically logged in this ledger. You can finish them here or from the transaction itself."),
+        ),
+      ],
+    ));
+
+    targets.add(TargetFocus(
+      identify: "TargetWhoIOwe",
+      keyTarget: TutorialService.ledgerWhoIOweKey,
+      alignSkip: Alignment.topRight,
+      shape: ShapeLightFocus.RRect,
+      radius: 12,
+      contents: [
+        TargetContent(
+          align: ContentAlign.bottom,
+          builder: (context, controller) => _buildTutorialContent(controller, "Your Debts", "This shows money you owe. Tap the (+) button below to manually log new IOUs, or tap an existing person's name to settle up balances."),
+        ),
+      ],
+    ));
+
+    return targets;
+  }
 }
+

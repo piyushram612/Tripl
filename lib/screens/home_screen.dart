@@ -15,11 +15,16 @@ import 'widgets/donut_chart_painter.dart';
 import 'widgets/weekly_trend_painter.dart';
 import 'widgets/transaction_item.dart';
 import 'payment_source_details_screen.dart';
+import '../services/tutorial_service.dart';
+import 'sheets/recent_transactions_settings_sheet.dart';
 
 final homeSummaryPeriodProvider = StateProvider<String>((ref) => 'weekly');
 final homeBreakdownPeriodProvider = StateProvider<String>((ref) => 'weekly');
 final homeSummaryOffsetProvider = StateProvider<int>((ref) => 0);
 final homeBreakdownOffsetProvider = StateProvider<int>((ref) => 0);
+final homeLegendExpandedProvider = StateProvider<bool>((ref) => false);
+
+// Recent Reflections Settings Providers are in app_state_provider.dart
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -158,6 +163,38 @@ class HomeScreen extends ConsumerWidget {
     final now = DateTime.now();
     final isEditMode = ref.watch(homeEditModeProvider);
     final homeLayout = ref.watch(homeLayoutProvider);
+
+    // Filter and sort for Recent Reflections
+    final recentCount = ref.watch(homeRecentCountProvider);
+    final recentType = ref.watch(homeRecentTypeProvider);
+    final recentSort = ref.watch(homeRecentSortProvider);
+    final recentDensity = ref.watch(homeRecentDensityProvider);
+    final recentTimeframe = ref.watch(homeRecentTimeframeProvider);
+
+    final filteredRecentTransactions = transactions.where((tx) {
+      if (recentType == 'expenses' && tx.category.toLowerCase() == 'income') return false;
+      if (recentType == 'income' && tx.category.toLowerCase() != 'income') return false;
+      
+      if (recentTimeframe != 'all') {
+        final txDate = tx.date;
+        if (recentTimeframe == 'today') {
+           if (txDate.year != now.year || txDate.month != now.month || txDate.day != now.day) return false;
+        } else if (recentTimeframe == 'week') {
+           final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+           final startOfDay = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);
+           if (txDate.isBefore(startOfDay)) return false;
+        } else if (recentTimeframe == 'month') {
+           if (txDate.year != now.year || txDate.month != now.month) return false;
+        }
+      }
+      return true;
+    }).toList();
+
+    if (recentSort == 'highest') {
+      filteredRecentTransactions.sort((a, b) => b.amount.compareTo(a.amount));
+    } else {
+      filteredRecentTransactions.sort((a, b) => b.date.compareTo(a.date));
+    }
 
     // 1. Dynamic overall spent (for header greeting only, based on active global budget period)
     double totalSpent = 0.0;
@@ -339,7 +376,21 @@ class HomeScreen extends ConsumerWidget {
       );
     }).toList()..sort((a, b) => b.amount.compareTo(a.amount));
 
+    final List<DonutChartItem> chartCategories = [];
+    if (dynamicCategories.length <= 5) {
+      chartCategories.addAll(dynamicCategories);
+    } else {
+      chartCategories.addAll(dynamicCategories.take(5));
+      final othersSum = dynamicCategories.skip(5).fold(0.0, (sum, item) => sum + item.amount);
+      chartCategories.add(DonutChartItem(
+        name: 'Others',
+        amount: othersSum,
+        color: const Color(0xFF6B7280),
+      ));
+    }
+
     final widgetAccounts = Column(
+      key: TutorialService.homeAccountsKey,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
                   // Horizontal scrollable payment sources panel
@@ -477,6 +528,7 @@ class HomeScreen extends ConsumerWidget {
     );
 
     final widgetSummary = Column(
+      key: TutorialService.homeSummaryKey,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // CARD A: Weekly Summary Line Graph
@@ -646,6 +698,7 @@ class HomeScreen extends ConsumerWidget {
     );
 
     final widgetBreakdown = Column(
+      key: TutorialService.homeCategoryKey,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // CARD B: Spending Breakdown
@@ -749,7 +802,7 @@ class HomeScreen extends ConsumerWidget {
                             children: [
                               // 1. Centered Octagon Donut chart
                               Center(
-                                child: DonutChart(categories: dynamicCategories, currency: currency),
+                                child: DonutChart(categories: chartCategories, currency: currency),
                               ),
                               const SizedBox(height: 24),
                               // 2. Legends below the chart
@@ -769,18 +822,81 @@ class HomeScreen extends ConsumerWidget {
                                 )
                               else
                                 Column(
-                                  children: dynamicCategories.asMap().entries.map((entry) {
-                                    final cat = entry.value;
-                                    return Padding(
-                                      padding: const EdgeInsets.only(bottom: 12.0),
-                                      child: _buildLegendRow(
-                                        cat.name,
-                                        cat.amount,
-                                        cat.color,
-                                        currency
+                                  children: [
+                                    ...dynamicCategories.take(5).map((cat) {
+                                      return Padding(
+                                        padding: const EdgeInsets.only(bottom: 12.0),
+                                        child: _buildLegendRow(
+                                          cat.name,
+                                          cat.amount,
+                                          cat.color,
+                                          currency
+                                        ),
+                                      );
+                                    }),
+                                    if (dynamicCategories.length > 5) ...[
+                                      Padding(
+                                        padding: const EdgeInsets.only(bottom: 12.0),
+                                        child: GestureDetector(
+                                          behavior: HitTestBehavior.opaque,
+                                          onTap: () => ref.read(homeLegendExpandedProvider.notifier).state = !ref.read(homeLegendExpandedProvider),
+                                          child: Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  Container(
+                                                    width: 8,
+                                                    height: 8,
+                                                    decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0xFF6B7280)),
+                                                  ),
+                                                  const SizedBox(width: 10),
+                                                  const Text(
+                                                    'Others',
+                                                    style: TextStyle(fontSize: 13, color: TallyTapTheme.textGray, fontWeight: FontWeight.w500),
+                                                  ),
+                                                ],
+                                              ),
+                                              Row(
+                                                children: [
+                                                  Text(
+                                                    '$currency${dynamicCategories.skip(5).fold(0.0, (sum, item) => sum + item.amount).toStringAsFixed(0)}',
+                                                    style: const TextStyle(fontSize: 13, color: TallyTapTheme.textLight, fontWeight: FontWeight.bold),
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  AnimatedRotation(
+                                                    turns: ref.watch(homeLegendExpandedProvider) ? 0.5 : 0.0,
+                                                    duration: const Duration(milliseconds: 300),
+                                                    child: const Icon(Icons.expand_more, size: 20, color: TallyTapTheme.textGray),
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
+                                          ),
+                                        ),
                                       ),
-                                    );
-                                  }).toList(),
+                                      AnimatedSize(
+                                        duration: const Duration(milliseconds: 300),
+                                        curve: Curves.easeInOut,
+                                        alignment: Alignment.topCenter,
+                                        child: ref.watch(homeLegendExpandedProvider)
+                                            ? Column(
+                                                children: dynamicCategories.skip(5).map((cat) {
+                                                  return Padding(
+                                                    padding: const EdgeInsets.only(bottom: 12.0, left: 18.0),
+                                                    child: _buildLegendRow(
+                                                      cat.name,
+                                                      cat.amount,
+                                                      cat.color,
+                                                      currency
+                                                    ),
+                                                  );
+                                                }).toList(),
+                                              )
+                                            : const SizedBox.shrink(),
+                                      ),
+                                    ],
+                                  ],
                                 ),
                             ],
                           ),
@@ -793,6 +909,7 @@ class HomeScreen extends ConsumerWidget {
     );
 
     final widgetRecent = Column(
+      key: TutorialService.homeRecentTxKey,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // CARD C: Recent Reflections (Mockup Transactions)
@@ -815,15 +932,22 @@ class HomeScreen extends ConsumerWidget {
                               ),
                               IconButton(
                                 icon: const Icon(Icons.more_horiz, color: TallyTapTheme.textGray, size: 20),
-                                onPressed: () {},
+                                onPressed: () {
+                                  showModalBottomSheet(
+                                    context: context,
+                                    isScrollControlled: true,
+                                    backgroundColor: Colors.transparent,
+                                    builder: (context) => const RecentTransactionsSettingsSheet(),
+                                  );
+                                },
                                 constraints: const BoxConstraints(),
                                 padding: EdgeInsets.zero,
                               ),
                             ],
                           ),
                           const SizedBox(height: 16),
-                          // List of live transactions
-                          transactions.isEmpty
+                          // List of filtered live transactions
+                          filteredRecentTransactions.isEmpty
                               ? Padding(
                                   padding: const EdgeInsets.symmetric(vertical: 24.0),
                                   child: Column(
@@ -835,7 +959,7 @@ class HomeScreen extends ConsumerWidget {
                                       ),
                                       const SizedBox(height: 8),
                                       const Text(
-                                        'No transactions logged yet',
+                                        'No transactions matched',
                                         style: TextStyle(
                                           color: TallyTapTheme.textGray,
                                           fontSize: 13,
@@ -850,11 +974,16 @@ class HomeScreen extends ConsumerWidget {
                                   padding: EdgeInsets.zero,
                                   shrinkWrap: true,
                                   physics: const NeverScrollableScrollPhysics(),
-                                  itemCount: transactions.length > 4 ? 4 : transactions.length,
-                                  separatorBuilder: (_, __) => const Divider(color: TallyTapTheme.borderGreen, height: 24, thickness: 0.5),
+                                  itemCount: recentCount == -1 
+                                      ? filteredRecentTransactions.length 
+                                      : (filteredRecentTransactions.length > recentCount ? recentCount : filteredRecentTransactions.length),
+                                  separatorBuilder: (_, __) => Divider(
+                                    color: TallyTapTheme.borderGreen, 
+                                    height: recentDensity == 'compact' ? 12 : 24, 
+                                    thickness: 0.5
+                                  ),
                                   itemBuilder: (context, index) {
-                                    final tx = transactions[index];
-                                    final now = DateTime.now();
+                                    final tx = filteredRecentTransactions[index];
                                     final todayOnly = DateTime(now.year, now.month, now.day);
                                     final txDateOnly = DateTime(tx.date.year, tx.date.month, tx.date.day);
                                     final diffDays = todayOnly.difference(txDateOnly).inDays;
@@ -874,6 +1003,7 @@ class HomeScreen extends ConsumerWidget {
                                       transaction: tx,
                                       currency: currency,
                                       subtitle: '$formattedDate • ${tx.paymentMethod}',
+                                      padding: recentDensity == 'compact' ? const EdgeInsets.symmetric(vertical: 4.0, horizontal: 4.0) : const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
                                     );
                                   },
                                 ),
@@ -1049,15 +1179,36 @@ class HomeScreen extends ConsumerWidget {
             left: 0,
             right: 0,
             child: Center(
-              child: FloatingActionButton.extended(
-                onPressed: () {
-                  ref.read(homeEditModeProvider.notifier).state = false;
-                },
-                backgroundColor: TallyTapTheme.primaryMint,
-                foregroundColor: TallyTapTheme.obsidianBg,
-                elevation: 8,
-                icon: const Icon(Icons.check),
-                label: const Text('Save Layout', style: TextStyle(fontWeight: FontWeight.bold)),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  FloatingActionButton(
+                    heroTag: 'resetLayoutBtn',
+                    onPressed: () {
+                      ref.read(homeLayoutProvider.notifier).resetLayout();
+                    },
+                    backgroundColor: TallyTapTheme.obsidianCard,
+                    foregroundColor: TallyTapTheme.textGray,
+                    elevation: 8,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      side: const BorderSide(color: TallyTapTheme.borderGreen, width: 1.5),
+                    ),
+                    child: const Icon(Icons.refresh),
+                  ),
+                  const SizedBox(width: 12),
+                  FloatingActionButton.extended(
+                    heroTag: 'saveLayoutBtn',
+                    onPressed: () {
+                      ref.read(homeEditModeProvider.notifier).state = false;
+                    },
+                    backgroundColor: TallyTapTheme.primaryMint,
+                    foregroundColor: TallyTapTheme.obsidianBg,
+                    elevation: 8,
+                    icon: const Icon(Icons.check),
+                    label: const Text('Save Layout', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ],
               ),
             ),
           ),

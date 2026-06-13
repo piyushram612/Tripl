@@ -55,7 +55,14 @@ class CustomizationNotifier extends StateNotifier<int> {
     try {
       final Map<String, dynamic> decoded = json.decode(catIconsStr);
       TallyTapTheme.customCategoryIcons = decoded.map(
-          (k, v) => MapEntry(k, IconData(v as int, fontFamily: 'MaterialIcons')));
+          (k, v) {
+            final codePoint = v as int;
+            final icon = TallyTapTheme.availableIcons.firstWhere(
+              (i) => i.codePoint == codePoint,
+              orElse: () => Icons.local_mall_outlined,
+            );
+            return MapEntry(k, icon);
+          });
     } catch (_) {}
 
     // Load source colors

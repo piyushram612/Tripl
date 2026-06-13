@@ -61,6 +61,7 @@ class BudgetAlert {
   double get ratio => limit > 0 ? spent / limit : 0.0;
   double get percentUsed => ratio * 100;
   double get overspendAmount => spent - limit;
+  double get remainingAmount => limit - spent;
 }
 
 // ── Thresholds Provider ────────────────────────────────────────────────────

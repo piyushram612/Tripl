@@ -19,6 +19,10 @@ import 'timeline_screen.dart';
 import 'toolkit_screen.dart';
 import 'create_transaction_screen.dart';
 import 'create_recurring_transaction_screen.dart';
+import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/tutorial_service.dart';
+import '../providers/tutorial_provider.dart';
 
 class MainScreen extends ConsumerStatefulWidget {
   const MainScreen({super.key});
@@ -28,7 +32,7 @@ class MainScreen extends ConsumerStatefulWidget {
 }
 
 class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObserver {
-  final GlobalKey _fabKey = GlobalKey();
+  TutorialCoachMark? tutorialCoachMark;
 
   @override
   void initState() {
@@ -58,6 +62,7 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
       ref.read(globalBudgetProvider.notifier).loadGlobalBudget();
       ref.read(currencyProvider.notifier).loadCurrency();
       ref.read(recurringTransactionsProvider); // Force initialization of recurring transactions engine
+      _checkTutorialStatus();
     });
   }
 
@@ -81,6 +86,19 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<TutorialFlags>(tutorialProvider, (previous, next) {
+      if (previous != null && previous.primary == true && next.primary == false) {
+        // Automatically switch to Home tab
+        ref.read(activeTabProvider.notifier).state = 0;
+        // Wait a short moment for the UI to update, then show the prompt
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (mounted) {
+            _showTutorialPrompt();
+          }
+        });
+      }
+    });
+
     final currentIndex = ref.watch(activeTabProvider);
 
     return Scaffold(
@@ -106,7 +124,7 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
         ),
       ),
       floatingActionButton: Container(
-        key: _fabKey,
+        key: TutorialService.mainFabKey,
         height: 56,
         width: 56,
         decoration: BoxDecoration(
@@ -258,7 +276,15 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
   }
 
   Widget _buildNavBarItem(int index, IconData icon, String label, bool isActive) {
+    GlobalKey? key;
+    if (index == 0) key = TutorialService.mainNavHomeKey;
+    if (index == 1) key = TutorialService.mainNavBudgetsKey;
+    if (index == 2) key = TutorialService.mainNavInsightsKey;
+    if (index == 3) key = TutorialService.mainNavTimelineKey;
+    if (index == 4) key = TutorialService.mainNavToolkitKey;
+
     return Expanded(
+      key: key,
       child: InkWell(
         onTap: () {
           HapticFeedback.lightImpact();
@@ -304,7 +330,7 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
   }
 
   void _showFabMenu(BuildContext context) {
-    final RenderBox? fabBox = _fabKey.currentContext?.findRenderObject() as RenderBox?;
+    final RenderBox? fabBox = TutorialService.mainFabKey.currentContext?.findRenderObject() as RenderBox?;
     if (fabBox == null) return;
     
     final Offset fabPosition = fabBox.localToGlobal(Offset.zero);
@@ -480,5 +506,367 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
         ),
       ),
     );
+  }
+
+  Future<void> _checkTutorialStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    final hasSeen = prefs.getBool(kPrefTutorialPrimary) ?? false;
+    if (!hasSeen && mounted) {
+      _showTutorialPrompt();
+    }
+  }
+
+  void _showTutorialPrompt() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: TallyTapTheme.obsidianCard,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Welcome to TallyTap!', style: TextStyle(color: TallyTapTheme.textLight, fontWeight: FontWeight.bold)),
+          content: const Text('Would you like a quick tour to see how things work?', style: TextStyle(color: TallyTapTheme.textGray)),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                ref.read(tutorialProvider.notifier).markCompleted(kPrefTutorialPrimary);
+              },
+              child: const Text('Skip Tour', style: TextStyle(color: TallyTapTheme.textGray)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _initTutorial();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: TallyTapTheme.primaryMint,
+                foregroundColor: TallyTapTheme.obsidianBg,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text('Start Tour', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _initTutorial() {
+    tutorialCoachMark = TutorialCoachMark(
+      targets: _createTargets(),
+      colorShadow: Colors.black,
+      textSkip: "SKIP",
+      paddingFocus: 10,
+      opacityShadow: 0.6,
+      imageFilter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+      beforeFocus: (target) async {
+        final identify = target.identify.toString();
+        
+        // Automatically switch tabs based on the upcoming target (skip for the tab targets themselves)
+        if (identify.startsWith("TargetBudgets") && identify != "TargetBudgetsTab") {
+          ref.read(activeTabProvider.notifier).state = 1;
+        } else if (identify.startsWith("TargetInsights") && identify != "TargetInsightsTab") {
+          ref.read(activeTabProvider.notifier).state = 2;
+        } else if (identify.startsWith("TargetTimeline") && identify != "TargetTimelineTab") {
+          ref.read(activeTabProvider.notifier).state = 3;
+        } else if (identify.startsWith("TargetToolkit") && identify != "TargetToolkitTab") {
+          ref.read(activeTabProvider.notifier).state = 4;
+        } else if (identify == "TargetHomeDashboard" || identify == "TargetFAB") {
+          ref.read(activeTabProvider.notifier).state = 0;
+        }
+
+        // Wait a short moment for the new tab to render before finding the target context
+        await Future.delayed(const Duration(milliseconds: 250));
+
+        if (target.keyTarget?.currentContext != null) {
+          if (identify == "TargetInsightsPills") {
+            return;
+          }
+          Scrollable.ensureVisible(
+            target.keyTarget!.currentContext!,
+            alignment: 0.5,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
+          await Future.delayed(const Duration(milliseconds: 350));
+        }
+      },
+      onClickOverlay: (target) {
+        final identify = target.identify.toString();
+        if (identify == "TargetBudgetsTab" || 
+            identify == "TargetInsightsTab" || 
+            identify == "TargetTimelineTab" || 
+            identify == "TargetToolkitTab") {
+          // Do nothing, force user to tap the target
+        } else {
+          tutorialCoachMark?.next();
+        }
+      },
+      onFinish: () {
+        ref.read(tutorialProvider.notifier).markCompleted(kPrefTutorialPrimary);
+      },
+      onClickTarget: (target) {
+        if (target.identify == "TargetBudgetsTab") {
+          ref.read(activeTabProvider.notifier).state = 1;
+        } else if (target.identify == "TargetInsightsTab") {
+          ref.read(activeTabProvider.notifier).state = 2;
+        } else if (target.identify == "TargetTimelineTab") {
+          ref.read(activeTabProvider.notifier).state = 3;
+        } else if (target.identify == "TargetToolkitTab") {
+          ref.read(activeTabProvider.notifier).state = 4;
+        }
+      },
+      onSkip: () {
+        ref.read(tutorialProvider.notifier).markCompleted(kPrefTutorialPrimary);
+        return true;
+      },
+    );
+    tutorialCoachMark?.show(context: context);
+  }
+
+  Widget _buildTutorialContent(TutorialCoachMarkController controller, String title, String description, {bool hideNext = false, String nextText = "Next"}) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 20)),
+        const SizedBox(height: 10),
+        Text(description, style: const TextStyle(color: Colors.white)),
+        const SizedBox(height: 16),
+        if (!hideNext)
+          Align(
+            alignment: Alignment.centerRight,
+            child: ElevatedButton(
+              onPressed: () => controller.next(),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: TallyTapTheme.primaryMint,
+                foregroundColor: TallyTapTheme.obsidianBg,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: Text(nextText, style: const TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ),
+      ],
+    );
+  }
+
+  List<TargetFocus> _createTargets() {
+    List<TargetFocus> targets = [];
+
+    // HOME TAB
+    targets.add(TargetFocus(
+      identify: "TargetHomeTab",
+      keyTarget: TutorialService.mainNavHomeKey,
+      alignSkip: Alignment.topRight,
+      shape: ShapeLightFocus.RRect,
+      radius: 12,
+      contents: [
+        TargetContent(
+          align: ContentAlign.top,
+          builder: (context, controller) => _buildTutorialContent(controller, "Home", "Welcome to your Dashboard. Here you can see a quick overview of your finances."),
+        ),
+      ],
+    ));
+
+    targets.add(TargetFocus(
+      identify: "TargetHomeDashboard",
+      keyTarget: TutorialService.homeAccountsKey,
+      alignSkip: Alignment.topRight,
+      shape: ShapeLightFocus.RRect,
+      radius: 12,
+      contents: [
+        TargetContent(
+          align: ContentAlign.bottom,
+          builder: (context, controller) => _buildTutorialContent(controller, "Dashboard Widgets", "View your accounts, summaries, and categories. Long-press any card here to enter Edit Mode, where you can drag and reorder them."),
+        ),
+      ],
+    ));
+
+    targets.add(TargetFocus(
+      identify: "TargetFAB",
+      keyTarget: TutorialService.mainFabKey,
+      alignSkip: Alignment.topRight,
+      shape: ShapeLightFocus.RRect,
+      radius: 12,
+      contents: [
+        TargetContent(
+          align: ContentAlign.top,
+          builder: (context, controller) => _buildTutorialContent(controller, "Quick Log", "Tap to quickly log a new transaction. Long-press for more options like recurring transactions."),
+        ),
+      ],
+    ));
+
+    // BUDGETS TAB
+    targets.add(TargetFocus(
+      identify: "TargetBudgetsTab",
+      keyTarget: TutorialService.mainNavBudgetsKey,
+      alignSkip: Alignment.topRight,
+      shape: ShapeLightFocus.RRect,
+      radius: 12,
+      contents: [
+        TargetContent(
+          align: ContentAlign.top,
+          builder: (context, controller) => _buildTutorialContent(
+            controller, 
+            "Budgets", 
+            "Monitor your spending limits and control your money here.\n\nTap here to continue.",
+            hideNext: true,
+          ),
+        ),
+      ],
+    ));
+
+    targets.add(TargetFocus(
+      identify: "TargetBudgetsRing",
+      keyTarget: TutorialService.budgetsRingKey,
+      alignSkip: Alignment.topRight,
+      shape: ShapeLightFocus.RRect,
+      radius: 12,
+      contents: [
+        TargetContent(
+          align: ContentAlign.bottom,
+          builder: (context, controller) => _buildTutorialContent(controller, "Global Budget", "This is your overall spending limit for the period. Keep this green!"),
+        ),
+      ],
+    ));
+
+    targets.add(TargetFocus(
+      identify: "TargetBudgetsManage",
+      keyTarget: TutorialService.budgetsManageKey,
+      alignSkip: Alignment.topRight,
+      shape: ShapeLightFocus.RRect,
+      radius: 12,
+      contents: [
+        TargetContent(
+          align: ContentAlign.top,
+          builder: (context, controller) => _buildTutorialContent(controller, "Category Envelopes", "Track specific categories here. Tap to manage or create new envelope budgets for things like Groceries or Entertainment."),
+        ),
+      ],
+    ));
+
+    // INSIGHTS TAB
+    targets.add(TargetFocus(
+      identify: "TargetInsightsTab",
+      keyTarget: TutorialService.mainNavInsightsKey,
+      alignSkip: Alignment.topRight,
+      shape: ShapeLightFocus.RRect,
+      radius: 12,
+      contents: [
+        TargetContent(
+          align: ContentAlign.top,
+          builder: (context, controller) => _buildTutorialContent(
+            controller, 
+            "Insights", 
+            "Dive deep into your financial habits with detailed charts and trend analysis.\n\nTap here to continue.",
+            hideNext: true,
+          ),
+        ),
+      ],
+    ));
+
+    targets.add(TargetFocus(
+      identify: "TargetInsightsDonut",
+      keyTarget: TutorialService.insightsDonutKey,
+      alignSkip: Alignment.topRight,
+      shape: ShapeLightFocus.RRect,
+      radius: 12,
+      contents: [
+        TargetContent(
+          align: ContentAlign.bottom,
+          builder: (context, controller) => _buildTutorialContent(controller, "Spend Intentionality", "See your spending categorized by intent. This ring summarizes your financial behavior at a glance."),
+        ),
+      ],
+    ));
+
+    targets.add(TargetFocus(
+      identify: "TargetInsightsPills",
+      keyTarget: TutorialService.insightsPillEssentialKey,
+      alignSkip: Alignment.topRight,
+      shape: ShapeLightFocus.RRect,
+      radius: 12,
+      paddingFocus: 20,
+      contents: [
+        TargetContent(
+          align: ContentAlign.bottom,
+          builder: (context, controller) => _buildTutorialContent(controller, "Intent Categories", "We categorize spending into Essential, Joyful, Avoidable, and Investments to help you understand your habits better."),
+        ),
+      ],
+    ));
+
+    // TIMELINE TAB
+    targets.add(TargetFocus(
+      identify: "TargetTimelineTab",
+      keyTarget: TutorialService.mainNavTimelineKey,
+      alignSkip: Alignment.topRight,
+      shape: ShapeLightFocus.RRect,
+      radius: 12,
+      contents: [
+        TargetContent(
+          align: ContentAlign.top,
+          builder: (context, controller) => _buildTutorialContent(
+            controller, 
+            "Timeline", 
+            "Your entire transaction history is here.\n\nTap here to continue.",
+            hideNext: true,
+          ),
+        ),
+      ],
+    ));
+
+    targets.add(TargetFocus(
+      identify: "TargetTimelineSearch",
+      keyTarget: TutorialService.timelineSearchKey,
+      alignSkip: Alignment.topRight,
+      shape: ShapeLightFocus.RRect,
+      radius: 12,
+      contents: [
+        TargetContent(
+          align: ContentAlign.bottom,
+          builder: (context, controller) => _buildTutorialContent(controller, "Search & Filter", "Easily search for specific transactions or filter by date and category."),
+        ),
+      ],
+    ));
+
+    // TOOLKIT TAB
+    targets.add(TargetFocus(
+      identify: "TargetToolkitTab",
+      keyTarget: TutorialService.mainNavToolkitKey,
+      alignSkip: Alignment.topRight,
+      shape: ShapeLightFocus.RRect,
+      radius: 12,
+      contents: [
+        TargetContent(
+          align: ContentAlign.top,
+          builder: (context, controller) => _buildTutorialContent(
+            controller, 
+            "Toolkit", 
+            "Access powerful financial tools, calculators, settings, and exports.\n\nTap here to continue.",
+            hideNext: true,
+          ),
+        ),
+      ],
+    ));
+
+    targets.add(TargetFocus(
+      identify: "TargetToolkitReplay",
+      keyTarget: TutorialService.toolkitReplayKey,
+      alignSkip: Alignment.topRight,
+      shape: ShapeLightFocus.RRect,
+      radius: 12,
+      contents: [
+        TargetContent(
+          align: ContentAlign.top,
+          builder: (context, controller) => _buildTutorialContent(
+            controller, 
+            "Reset Tutorial", 
+            "If you ever want to see this tour again or reset the individual tool guides, you can do it here.",
+            nextText: "Finish",
+          ),
+        ),
+      ],
+    ));
+
+    return targets;
   }
 }

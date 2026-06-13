@@ -163,7 +163,7 @@ fun PopupCard(
                 modifier = Modifier
                     .padding(top = 56.dp) // Shifted a tiny bit lower for premium gap
                     .then(if (isExpanded) Modifier.fillMaxWidth() else Modifier.fillMaxWidth(0.96f)) // Made a bit wider
-                    .then(if (isExpanded) Modifier.fillMaxHeight() else Modifier.wrapContentHeight())
+                    .wrapContentHeight()
                     .animateContentSize()
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
@@ -185,7 +185,7 @@ fun PopupCard(
                     color = BorderDark
                 )
             ) {
-                Box(modifier = Modifier.then(if (isExpanded) Modifier.fillMaxSize() else Modifier.fillMaxWidth())) {
+                Box(modifier = Modifier.fillMaxWidth()) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()

@@ -8,6 +8,7 @@ import '../services/transaction_service.dart';
 import 'widgets/transaction_item.dart';
 import 'widgets/timeline_filter_sheet.dart';
 import 'group_transaction_details_screen.dart';
+import '../services/tutorial_service.dart';
 
 class TimelineScreen extends ConsumerStatefulWidget {
   const TimelineScreen({super.key});
@@ -687,6 +688,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
               ),
               const SizedBox(height: 16),
               TextField(
+                key: TutorialService.timelineSearchKey,
                 controller: _searchController,
                 onChanged: (val) {
                   setState(() {
@@ -740,11 +742,11 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                         margin: const EdgeInsets.only(right: 10),
                         padding: const EdgeInsets.symmetric(horizontal: 18),
                         decoration: BoxDecoration(
-                          color: isSelected ? TallyTapTheme.primaryMint : TallyTapTheme.obsidianCard,
+                          color: isSelected ? TallyTapTheme.primaryMint.withOpacity(0.15) : TallyTapTheme.obsidianCard,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: isSelected ? Colors.transparent : TallyTapTheme.borderGreen,
-                            width: 1.0,
+                            color: isSelected ? TallyTapTheme.primaryMint.withOpacity(0.5) : TallyTapTheme.borderGreen,
+                            width: isSelected ? 1.5 : 1.0,
                           ),
                         ),
                         alignment: Alignment.center,
@@ -753,7 +755,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w800,
-                            color: isSelected ? TallyTapTheme.obsidianBg : TallyTapTheme.textLight,
+                            color: isSelected ? TallyTapTheme.primaryMint : TallyTapTheme.textLight,
                           ),
                         ),
                       ),
@@ -956,9 +958,12 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
         margin: const EdgeInsets.only(right: 12),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? TallyTapTheme.primaryMint : Colors.transparent,
+          color: isSelected ? TallyTapTheme.primaryMint.withOpacity(0.15) : TallyTapTheme.obsidianCard,
           borderRadius: BorderRadius.circular(100),
-          border: isSelected ? null : Border.all(color: TallyTapTheme.borderGreen, width: 1.0),
+          border: Border.all(
+            color: isSelected ? TallyTapTheme.primaryMint.withOpacity(0.5) : TallyTapTheme.borderGreen,
+            width: isSelected ? 1.5 : 1.0,
+          ),
         ),
         alignment: Alignment.center,
         child: Text(
@@ -966,7 +971,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
           style: TextStyle(
             fontSize: 12,
             fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
-            color: isSelected ? TallyTapTheme.obsidianBg : TallyTapTheme.textLight,
+            color: isSelected ? TallyTapTheme.primaryMint : TallyTapTheme.textLight,
           ),
         ),
       ),

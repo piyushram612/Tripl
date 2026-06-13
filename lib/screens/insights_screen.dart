@@ -7,6 +7,7 @@ import '../providers/currency_provider.dart';
 import '../providers/insights_provider.dart';
 import '../providers/category_provider.dart';
 import 'widgets/intent_ring_painter.dart';
+import '../services/tutorial_service.dart';
 
 class InsightsScreen extends ConsumerWidget {
   const InsightsScreen({super.key});
@@ -58,6 +59,7 @@ class InsightsScreen extends ConsumerWidget {
 
               // ── Intent Ring Card ──────────────────────────────────────────────
               Card(
+                key: TutorialService.insightsDonutKey,
                 child: Padding(
                   padding: const EdgeInsets.all(20.0),
                   child: Column(
@@ -71,13 +73,13 @@ class InsightsScreen extends ConsumerWidget {
                         currency: currency,
                       ),
                       const SizedBox(height: 20),
-                      _buildIntentLegendRow('Essential', insights.essentialPercent, TallyTapTheme.primaryMint),
+                      _buildIntentLegendRow('Essential', insights.essentialPercent, TallyTapTheme.primaryMint, TutorialService.insightsPillEssentialKey),
                       const Divider(color: TallyTapTheme.borderGreen, height: 24, thickness: 0.5),
-                      _buildIntentLegendRow('Joyful', insights.joyfulPercent, const Color(0xFF9FB6DF)),
+                      _buildIntentLegendRow('Joyful', insights.joyfulPercent, const Color(0xFF9FB6DF), TutorialService.insightsPillJoyfulKey),
                       const Divider(color: TallyTapTheme.borderGreen, height: 24, thickness: 0.5),
-                      _buildIntentLegendRow('Avoidable', insights.avoidablePercent, const Color(0xFFFFB5B5)),
+                      _buildIntentLegendRow('Avoidable', insights.avoidablePercent, const Color(0xFFFFB5B5), TutorialService.insightsPillAvoidableKey),
                       const Divider(color: TallyTapTheme.borderGreen, height: 24, thickness: 0.5),
-                      _buildIntentLegendRow('Investments', insights.investmentsPercent, const Color(0xFF8B5CF6)),
+                      _buildIntentLegendRow('Investments', insights.investmentsPercent, const Color(0xFF8B5CF6), TutorialService.insightsPillInvestKey),
                     ],
                   ),
                 ),
@@ -85,11 +87,12 @@ class InsightsScreen extends ConsumerWidget {
               const SizedBox(height: 16),
 
               // ── Budget Split Card ─────────────────────────────────────────────
-              _BudgetSplitCard(insights: insights, splitTargets: splitTargets, currency: currency),
+              _BudgetSplitCard(key: TutorialService.insightsBudgetSplitKey, insights: insights, splitTargets: splitTargets, currency: currency),
               const SizedBox(height: 16),
 
               // ── Insight of the Day ────────────────────────────────────────────
               Card(
+                key: TutorialService.insightsDailyKey,
                 child: Padding(
                   padding: const EdgeInsets.all(20.0),
                   child: Column(
@@ -120,6 +123,7 @@ class InsightsScreen extends ConsumerWidget {
 
               // ── Category Breakdown ────────────────────────────────────────────
               Card(
+                key: TutorialService.insightsCategoryBreakdownKey,
                 child: Padding(
                   padding: const EdgeInsets.all(20.0),
                   child: Column(
@@ -231,8 +235,9 @@ class InsightsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildIntentLegendRow(String title, String percent, Color color) {
+  Widget _buildIntentLegendRow(String title, String percent, Color color, [GlobalKey? key]) {
     return Row(
+      key: key,
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Row(
@@ -392,6 +397,7 @@ class _BudgetSplitCard extends ConsumerStatefulWidget {
   final String currency;
 
   const _BudgetSplitCard({
+    super.key,
     required this.insights,
     required this.splitTargets,
     required this.currency,
@@ -1032,10 +1038,11 @@ class _PeriodSelectorSheet extends ConsumerWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: item.isSelected ? TallyTapTheme.borderGreen.withOpacity(0.5) : TallyTapTheme.obsidianCard,
+          color: item.isSelected ? TallyTapTheme.primaryMint.withOpacity(0.15) : TallyTapTheme.obsidianCard,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: item.isSelected ? TallyTapTheme.primaryMint.withOpacity(0.5) : TallyTapTheme.borderGreen,
+            width: item.isSelected ? 1.5 : 1.0,
           ),
         ),
         child: Row(

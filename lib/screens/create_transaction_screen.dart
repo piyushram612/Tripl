@@ -13,6 +13,12 @@ import '../providers/source_provider.dart';
 import '../services/transaction_service.dart';
 import '../services/notification_service.dart';
 import 'widgets/transaction_form_components.dart';
+import 'dart:ui';
+import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/tutorial_service.dart';
+import '../providers/tutorial_provider.dart';
+import 'sheets/manage_categories_sheet.dart';
 
 class CreateTransactionScreen extends ConsumerStatefulWidget {
   const CreateTransactionScreen({super.key});
@@ -42,6 +48,7 @@ class _CreateTransactionScreenState
 
   late final AnimationController _amountPulse;
   late final Animation<double> _amountScale;
+  TutorialCoachMark? tutorialCoachMark;
 
   @override
   void initState() {
@@ -54,6 +61,10 @@ class _CreateTransactionScreenState
       value: 1.0,
     );
     _amountScale = CurvedAnimation(parent: _amountPulse, curve: Curves.easeOut);
+    
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkTutorialStatus();
+    });
   }
 
   @override
@@ -318,6 +329,7 @@ class _CreateTransactionScreenState
                     children: [
                       // ── AMOUNT CARD ──────────────────────────────────────
                       AmountCard(
+                        key: TutorialService.createTxAmountKey,
                         currency: currency,
                         controller: _amountController,
                         activeColor: activeColor,
@@ -397,15 +409,27 @@ class _CreateTransactionScreenState
                       if (!_isIncome) ...[
                         const SizedBox(height: 24),
                         Row(
+                          key: TutorialService.createTxCategoryKey,
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             SectionLabel(label: 'Select Category'),
-                            Text(
-                              'Manage All',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: activeColor,
-                                fontWeight: FontWeight.w700,
+                            GestureDetector(
+                              onTap: () {
+                                HapticFeedback.selectionClick();
+                                showModalBottomSheet(
+                                  context: context,
+                                  isScrollControlled: true,
+                                  backgroundColor: Colors.transparent,
+                                  builder: (context) => const ManageCategoriesSheet(),
+                                );
+                              },
+                              child: Text(
+                                'Manage All',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: activeColor,
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
                             ),
                           ],
@@ -720,6 +744,7 @@ class _CreateTransactionScreenState
 
                       // ── FINISH LATER / VERIFY RECEIPT ────────────────────
                       GestureDetector(
+                        key: TutorialService.createTxFinishLaterKey,
                         onTap: () {
                           HapticFeedback.selectionClick();
                           setState(() => _finishLater = !_finishLater);
@@ -892,6 +917,7 @@ class _CreateTransactionScreenState
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                 child: Container(
+                  key: TutorialService.createTxSaveKey,
                   width: double.infinity,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(18),
@@ -949,6 +975,134 @@ class _CreateTransactionScreenState
   bool _isToday(DateTime d) {
     final n = DateTime.now();
     return d.year == n.year && d.month == n.month && d.day == n.day;
+  }
+
+  Future<void> _checkTutorialStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    final hasSeen = prefs.getBool(kPrefTutorialCreateTx) ?? false;
+    if (!hasSeen && mounted) {
+      _initTutorial();
+    }
+  }
+
+  void _initTutorial() {
+    tutorialCoachMark = TutorialCoachMark(
+      targets: _createTargets(),
+      colorShadow: Colors.black,
+      textSkip: "SKIP",
+      paddingFocus: 10,
+      opacityShadow: 0.6,
+      imageFilter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+      beforeFocus: (target) async {
+        if (target.keyTarget?.currentContext != null) {
+          Scrollable.ensureVisible(
+            target.keyTarget!.currentContext!,
+            alignment: 0.5,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
+          await Future.delayed(const Duration(milliseconds: 350));
+        }
+      },
+      onClickOverlay: (target) {
+        tutorialCoachMark?.next();
+      },
+      onFinish: () {
+        ref.read(tutorialProvider.notifier).markCompleted(kPrefTutorialCreateTx);
+      },
+      onSkip: () {
+        ref.read(tutorialProvider.notifier).markCompleted(kPrefTutorialCreateTx);
+        return true;
+      },
+    );
+    tutorialCoachMark?.show(context: context);
+  }
+
+  Widget _buildTutorialContent(TutorialCoachMarkController controller, String title, String description) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 20)),
+        const SizedBox(height: 10),
+        Text(description, style: const TextStyle(color: Colors.white)),
+        const SizedBox(height: 16),
+        Align(
+          alignment: Alignment.centerRight,
+          child: ElevatedButton(
+            onPressed: () => controller.next(),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: TallyTapTheme.primaryMint,
+              foregroundColor: TallyTapTheme.obsidianBg,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text("Next"),
+          ),
+        ),
+      ],
+    );
+  }
+
+  List<TargetFocus> _createTargets() {
+    List<TargetFocus> targets = [];
+
+    targets.add(TargetFocus(
+      identify: "TargetAmount",
+      keyTarget: TutorialService.createTxAmountKey,
+      alignSkip: Alignment.topRight,
+      shape: ShapeLightFocus.RRect,
+      radius: 12,
+      contents: [
+        TargetContent(
+          align: ContentAlign.bottom,
+          builder: (context, controller) => _buildTutorialContent(controller, "Transaction Amount", "Enter the transaction amount here."),
+        ),
+      ],
+    ));
+
+    targets.add(TargetFocus(
+      identify: "TargetCategory",
+      keyTarget: TutorialService.createTxCategoryKey,
+      alignSkip: Alignment.topRight,
+      shape: ShapeLightFocus.RRect,
+      radius: 12,
+      contents: [
+        TargetContent(
+          align: ContentAlign.bottom,
+          builder: (context, controller) => _buildTutorialContent(controller, "Select Category", "Choose the appropriate category for this transaction."),
+        ),
+      ],
+    ));
+
+    targets.add(TargetFocus(
+      identify: "TargetFinishLater",
+      keyTarget: TutorialService.createTxFinishLaterKey,
+      alignSkip: Alignment.topRight,
+      shape: ShapeLightFocus.RRect,
+      radius: 12,
+      contents: [
+        TargetContent(
+          align: ContentAlign.top,
+          builder: (context, controller) => _buildTutorialContent(controller, "Drafts & Reminders", "Tap here to log this as a pending transaction and set a reminder. Perfect for when you need to verify receipts later."),
+        ),
+      ],
+    ));
+
+    targets.add(TargetFocus(
+      identify: "TargetSave",
+      keyTarget: TutorialService.createTxSaveKey,
+      alignSkip: Alignment.topRight,
+      shape: ShapeLightFocus.RRect,
+      radius: 12,
+      contents: [
+        TargetContent(
+          align: ContentAlign.top,
+          builder: (context, controller) => _buildTutorialContent(controller, "Save Transaction", "Tap here to save."),
+        ),
+      ],
+    ));
+
+    return targets;
   }
 }
 
