@@ -22,6 +22,8 @@ import '../providers/customization_provider.dart';
 import 'sheets/snooze_duration_sheet.dart';
 import '../providers/tutorial_provider.dart';
 import '../services/tutorial_service.dart';
+import '../providers/biometric_provider.dart';
+
 
 class ToolkitScreen extends ConsumerWidget {
   const ToolkitScreen({super.key});
@@ -1405,6 +1407,84 @@ class ToolkitScreen extends ConsumerWidget {
                           builder: (context) => const SnoozeDurationSheet(),
                         );
                       },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Card B3: Security
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(left: 20.0, top: 16.0, bottom: 12.0),
+                      child: Text(
+                        'SECURITY',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.5,
+                          color: TallyTapTheme.primaryMint,
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 4.0),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF0F1B17),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: TallyTapTheme.borderGreen, width: 0.5),
+                            ),
+                            child: const Icon(
+                              Icons.fingerprint_rounded,
+                              color: TallyTapTheme.primaryMint,
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'App Lock',
+                                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: TallyTapTheme.textLight),
+                                ),
+                                SizedBox(height: 4),
+                                Text(
+                                  'Biometric or passcode unlock on start',
+                                  style: TextStyle(fontSize: 12, color: TallyTapTheme.textGray),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Switch.adaptive(
+                            value: ref.watch(biometricsEnabledProvider),
+                            activeColor: TallyTapTheme.primaryMint,
+                            onChanged: (val) async {
+                              final success = await ref.read(biometricsEnabledProvider.notifier).toggle(val);
+                              if (!success && context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Failed to authenticate or device lock not setup.'),
+                                    behavior: SnackBarBehavior.floating,
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            },
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
