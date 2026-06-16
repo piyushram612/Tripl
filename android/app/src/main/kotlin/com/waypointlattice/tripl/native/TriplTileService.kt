@@ -1,12 +1,12 @@
-package com.piyushram612.tallytap.native
+package com.waypointlattice.tripl.native
 
 import android.app.PendingIntent
 import android.content.Intent
 import android.os.Build
 import android.service.quicksettings.TileService
-import com.piyushram612.tallytap.ui.PopupActivity
+import com.waypointlattice.tripl.ui.PopupActivity
 
-class TallyTapTileService : TileService() {
+class TriplTileService : TileService() {
     override fun onClick() {
         val intent = Intent(this, PopupActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP

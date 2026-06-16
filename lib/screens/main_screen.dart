@@ -524,7 +524,7 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
         return AlertDialog(
           backgroundColor: TallyTapTheme.obsidianCard,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Welcome to TallyTap!', style: TextStyle(color: TallyTapTheme.textLight, fontWeight: FontWeight.bold)),
+          title: const Text('Welcome to Tripl!', style: TextStyle(color: TallyTapTheme.textLight, fontWeight: FontWeight.bold)),
           content: const Text('Would you like a quick tour to see how things work?', style: TextStyle(color: TallyTapTheme.textGray)),
           actions: [
             TextButton(

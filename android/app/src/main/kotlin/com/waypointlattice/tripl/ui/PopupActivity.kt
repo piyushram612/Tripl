@@ -1,12 +1,12 @@
-package com.piyushram612.tallytap.ui
+package com.waypointlattice.tripl.ui
 
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.core.view.WindowCompat
-import com.piyushram612.tallytap.ui.components.PopupCard
-import com.piyushram612.tallytap.ui.theme.TallyTapTheme
+import com.waypointlattice.tripl.ui.components.PopupCard
+import com.waypointlattice.tripl.ui.theme.TriplTheme
 
 class PopupActivity : ComponentActivity() {
 
@@ -42,7 +42,7 @@ class PopupActivity : ComponentActivity() {
         overridePendingTransition(0, 0)
 
         setContent {
-            TallyTapTheme {
+            TriplTheme {
                 PopupCard(
                     onClose = {
                         finish()

@@ -1110,7 +1110,7 @@ class ToolkitScreen extends ConsumerWidget {
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: const Icon(
-                            Icons.vibration_rounded,
+                            Icons.touch_app_rounded,
                             color: TallyTapTheme.primaryMint,
                           ),
                         ),
@@ -1147,6 +1147,46 @@ class ToolkitScreen extends ConsumerWidget {
                                 behavior: SnackBarBehavior.floating,
                               ),
                             );
+                          },
+                        ),
+                      ],
+                    ),
+                    const Divider(color: TallyTapTheme.borderGreen, height: 32),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0F1B17),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(
+                            Icons.vibration_rounded,
+                            color: TallyTapTheme.primaryMint,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Haptic Feedback',
+                                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: TallyTapTheme.textLight),
+                              ),
+                              SizedBox(height: 4),
+                              Text(
+                                'Vibrate when triple tap is detected',
+                                style: TextStyle(fontSize: 12, color: TallyTapTheme.textGray),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Switch.adaptive(
+                          value: ref.watch(hapticsEnabledProvider),
+                          activeColor: TallyTapTheme.primaryMint,
+                          onChanged: (val) {
+                            ref.read(hapticsEnabledProvider.notifier).toggle(val);
                           },
                         ),
                       ],

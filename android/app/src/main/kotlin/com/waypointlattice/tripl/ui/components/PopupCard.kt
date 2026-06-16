@@ -1,4 +1,4 @@
-package com.piyushram612.tallytap.ui.components
+package com.waypointlattice.tripl.ui.components
 
 import android.content.Context
 import android.content.Intent
@@ -41,8 +41,8 @@ import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.unit.sp
-import com.piyushram612.tallytap.ui.components.core.*
-import com.piyushram612.tallytap.utils.TransactionManager
+import com.waypointlattice.tripl.ui.components.core.*
+import com.waypointlattice.tripl.utils.TransactionManager
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -721,4 +721,3 @@ fun PopupCard(
         }
     }
 }
-

@@ -1,4 +1,4 @@
-package com.piyushram612.tallytap.utils
+package com.waypointlattice.tripl.utils
 
 import android.app.KeyguardManager
 import android.app.Notification
@@ -19,13 +19,14 @@ import android.os.IBinder
 import android.os.PowerManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
-import com.piyushram612.tallytap.ui.PopupActivity
+import com.waypointlattice.tripl.ui.PopupActivity
 
 class BackTapService : Service(), SensorEventListener {
     private var sensorManager: SensorManager? = null
     private var accelerometer: Sensor? = null
     var detector: BackTapDetector? = null
     private var isSensorRegistered = false
+    private var hapticsEnabled = true
 
     private val screenStateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -47,8 +48,8 @@ class BackTapService : Service(), SensorEventListener {
     }
 
     companion object {
-        private const val TAG = "TallyTapService"
-        private const val CHANNEL_ID = "tallytap_back_tap"
+        private const val TAG = "TriplService"
+        private const val CHANNEL_ID = "tripl_back_tap"
         private const val NOTIFICATION_ID = 8800
         const val DEFAULT_SENSITIVITY_MS = 400L
 
@@ -59,12 +60,19 @@ class BackTapService : Service(), SensorEventListener {
             instance?.detector?.tapWindowMaxMs = ms
             android.util.Log.d(TAG, "Sensitivity updated live to ${ms}ms")
         }
+
+        fun updateHapticsEnabled(enabled: Boolean) {
+            instance?.let {
+                it.hapticsEnabled = enabled
+                android.util.Log.d(TAG, "Haptics enabled updated live to $enabled")
+            }
+        }
     }
 
     override fun onCreate() {
         super.onCreate()
         instance = this
-        Log.d(TAG, "onCreate: Initializing TallyTap Back Tap Service")
+        Log.d(TAG, "onCreate: Initializing Tripl Back Tap Service")
 
         // Load saved sensitivity from SharedPreferences
         val savedMs = try {
@@ -78,6 +86,15 @@ class BackTapService : Service(), SensorEventListener {
         }
         Log.d(TAG, "Loaded tap sensitivity: ${savedMs}ms")
 
+        hapticsEnabled = try {
+            val prefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            prefs.getBoolean("flutter.haptics_enabled", true)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to load haptics preference, using default: ${e.message}")
+            true
+        }
+        Log.d(TAG, "Loaded haptics enabled: $hapticsEnabled")
+
         sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
         accelerometer = sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
 
@@ -89,13 +106,14 @@ class BackTapService : Service(), SensorEventListener {
             }
 
             Log.d(TAG, "Back tap gesture triggered!")
+            triggerVibration()
 
             // Always notify MainActivity (used by calibration event stream)
-            Log.d("TallyTapCalib", "BackTapService: triple tap complete, notifying MainActivity. calibrationMode=${com.piyushram612.tallytap.MainActivity.calibrationMode}")
-            com.piyushram612.tallytap.MainActivity.onBackTapDetected()
+            Log.d("TallyTapCalib", "BackTapService: triple tap complete, notifying MainActivity. calibrationMode=${com.waypointlattice.tripl.MainActivity.calibrationMode}")
+            com.waypointlattice.tripl.MainActivity.onBackTapDetected()
 
             // Only launch/dismiss popup when NOT in calibration mode
-            if (!com.piyushram612.tallytap.MainActivity.calibrationMode) {
+            if (!com.waypointlattice.tripl.MainActivity.calibrationMode) {
                 val dismissed = PopupActivity.dismissActiveInstance()
                 if (dismissed) {
                     Log.d(TAG, "Active popup dismissed via re-trigger gesture")
@@ -134,6 +152,31 @@ class BackTapService : Service(), SensorEventListener {
         checkAndRegisterSensor()
     }
 
+    private fun triggerVibration() {
+        if (!hapticsEnabled) {
+            Log.d(TAG, "Vibration skipped: haptics are disabled in settings")
+            return
+        }
+        try {
+            val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val vibratorManager = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as android.os.VibratorManager
+                vibratorManager.defaultVibrator
+            } else {
+                @Suppress("DEPRECATION")
+                getSystemService(Context.VIBRATOR_SERVICE) as android.os.Vibrator
+            }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                vibrator.vibrate(android.os.VibrationEffect.createOneShot(150, android.os.VibrationEffect.DEFAULT_AMPLITUDE))
+            } else {
+                @Suppress("DEPRECATION")
+                vibrator.vibrate(150)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to vibrate: ${e.message}")
+        }
+    }
+
     private fun checkAndRegisterSensor() {
         // We now just register the sensor directly to handle unreliable ACTION_USER_PRESENT broadcasts
         registerSensor()
@@ -164,7 +207,7 @@ class BackTapService : Service(), SensorEventListener {
     }
 
     override fun onDestroy() {
-        Log.d(TAG, "onDestroy: Stopping TallyTap Back Tap Service and unregistering sensor")
+        Log.d(TAG, "onDestroy: Stopping Tripl Back Tap Service and unregistering sensor")
         instance = null
         try {
             unregisterReceiver(screenStateReceiver)
@@ -190,7 +233,7 @@ class BackTapService : Service(), SensorEventListener {
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val name = "TallyTap Sensor Service"
+            val name = "Tripl Sensor Service"
             val desc = "Listens for physical triple taps on the phone back casing"
             val importance = NotificationManager.IMPORTANCE_LOW
             val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
@@ -221,7 +264,7 @@ class BackTapService : Service(), SensorEventListener {
         )
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("TallyTap Gesture Active")
+            .setContentTitle("Tripl Gesture Active")
             .setContentText("Triple tap back of phone to capture expense")
             .setSmallIcon(android.R.drawable.ic_menu_compass)
             .setContentIntent(pendingIntent)

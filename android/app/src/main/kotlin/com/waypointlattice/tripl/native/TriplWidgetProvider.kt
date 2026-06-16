@@ -1,4 +1,4 @@
-package com.piyushram612.tallytap.native
+package com.waypointlattice.tripl.native
 
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
@@ -6,10 +6,10 @@ import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
 import android.widget.RemoteViews
-import com.piyushram612.tallytap.R
-import com.piyushram612.tallytap.ui.PopupActivity
+import com.waypointlattice.tripl.R
+import com.waypointlattice.tripl.ui.PopupActivity
 
-class TallyTapWidgetProvider : AppWidgetProvider() {
+class TriplWidgetProvider : AppWidgetProvider() {
     override fun onUpdate(
         context: Context,
         appWidgetManager: AppWidgetManager,

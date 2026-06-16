@@ -12,6 +12,7 @@ import 'dart:isolate';
 import 'dart:ui';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'providers/recurring_transaction_provider.dart';
+import 'screens/splash_screen.dart';
 
 final ProviderContainer appContainer = ProviderContainer();
 
@@ -77,6 +78,7 @@ class _TallyTapAppState extends ConsumerState<TallyTapApp> with WidgetsBindingOb
   }
 
   static Future<_AppStartState> _resolveStartState() async {
+    final startTime = DateTime.now();
     final prefs = await SharedPreferences.getInstance();
 
     // Proactively load custom category colors/icons and source colors
@@ -102,6 +104,13 @@ class _TallyTapAppState extends ConsumerState<TallyTapApp> with WidgetsBindingOb
     final onboarded = prefs.getBool('has_completed_onboarding') ?? false;
     final calibrated = prefs.getBool('calibration_completed') ?? false;
 
+    // Enforce minimum splash display duration of 1.8 seconds
+    final elapsed = DateTime.now().difference(startTime);
+    final remaining = const Duration(milliseconds: 1800) - elapsed;
+    if (remaining > Duration.zero) {
+      await Future.delayed(remaining);
+    }
+
     if (!onboarded) return _AppStartState.onboardingPending;
     if (!calibrated) return _AppStartState.calibrationPending;
     return _AppStartState.ready;
@@ -110,7 +119,7 @@ class _TallyTapAppState extends ConsumerState<TallyTapApp> with WidgetsBindingOb
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'TallyTap',
+      title: 'tripl',
       debugShowCheckedModeBanner: false,
       theme: TallyTapTheme.darkTheme,
       darkTheme: TallyTapTheme.darkTheme,
@@ -119,14 +128,7 @@ class _TallyTapAppState extends ConsumerState<TallyTapApp> with WidgetsBindingOb
         future: _startStateFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Scaffold(
-              backgroundColor: TallyTapTheme.obsidianBg,
-              body: Center(
-                child: CircularProgressIndicator(
-                  color: TallyTapTheme.primaryMint,
-                ),
-              ),
-            );
+            return const TallyTapSplashScreen();
           }
 
           switch (snapshot.data) {

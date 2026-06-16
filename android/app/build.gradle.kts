@@ -7,7 +7,7 @@ plugins {
 }
 
 android {
-    namespace = "com.piyushram612.tallytap"
+    namespace = "com.waypointlattice.tripl"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -22,7 +22,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.piyushram612.tallytap"
+        applicationId = "com.waypointlattice.tripl"
         minSdk = 29
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

@@ -6,9 +6,10 @@
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <uses-permission android:name="android.permission.VIBRATE" />
 
     <application
-        android:label="TallyTap"
+        android:label="tripl"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
@@ -37,7 +38,7 @@
 
         <!-- Popup Activity (Dialog themed translucent Compose) -->
         <activity
-            android:name="com.piyushram612.tallytap.ui.PopupActivity"
+            android:name="com.waypointlattice.tripl.ui.PopupActivity"
             android:theme="@style/Theme.TallyTap.Transparent"
             android:excludeFromRecents="true"
             android:launchMode="singleInstance"
@@ -48,7 +49,7 @@
 
         <!-- Quick Action Redirect Activity (Invisible, Theme.NoDisplay) -->
         <activity
-            android:name="com.piyushram612.tallytap.native.QuickActionActivity"
+            android:name="com.waypointlattice.tripl.native.QuickActionActivity"
             android:theme="@android:style/Theme.NoDisplay"
             android:excludeFromRecents="true"
             android:exported="true">
@@ -60,7 +61,7 @@
 
         <!-- Accelerometer double tap tracking service -->
         <service
-            android:name="com.piyushram612.tallytap.utils.BackTapService"
+            android:name="com.waypointlattice.tripl.utils.BackTapService"
             android:foregroundServiceType="specialUse"
             android:exported="false">
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
@@ -69,8 +70,8 @@
 
         <!-- Quick Settings Tile Service -->
         <service
-            android:name="com.piyushram612.tallytap.native.TallyTapTileService"
-            android:label="Tally Tap"
+            android:name="com.waypointlattice.tripl.native.TriplTileService"
+            android:label="Tripl"
             android:icon="@mipmap/ic_launcher"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:exported="true">
@@ -81,8 +82,8 @@
 
         <!-- Home Screen 1x1 App Widget -->
         <receiver
-            android:name="com.piyushram612.tallytap.native.TallyTapWidgetProvider"
-            android:label="Tally Tap Widget"
+            android:name="com.waypointlattice.tripl.native.TriplWidgetProvider"
+            android:label="Tripl Widget"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
