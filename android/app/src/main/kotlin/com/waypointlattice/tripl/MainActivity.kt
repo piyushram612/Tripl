@@ -1,4 +1,4 @@
-package com.piyushram612.tallytap
+package com.waypointlattice.tripl
 
 import android.Manifest
 import android.content.Intent
@@ -6,19 +6,19 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 import android.provider.Settings
 import android.net.Uri
 import android.widget.Toast
-import com.piyushram612.tallytap.ui.PopupActivity
-import com.piyushram612.tallytap.utils.BackTapService
+import com.waypointlattice.tripl.ui.PopupActivity
+import com.waypointlattice.tripl.utils.BackTapService
 
-class MainActivity : FlutterActivity() {
-    private val CHANNEL = "com.piyushram612.tallytap/popup"
-    private val EVENT_CHANNEL = "com.piyushram612.tallytap/backtap_events"
+class MainActivity : FlutterFragmentActivity() {
+    private val CHANNEL = "com.waypointlattice.tripl/popup"
+    private val EVENT_CHANNEL = "com.waypointlattice.tripl/backtap_events"
 
     companion object {
         // When true, back taps go to the event stream (calibration) instead of PopupActivity
@@ -109,6 +109,15 @@ class MainActivity : FlutterActivity() {
                     // Also persist so next service start picks it up
                     val prefs = getSharedPreferences("FlutterSharedPreferences", android.content.Context.MODE_PRIVATE)
                     prefs.edit().putInt("flutter.tap_sensitivity_ms", ms.toInt()).apply()
+                    result.success(null)
+                }
+                "setHapticsEnabled" -> {
+                    val enabled = call.argument<Boolean>("enabled") ?: true
+                    // Update the running service immediately
+                    BackTapService.updateHapticsEnabled(enabled)
+                    // Also persist so next service start picks it up
+                    val prefs = getSharedPreferences("FlutterSharedPreferences", android.content.Context.MODE_PRIVATE)
+                    prefs.edit().putBoolean("flutter.haptics_enabled", enabled).apply()
                     result.success(null)
                 }
                 else -> result.notImplemented()

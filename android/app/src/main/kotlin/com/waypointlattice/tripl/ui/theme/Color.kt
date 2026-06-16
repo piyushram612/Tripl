@@ -1,4 +1,4 @@
-package com.piyushram612.tallytap.ui.theme
+package com.waypointlattice.tripl.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

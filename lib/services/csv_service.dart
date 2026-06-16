@@ -365,15 +365,15 @@ class CsvService {
 
     final csvText = generateCsv(transactions);
     final tempDir = await getTemporaryDirectory();
-    final file = File('${tempDir.path}/tallytap_backup_${DateTime.now().millisecondsSinceEpoch}.csv');
+    final file = File('${tempDir.path}/tripl_backup_${DateTime.now().millisecondsSinceEpoch}.csv');
     await file.writeAsString(csvText);
 
     // Share the file
     // ignore: deprecated_member_use
     await Share.shareXFiles(
       [XFile(file.path, mimeType: 'text/csv')],
-      subject: 'TallyTap Transactions Backup',
-      text: 'Here is your privacy-focused TallyTap data backup as a CSV file.',
+      subject: 'Tripl Transactions Backup',
+      text: 'Here is your privacy-focused Tripl data backup as a CSV file.',
     );
   }
 }

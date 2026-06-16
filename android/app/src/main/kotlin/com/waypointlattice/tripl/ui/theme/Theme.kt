@@ -1,4 +1,4 @@
-package com.piyushram612.tallytap.ui.theme
+package com.waypointlattice.tripl.ui.theme
 
 import android.app.Activity
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -28,7 +28,7 @@ private val LightColorScheme = lightColorScheme(
 )
 
 @Composable
-fun TallyTapTheme(
+fun TriplTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {

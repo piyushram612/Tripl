@@ -1,4 +1,4 @@
-package com.piyushram612.tallytap.ui.components.core
+package com.waypointlattice.tripl.ui.components.core
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -15,7 +15,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.piyushram612.tallytap.ui.components.outerGlow
+import com.waypointlattice.tripl.ui.components.outerGlow
 
 @Composable
 fun ScrollableCategoryCapsule(

@@ -12,6 +12,10 @@ import 'dart:isolate';
 import 'dart:ui';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'providers/recurring_transaction_provider.dart';
+import 'screens/splash_screen.dart';
+import 'providers/biometric_provider.dart';
+import 'screens/lock_screen.dart';
+
 
 final ProviderContainer appContainer = ProviderContainer();
 
@@ -74,6 +78,15 @@ class _TallyTapAppState extends ConsumerState<TallyTapApp> with WidgetsBindingOb
       ref.read(transactionListProvider.notifier).loadTransactions();
       ref.read(recurringTransactionsProvider.notifier).checkDueTransactions();
     }
+
+    // Lock the app when backgrounded (paused)
+    final isLockEnabled = ref.read(biometricsEnabledProvider);
+    final isPromptActive = ref.read(isAuthenticatingProvider);
+    if (isLockEnabled && !isPromptActive) {
+      if (state == AppLifecycleState.paused) {
+        ref.read(appUnlockedProvider.notifier).lock();
+      }
+    }
   }
 
   static Future<_AppStartState> _resolveStartState() async {
@@ -102,6 +115,7 @@ class _TallyTapAppState extends ConsumerState<TallyTapApp> with WidgetsBindingOb
     final onboarded = prefs.getBool('has_completed_onboarding') ?? false;
     final calibrated = prefs.getBool('calibration_completed') ?? false;
 
+
     if (!onboarded) return _AppStartState.onboardingPending;
     if (!calibrated) return _AppStartState.calibrationPending;
     return _AppStartState.ready;
@@ -109,37 +123,34 @@ class _TallyTapAppState extends ConsumerState<TallyTapApp> with WidgetsBindingOb
 
   @override
   Widget build(BuildContext context) {
+    final isUnlocked = ref.watch(appUnlockedProvider);
+
     return MaterialApp(
-      title: 'TallyTap',
+      title: 'tripl',
       debugShowCheckedModeBanner: false,
       theme: TallyTapTheme.darkTheme,
       darkTheme: TallyTapTheme.darkTheme,
       themeMode: ThemeMode.dark,
-      home: FutureBuilder<_AppStartState>(
-        future: _startStateFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Scaffold(
-              backgroundColor: TallyTapTheme.obsidianBg,
-              body: Center(
-                child: CircularProgressIndicator(
-                  color: TallyTapTheme.primaryMint,
-                ),
-              ),
-            );
-          }
+      home: isUnlocked
+          ? FutureBuilder<_AppStartState>(
+              future: _startStateFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const TallyTapSplashScreen();
+                }
 
-          switch (snapshot.data) {
-            case _AppStartState.calibrationPending:
-              return const CalibrationScreen();
-            case _AppStartState.onboardingPending:
-              return const OnboardingScreen();
-            case _AppStartState.ready:
-            default:
-              return const MainScreen();
-          }
-        },
-      ),
+                switch (snapshot.data) {
+                  case _AppStartState.calibrationPending:
+                    return const CalibrationScreen();
+                  case _AppStartState.onboardingPending:
+                    return const OnboardingScreen();
+                  case _AppStartState.ready:
+                  default:
+                    return const MainScreen();
+                }
+              },
+            )
+          : const LockScreen(),
     );
   }
 }

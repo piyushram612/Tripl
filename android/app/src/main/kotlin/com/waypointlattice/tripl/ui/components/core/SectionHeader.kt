@@ -1,4 +1,4 @@
-package com.piyushram612.tallytap.ui.components.core
+package com.waypointlattice.tripl.ui.components.core
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text

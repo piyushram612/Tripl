@@ -1,4 +1,4 @@
-package com.piyushram612.tallytap.ui.components.core
+package com.waypointlattice.tripl.ui.components.core
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -19,7 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.foundation.text.BasicTextField
-import com.piyushram612.tallytap.ui.components.outerGlow
+import com.waypointlattice.tripl.ui.components.outerGlow
 
 val GreenPrimary = Color(0xFF10B981)
 val InactivePill = Color(0xFF131D1A)

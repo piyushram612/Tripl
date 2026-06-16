@@ -1,4 +1,4 @@
-package com.piyushram612.tallytap.utils
+package com.waypointlattice.tripl.utils
 
 import android.content.Context
 import android.util.Log

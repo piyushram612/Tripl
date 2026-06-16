@@ -95,7 +95,7 @@ class NotificationService {
                 await cancelNotificationById(notificationId);
               }
             } else if (action == 'remind_later') {
-              final mins = prefs.getInt('tallytap_snooze_duration_mins') ?? 240;
+              final mins = prefs.getInt('tripl_snooze_duration_mins') ?? 240;
               txs[idx] = txs[idx].copyWith(reminderDate: DateTime.now().add(Duration(minutes: mins)));
               await prefs.setString('transactions_json', json.encode(txs.map((e) => e.toMap()).toList()));
               await _initTimezonesForBackground();
@@ -104,7 +104,7 @@ class NotificationService {
           }
         }
       } else if (type == 'recurring') {
-        final data = prefs.getString('tallytap_recurring_transactions');
+        final data = prefs.getString('tripl_recurring_transactions');
         if (data != null) {
           final List<dynamic> decoded = json.decode(data);
           final rTxs = decoded.map((e) => RecurringTransaction.fromMap(e)).toList();
@@ -135,14 +135,14 @@ class NotificationService {
                   txs.add(newExpense);
                   await prefs.setString('transactions_json', json.encode(txs.map((e) => e.toMap()).toList()));
                   rTxs[idx] = rTx.advance();
-                  await prefs.setString('tallytap_recurring_transactions', json.encode(rTxs.map((e) => e.toMap()).toList()));
+                  await prefs.setString('tripl_recurring_transactions', json.encode(rTxs.map((e) => e.toMap()).toList()));
                   await _initTimezonesForBackground();
                   await scheduleRecurringNotification(rTxs[idx]);
                 }
               }
             } else if (action == 'remind_later') {
               await _initTimezonesForBackground();
-              final mins = prefs.getInt('tallytap_snooze_duration_mins') ?? 240;
+              final mins = prefs.getInt('tripl_snooze_duration_mins') ?? 240;
               final snoozeTime = DateTime.now().add(Duration(minutes: mins));
               await _notificationsPlugin.zonedSchedule(
                 id: rTx.id.hashCode,
@@ -153,7 +153,7 @@ class NotificationService {
                 scheduledDate: tz.TZDateTime.from(snoozeTime, tz.local),
                 notificationDetails: NotificationDetails(
                   android: AndroidNotificationDetails(
-                    'tallytap_recurring_v2',
+                    'tripl_recurring_v2',
                     'Recurring Transactions',
                     channelDescription: 'Reminders for recurring transactions',
                     importance: Importance.max,
@@ -191,12 +191,12 @@ class NotificationService {
               txs.add(newExpense);
               await prefs.setString('transactions_json', json.encode(txs.map((e) => e.toMap()).toList()));
               rTxs[idx] = rTx.advance();
-              await prefs.setString('tallytap_recurring_transactions', json.encode(rTxs.map((e) => e.toMap()).toList()));
+              await prefs.setString('tripl_recurring_transactions', json.encode(rTxs.map((e) => e.toMap()).toList()));
               await _initTimezonesForBackground();
               await scheduleRecurringNotification(rTxs[idx]);
             } else if (action == 'skip') {
               rTxs[idx] = rTx.advance(skip: true);
-              await prefs.setString('tallytap_recurring_transactions', json.encode(rTxs.map((e) => e.toMap()).toList()));
+              await prefs.setString('tripl_recurring_transactions', json.encode(rTxs.map((e) => e.toMap()).toList()));
               await _initTimezonesForBackground();
               await scheduleRecurringNotification(rTxs[idx]);
             }
@@ -317,7 +317,7 @@ class NotificationService {
       scheduledDate: tz.TZDateTime.from(scheduledTime, tz.local),
       notificationDetails: NotificationDetails(
         android: AndroidNotificationDetails(
-          'tallytap_recurring_v2',
+          'tripl_recurring_v2',
           'Recurring Transactions',
           channelDescription: 'Reminders for recurring transactions',
           importance: Importance.max,
@@ -349,7 +349,7 @@ class NotificationService {
       scheduledDate: tz.TZDateTime.from(tx.reminderDate!, tz.local),
       notificationDetails: const NotificationDetails(
         android: AndroidNotificationDetails(
-          'tallytap_verification_v2',
+          'tripl_verification_v2',
           'Receipt Verification',
           channelDescription: 'Reminders to verify receipts and finish logging transactions',
           importance: Importance.max,
@@ -376,7 +376,7 @@ class NotificationService {
 
   static Future<void> showInstantNotification() async {
     const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'tallytap_test_v2',
+      'tripl_test_v2',
       'Test Notifications',
       channelDescription: 'Channel for testing notifications instantly',
       importance: Importance.max,
@@ -385,8 +385,8 @@ class NotificationService {
     const NotificationDetails details = NotificationDetails(android: androidDetails);
     await _notificationsPlugin.show(
       id: 999,
-      title: 'TallyTap Test Notification',
-      body: 'This is an instant test notification from TallyTap! 🚀',
+      title: 'Tripl Test Notification',
+      body: 'This is an instant test notification from Tripl! 🚀',
       notificationDetails: details,
     );
   }

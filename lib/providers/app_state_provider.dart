@@ -25,6 +25,29 @@ class BackTapNotifier extends StateNotifier<bool> {
   }
 }
 
+// State Provider for Haptic Feedback toggle
+final hapticsEnabledProvider = StateNotifierProvider<HapticsEnabledNotifier, bool>((ref) {
+  return HapticsEnabledNotifier();
+});
+
+class HapticsEnabledNotifier extends StateNotifier<bool> {
+  static const _key = 'haptics_enabled';
+
+  HapticsEnabledNotifier() : super(true) {
+    _init();
+  }
+
+  Future<void> _init() async {
+    final prefs = await SharedPreferences.getInstance();
+    state = prefs.getBool(_key) ?? true;
+  }
+
+  Future<void> toggle(bool val) async {
+    state = val;
+    await PlatformService.setHapticsEnabled(val);
+  }
+}
+
 // ─── Calibration Completed Provider ───────────────────────────────────────────
 
 final calibrationCompletedProvider =

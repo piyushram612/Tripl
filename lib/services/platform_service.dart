@@ -2,12 +2,12 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class PlatformService {
-  static const MethodChannel _channel = MethodChannel('com.piyushram612.tallytap/popup');
+  static const MethodChannel _channel = MethodChannel('com.waypointlattice.tripl/popup');
 
   /// EventChannel that streams a 'tap' string every time a back tap is detected
   /// while calibration mode is active on the native side.
   static const EventChannel backTapEventChannel =
-      EventChannel('com.piyushram612.tallytap/backtap_events');
+      EventChannel('com.waypointlattice.tripl/backtap_events');
 
   // Key for preferences
   static const String _backTapKey = 'back_tap_enabled';
@@ -61,6 +61,17 @@ class PlatformService {
       await _channel.invokeMethod('setSensitivity', {'ms': ms});
     } on PlatformException catch (e) {
       print("Failed to set sensitivity: ${e.message}");
+    }
+  }
+
+  /// Toggle the background Double Back Tap haptic vibration.
+  static Future<void> setHapticsEnabled(bool enabled) async {
+    try {
+      await _channel.invokeMethod('setHapticsEnabled', {'enabled': enabled});
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('haptics_enabled', enabled);
+    } on PlatformException catch (e) {
+      print("Failed to toggle haptics: ${e.message}");
     }
   }
 }

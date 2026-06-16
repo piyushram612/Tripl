@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tallytap/models/transaction_model.dart';
-import 'package:tallytap/services/csv_service.dart';
+import 'package:tripl/models/transaction_model.dart';
+import 'package:tripl/services/csv_service.dart';
 
 void main() {
   group('CsvService Tests', () {

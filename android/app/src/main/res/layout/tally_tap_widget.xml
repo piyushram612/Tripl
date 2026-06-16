@@ -11,7 +11,7 @@
         android:background="@drawable/widget_button_background"
         android:src="@drawable/ic_plus_widget"
         android:scaleType="centerInside"
-        android:contentDescription="Tally Tap Quick Add"
+        android:contentDescription="Tripl Quick Add"
         android:focusable="true"
         android:clickable="true" />
 </FrameLayout>

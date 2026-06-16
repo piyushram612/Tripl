@@ -7,7 +7,7 @@
         android:shortcutLongLabel="@string/shortcut_long_label">
         <intent
             android:action="android.intent.action.VIEW"
-            android:targetPackage="com.piyushram612.tallytap"
-            android:targetClass="com.piyushram612.tallytap.native.QuickActionActivity" />
+            android:targetPackage="com.waypointlattice.tripl"
+            android:targetClass="com.waypointlattice.tripl.native.QuickActionActivity" />
     </shortcut>
 </shortcuts>

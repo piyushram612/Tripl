@@ -1,9 +1,9 @@
-package com.piyushram612.tallytap.native
+package com.waypointlattice.tripl.native
 
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
-import com.piyushram612.tallytap.ui.PopupActivity
+import com.waypointlattice.tripl.ui.PopupActivity
 
 class QuickActionActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
