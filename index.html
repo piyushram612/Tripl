@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy - Tripl Expense Tracker</title>
+    <meta name="description" content="Privacy Policy for Tripl, a privacy-first, local-only expense tracking application. Learn how we protect your personal information.">
+    
+    <!-- Open Graph Metadata -->
+    <meta property="og:title" content="Privacy Policy - Tripl Expense Tracker">
+    <meta property="og:description" content="Tripl is a privacy-first expense tracking application. Learn about our local-only data storage policy.">
+    <meta property="og:type" content="website">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Premium Icons (Lucide) -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        :root {
+            /* Theme Color Palette */
+            --color-bg-dark: #080c0a;
+            --color-bg-spotlight-1: rgba(0, 255, 204, 0.08);
+            --color-bg-spotlight-2: rgba(245, 158, 11, 0.05);
+            --color-card-bg: rgba(15, 23, 20, 0.65);
+            --color-card-border: rgba(0, 255, 204, 0.12);
+            --color-text-primary: #f1f5f9;
+            --color-text-secondary: #94a3b8;
+            --color-mint: #00ffcc;
+            --color-mint-hover: #00d9ae;
+            --color-mint-dim: rgba(0, 255, 204, 0.15);
+            --color-amber: #f5a623;
+            --color-amber-dim: rgba(245, 166, 35, 0.15);
+            --font-display: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        /* Reset and Base Styles */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            background-color: var(--color-bg-dark);
+            color: var(--color-text-primary);
+            font-family: var(--font-sans);
+            line-height: 1.6;
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Ambient Glow Background Elements */
+        body::before {
+            content: '';
+            position: absolute;
+            top: -200px;
+            right: -100px;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, var(--color-bg-spotlight-1) 0%, rgba(0,0,0,0) 70%);
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        body::after {
+            content: '';
+            position: absolute;
+            bottom: 10%;
+            left: -200px;
+            width: 700px;
+            height: 700px;
+            background: radial-gradient(circle, var(--color-bg-spotlight-2) 0%, rgba(0,0,0,0) 70%);
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        /* Container Layout */
+        .container {
+            max-width: 800px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 4rem 1.5rem;
+            flex-grow: 1;
+        }
+
+        /* Header Styles */
+        header {
+            text-align: center;
+            margin-bottom: 4rem;
+            animation: fadeInDown 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+
+        .logo-wrapper {
+            margin-bottom: 1.5rem;
+            display: inline-block;
+            position: relative;
+        }
+
+        .logo-wrapper::after {
+            content: '';
+            position: absolute;
+            top: -10px;
+            left: -10px;
+            right: -10px;
+            bottom: -10px;
+            background: radial-gradient(circle, rgba(0, 255, 204, 0.2) 0%, rgba(0,0,0,0) 70%);
+            z-index: -1;
+            filter: blur(8px);
+        }
+
+        .app-logo {
+            width: 72px;
+            height: 72px;
+            filter: drop-shadow(0 4px 20px rgba(0, 255, 204, 0.3));
+            transition: transform 0.5s ease;
+        }
+
+        .app-logo:hover {
+            transform: rotate(10deg) scale(1.05);
+        }
+
+        h1 {
+            font-family: var(--font-display);
+            font-size: 2.75rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, #ffffff 30%, var(--color-mint) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            font-family: var(--font-display);
+            font-size: 1.125rem;
+            color: var(--color-text-secondary);
+            font-weight: 400;
+            margin-bottom: 1.5rem;
+        }
+
+        /* Quick Info Badges */
+        .badges-container {
+            display: flex;
+            justify-content: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+        }
+
+        .badge {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 0.35rem 0.85rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--color-text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            backdrop-filter: blur(8px);
+            transition: all 0.3s ease;
+        }
+
+        .badge i {
+            width: 14px;
+            height: 14px;
+        }
+
+        .badge-privacy {
+            border-color: rgba(0, 255, 204, 0.25);
+            color: var(--color-mint);
+            background: rgba(0, 255, 204, 0.04);
+        }
+
+        .badge-security {
+            border-color: rgba(245, 166, 35, 0.25);
+            color: var(--color-amber);
+            background: rgba(245, 166, 35, 0.04);
+        }
+
+        /* Last Updated Stamp */
+        .last-updated {
+            font-size: 0.85rem;
+            color: var(--color-text-secondary);
+            margin-top: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.35rem;
+        }
+
+        .last-updated i {
+            width: 14px;
+            height: 14px;
+        }
+
+        /* Main Content Container (Glassmorphic Card) */
+        .policy-card {
+            background-color: var(--color-card-bg);
+            border: 1px solid var(--color-card-border);
+            border-radius: 24px;
+            padding: 3rem;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+            animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+        }
+
+        /* Intro text styling */
+        .intro-text {
+            font-size: 1.15rem;
+            color: var(--color-text-primary);
+            border-left: 3px solid var(--color-mint);
+            padding-left: 1.25rem;
+            margin-bottom: 2.5rem;
+            font-weight: 500;
+        }
+
+        /* Headings & Sections */
+        section {
+            margin-bottom: 2.5rem;
+            position: relative;
+        }
+
+        section:last-of-type {
+            margin-bottom: 0;
+        }
+
+        h2 {
+            font-family: var(--font-display);
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: var(--color-text-primary);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        h2::before {
+            content: '';
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            background-color: var(--color-mint);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--color-mint);
+        }
+
+        p {
+            color: var(--color-text-secondary);
+            font-size: 0.975rem;
+            line-height: 1.7;
+            margin-bottom: 1rem;
+        }
+
+        p:last-child {
+            margin-bottom: 0;
+        }
+
+        /* Lists */
+        ul {
+            list-style: none;
+            margin-bottom: 1.25rem;
+            padding-left: 0.5rem;
+        }
+
+        li {
+            color: var(--color-text-secondary);
+            font-size: 0.975rem;
+            line-height: 1.7;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+
+        li::before {
+            content: "\eac9"; /* Lucide check circle key code mapped or simulated */
+            font-family: sans-serif;
+            color: var(--color-mint);
+            font-weight: bold;
+            display: inline-block;
+            margin-top: 2px;
+        }
+
+        /* Custom bullet marker */
+        .bullet-point {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--color-text-secondary);
+            margin-bottom: 0.5rem;
+        }
+        
+        .bullet-point-icon {
+            color: var(--color-mint);
+            flex-shrink: 0;
+            width: 16px;
+            height: 16px;
+            margin-top: 3px;
+        }
+
+        /* Contact Section Specific Styles */
+        .contact-box {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-top: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .contact-name {
+            font-weight: 600;
+            color: var(--color-text-primary);
+            font-size: 1.05rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .contact-name i {
+            color: var(--color-mint);
+            width: 18px;
+            height: 18px;
+        }
+
+        .contact-actions {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            margin-top: 0.25rem;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.6rem 1.25rem;
+            border-radius: 10px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            font-family: var(--font-sans);
+        }
+
+        .btn-primary {
+            background-color: var(--color-mint);
+            color: #040806;
+            border: 1px solid var(--color-mint);
+            box-shadow: 0 4px 14px rgba(0, 255, 204, 0.25);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--color-mint-hover);
+            border-color: var(--color-mint-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 255, 204, 0.35);
+        }
+
+        .btn-secondary {
+            background-color: rgba(255, 255, 255, 0.03);
+            color: var(--color-text-primary);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .btn-secondary:hover {
+            background-color: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        /* Toast notification */
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: #0f1715;
+            color: var(--color-mint);
+            border: 1px solid var(--color-card-border);
+            padding: 0.75rem 1.5rem;
+            border-radius: 12px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            opacity: 0;
+            z-index: 1000;
+            pointer-events: none;
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s ease;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        /* Footer Styles */
+        footer {
+            text-align: center;
+            padding: 3rem 1.5rem;
+            color: var(--color-text-secondary);
+            font-size: 0.825rem;
+            animation: fadeIn 1s ease 0.3s both;
+        }
+
+        footer a {
+            color: var(--color-text-primary);
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+
+        footer a:hover {
+            color: var(--color-mint);
+        }
+
+        /* Divider */
+        hr {
+            border: 0;
+            height: 1px;
+            background: linear-gradient(to right, rgba(0, 255, 204, 0), rgba(0, 255, 204, 0.15), rgba(0, 255, 204, 0));
+            margin: 2.5rem 0;
+        }
+
+        /* Animations */
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* Responsive Breakpoints */
+        @media (max-width: 768px) {
+            .container {
+                padding: 2.5rem 1rem;
+            }
+            
+            header {
+                margin-bottom: 2.5rem;
+            }
+
+            h1 {
+                font-size: 2.25rem;
+            }
+
+            .policy-card {
+                padding: 1.75rem;
+                border-radius: 16px;
+            }
+
+            .contact-actions {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- Brand Header -->
+        <header>
+            <div class="logo-wrapper">
+                <svg class="app-logo" width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="32" cy="32" r="28" fill="url(#logo-grad-bg)" opacity="0.12"/>
+                    <path d="M16 20C16 20 24 12 32 12C40 12 48 20 48 20" stroke="url(#logo-grad-primary)" stroke-width="4.5" stroke-linecap="round"/>
+                    <path d="M22 28C22 28 27 22 32 22C37 22 42 28 42 28" stroke="url(#logo-grad-secondary)" stroke-width="4.5" stroke-linecap="round"/>
+                    <path d="M28 36C28 36 30 32 32 32C34 32 36 36 36 36" stroke="#00FFCC" stroke-width="4.5" stroke-linecap="round"/>
+                    <path d="M32 32V52" stroke="url(#logo-grad-primary)" stroke-width="4.5" stroke-linecap="round"/>
+                    <defs>
+                        <linearGradient id="logo-grad-bg" x1="16" y1="12" x2="48" y2="52" gradientUnits="userSpaceOnUse">
+                            <stop stop-color="#00FFCC"/>
+                            <stop offset="1" stop-color="#F5A623"/>
+                        </linearGradient>
+                        <linearGradient id="logo-grad-primary" x1="16" y1="12" x2="32" y2="52" gradientUnits="userSpaceOnUse">
+                            <stop stop-color="#00FFCC"/>
+                            <stop offset="1" stop-color="#00B3FF"/>
+                        </linearGradient>
+                        <linearGradient id="logo-grad-secondary" x1="22" y1="22" x2="42" y2="28" gradientUnits="userSpaceOnUse">
+                            <stop stop-color="#00FFCC"/>
+                            <stop offset="1" stop-color="#F5A623"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+            </div>
+            <h1 id="app-title">Tripl</h1>
+            <p class="subtitle">Expense tracking built on privacy</p>
+            
+            <div class="badges-container">
+                <span class="badge badge-privacy"><i data-lucide="shield-check"></i> Privacy First</span>
+                <span class="badge badge-security"><i data-lucide="database"></i> Local-Only Storage</span>
+                <span class="badge"><i data-lucide="eye-off"></i> Zero Telemetry</span>
+            </div>
+
+            <div class="last-updated">
+                <i data-lucide="calendar"></i> Last Updated: June 2026
+            </div>
+        </header>
+
+        <!-- Main Document Body -->
+        <main class="policy-card">
+            
+            <div class="intro-text">
+                Tripl is a privacy-first expense tracking application designed from the ground up to protect your financial and personal space.
+            </div>
+
+            <hr>
+
+            <!-- Section 1 -->
+            <section id="info-we-collect">
+                <h2>Information We Collect</h2>
+                <p>Tripl does not collect, transmit, store, or share any personal information on external servers.</p>
+                <p>All transaction data entered into the application is stored locally on the user's device.</p>
+            </section>
+
+            <hr>
+
+            <!-- Section 2 -->
+            <section id="data-storage">
+                <h2>Data Storage</h2>
+                <p>Expense records, budgets, categories, and application preferences are stored exclusively on the user's device.</p>
+                <p>No cloud synchronization is currently provided.</p>
+            </section>
+
+            <hr>
+
+            <!-- Section 3 -->
+            <section id="analytics">
+                <h2>Analytics and Tracking</h2>
+                <p>Tripl does not use:</p>
+                <div style="margin-top: 0.75rem;">
+                    <div class="bullet-point">
+                        <i data-lucide="x-circle" class="bullet-point-icon" style="color: #ef4444;"></i>
+                        <span>Analytics services</span>
+                    </div>
+                    <div class="bullet-point">
+                        <i data-lucide="x-circle" class="bullet-point-icon" style="color: #ef4444;"></i>
+                        <span>Advertising SDKs</span>
+                    </div>
+                    <div class="bullet-point">
+                        <i data-lucide="x-circle" class="bullet-point-icon" style="color: #ef4444;"></i>
+                        <span>User tracking technologies</span>
+                    </div>
+                    <div class="bullet-point">
+                        <i data-lucide="x-circle" class="bullet-point-icon" style="color: #ef4444;"></i>
+                        <span>Third-party data collection services</span>
+                    </div>
+                </div>
+            </section>
+
+            <hr>
+
+            <!-- Section 4 -->
+            <section id="data-sharing">
+                <h2>Data Sharing</h2>
+                <p>Tripl does not sell, rent, share, or disclose user data to third parties.</p>
+            </section>
+
+            <hr>
+
+            <!-- Section 5 -->
+            <section id="permissions">
+                <h2>Permissions</h2>
+                <p>Certain optional features, such as Triple Back Tap gesture detection, may require device permissions related to sensors or foreground services. These permissions are used solely to provide app functionality and are not used to collect personal information.</p>
+            </section>
+
+            <hr>
+
+            <!-- Section 6 -->
+            <section id="data-security">
+                <h2>Data Security</h2>
+                <p>Because user data remains on the device, users maintain direct control over their information. Users are responsible for securing their devices through standard security measures such as screen locks and device encryption.</p>
+            </section>
+
+            <hr>
+
+            <!-- Section 7 -->
+            <section id="childrens-privacy">
+                <h2>Children's Privacy</h2>
+                <p>Tripl does not knowingly collect personal information from children.</p>
+            </section>
+
+            <hr>
+
+            <!-- Section 8 -->
+            <section id="policy-changes">
+                <h2>Changes to This Policy</h2>
+                <p>This Privacy Policy may be updated from time to time. Any changes will be reflected on this page.</p>
+            </section>
+
+            <hr>
+
+            <!-- Section 9 -->
+            <section id="contact-info">
+                <h2>Contact</h2>
+                <p>For questions regarding this Privacy Policy, please contact:</p>
+                
+                <div class="contact-box">
+                    <div class="contact-name">
+                        <i data-lucide="user"></i> Piyush Ram Kimidi
+                    </div>
+                    <div class="contact-actions">
+                        <!-- Standard mailto link fallback -->
+                        <a href="mailto:piyushram.edu@gmail.com" class="btn btn-primary" id="email-btn">
+                            <i data-lucide="mail"></i> Email Developer
+                        </a>
+                        <button class="btn btn-secondary" id="copy-btn">
+                            <i data-lucide="copy"></i> Copy Email Address
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- Footer -->
+        <footer>
+            <p>&copy; 2026 Tripl. Designed with absolute privacy at core.</p>
+            <p style="margin-top: 0.5rem; font-size: 0.75rem;">Created for hosting on <a href="https://pages.github.com" target="_blank" rel="noopener noreferrer">GitHub Pages</a>.</p>
+        </footer>
+    </div>
+
+    <!-- Toast Dialog -->
+    <div id="toast" class="toast">
+        <i data-lucide="check-circle-2"></i> Address copied to clipboard!
+    </div>
+
+    <script>
+        // Initialize Icons
+        lucide.createIcons();
+
+        // Copy Email Functionality
+        const emailAddress = "piyushram.edu@gmail.com";
+        const copyBtn = document.getElementById('copy-btn');
+        const toast = document.getElementById('toast');
+
+        copyBtn.addEventListener('click', () => {
+            navigator.clipboard.writeText(emailAddress).then(() => {
+                // Show toast
+                toast.classList.add('show');
+                
+                // Hide toast after 3 seconds
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                }, 3000);
+            }).catch(err => {
+                console.error('Could not copy text: ', err);
+            });
+        });
+    </script>
+</body>
+</html>
