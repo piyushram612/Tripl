@@ -23,6 +23,7 @@ import 'sheets/snooze_duration_sheet.dart';
 import '../providers/tutorial_provider.dart';
 import '../services/tutorial_service.dart';
 import '../providers/biometric_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 
 class ToolkitScreen extends ConsumerWidget {
@@ -1366,11 +1367,46 @@ class ToolkitScreen extends ConsumerWidget {
                         );
                       },
                     ),
-                  ],
+                    const Divider(color: TallyTapTheme.borderGreen, height: 1, indent: 20, endIndent: 20),
+                    ],
                 ),
               ),
             ),
             const SizedBox(height: 20),
+                // Card: Share
+                Card(
+                  key: TutorialService.toolkitShareKey,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Padding(
+                          padding: EdgeInsets.only(left: 20.0, top: 16.0, bottom: 8.0),
+                          child: Text(
+                            'SHARE',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.5,
+                              color: TallyTapTheme.primaryMint,
+                            ),
+                          ),
+                        ),
+                        _buildSettingsTile(
+                          icon: Icons.share_rounded,
+                          title: 'Share Tripl',
+                          subtitle: 'Share the play store link of the app',
+                          onTap: () {
+                            Share.share(
+                              'Check out this frictionless expense logging app! https://play.google.com/store/apps/details?id=com.waypointlattice.tripl',
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
 
             // Card B2: Notifications
             Card(

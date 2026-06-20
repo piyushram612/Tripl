@@ -126,7 +126,7 @@ class _TallyTapAppState extends ConsumerState<TallyTapApp> with WidgetsBindingOb
     final isUnlocked = ref.watch(appUnlockedProvider);
 
     return MaterialApp(
-      title: 'tripl',
+      title: 'Tripl',
       debugShowCheckedModeBanner: false,
       theme: TallyTapTheme.darkTheme,
       darkTheme: TallyTapTheme.darkTheme,

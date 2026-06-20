@@ -26,6 +26,7 @@ class TutorialService {
   // Toolkit Screen Targets
   static final GlobalKey toolkitDataConfigKey = GlobalKey();
   static final GlobalKey toolkitToolsKey = GlobalKey();
+  static final GlobalKey toolkitShareKey = GlobalKey();
   static final GlobalKey toolkitNotificationsKey = GlobalKey();
   static final GlobalKey toolkitExportKey = GlobalKey();
   static final GlobalKey toolkitShortcutKey = GlobalKey();
