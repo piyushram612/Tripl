@@ -204,7 +204,7 @@ class _CreateRecurringTransactionScreenState extends ConsumerState<CreateRecurri
         return;
       }
       
-      final categoryToSave = _type == TransactionType.income ? 'Income' : (_selectedCategory ?? 'Other');
+      final categoryToSave = _selectedCategory ?? 'Other';
       final sourceToSave = _selectedSource ?? 'Cash';
       
       DateTime effectiveStartDate = _startDate;
@@ -274,12 +274,21 @@ class _CreateRecurringTransactionScreenState extends ConsumerState<CreateRecurri
   @override
   Widget build(BuildContext context) {
     final currency = ref.watch(currencyProvider);
-    final categoriesList = ref.watch(categoriesListProvider).where((c) => c.toLowerCase() != 'income').toList();
+    final visibilities = ref.watch(categoryVisibilityProvider);
+    final categoriesList = ref.watch(categoriesListProvider).where((c) {
+      if (c.toLowerCase() == 'income') return false;
+      final vis = visibilities[c] ?? CategoryVisibility.expense;
+      if (_type == TransactionType.income) {
+        return vis == CategoryVisibility.income || vis == CategoryVisibility.both;
+      } else {
+        return vis == CategoryVisibility.expense || vis == CategoryVisibility.both;
+      }
+    }).toList();
     final sourcesList = ref.watch(sourcesListProvider);
 
     // Ensure selected category is in the list to avoid chips not showing it
     final List<String> categoriesToRender = List.from(categoriesList);
-    if (_selectedCategory != null && _selectedCategory != 'Income' && !categoriesToRender.contains(_selectedCategory)) {
+    if (_selectedCategory != null && !categoriesToRender.contains(_selectedCategory)) {
       categoriesToRender.insert(0, _selectedCategory!);
     }
     if (_selectedCategory == null && categoriesToRender.isNotEmpty) {
@@ -400,7 +409,7 @@ class _CreateRecurringTransactionScreenState extends ConsumerState<CreateRecurri
                       const SizedBox(height: 24),
 
                       // CATEGORY ROW
-                      if (!isIncome) ...[
+                      // CATEGORY ROW
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -493,8 +502,6 @@ class _CreateRecurringTransactionScreenState extends ConsumerState<CreateRecurri
                           ),
                         ),
                         const SizedBox(height: 24),
-                      ],
-
                       // PAYMENT SOURCE CARDS
                       const SectionLabel(label: 'Payment Source'),
                       const SizedBox(height: 12),

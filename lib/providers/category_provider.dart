@@ -17,6 +17,18 @@ class CategoryIntent {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Category Visibility Labels
+// ─────────────────────────────────────────────────────────────────────────────
+
+class CategoryVisibility {
+  static const String expense = 'expense';
+  static const String income = 'income';
+  static const String both = 'both';
+
+  static const List<String> all = [expense, income, both];
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Categories List Provider
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -41,6 +53,10 @@ class CategoriesListNotifier extends StateNotifier<List<String>> {
     'Travel',
     'Investments',
     'Savings',
+    'Salary',
+    'Bonus',
+    'Dividends',
+    'Gift',
     'Other',
   ];
 
@@ -57,7 +73,7 @@ class CategoriesListNotifier extends StateNotifier<List<String>> {
         final existing = decoded.map((e) => e.toString()).toList();
         // Migrate: ensure new default categories are present for existing users
         bool changed = false;
-        for (final cat in ['Investments', 'Savings']) {
+        for (final cat in ['Investments', 'Savings', 'Salary', 'Bonus', 'Dividends', 'Gift']) {
           if (!existing.contains(cat)) {
             existing.add(cat);
             changed = true;
@@ -157,6 +173,10 @@ const Map<String, String> _defaultIntents = {
   'Travel': CategoryIntent.joyful,
   'Investments': CategoryIntent.investments,
   'Savings': CategoryIntent.investments,
+  'Salary': CategoryIntent.essential,
+  'Bonus': CategoryIntent.joyful,
+  'Dividends': CategoryIntent.investments,
+  'Gift': CategoryIntent.joyful,
   'Other': CategoryIntent.essential,
 };
 
@@ -199,6 +219,93 @@ class CategoryIntentsNotifier extends StateNotifier<Map<String, String>> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('$_keyPrefix${category.trim()}', intent);
     state = Map.from(state)..[category.trim()] = intent;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Category Visibility Provider
+// ─────────────────────────────────────────────────────────────────────────────
+
+const Map<String, String> _defaultVisibilities = {
+  'Dining': CategoryVisibility.expense,
+  'Commute': CategoryVisibility.expense,
+  'Subscriptions': CategoryVisibility.expense,
+  'Utilities': CategoryVisibility.expense,
+  'Groceries': CategoryVisibility.expense,
+  'Shopping': CategoryVisibility.expense,
+  'Housing': CategoryVisibility.expense,
+  'Health': CategoryVisibility.expense,
+  'Travel': CategoryVisibility.expense,
+  'Investments': CategoryVisibility.both,
+  'Savings': CategoryVisibility.both,
+  'Salary': CategoryVisibility.income,
+  'Bonus': CategoryVisibility.income,
+  'Dividends': CategoryVisibility.income,
+  'Gift': CategoryVisibility.both,
+  'Other': CategoryVisibility.both,
+};
+
+final categoryVisibilityProvider = StateNotifierProvider<CategoryVisibilityNotifier, Map<String, String>>((ref) {
+  return CategoryVisibilityNotifier();
+});
+
+class CategoryVisibilityNotifier extends StateNotifier<Map<String, String>> {
+  CategoryVisibilityNotifier() : super({}) {
+    loadVisibilities();
+  }
+
+  static const String _prefKey = 'category_visibilities_json';
+
+  Future<void> loadVisibilities() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.reload();
+    final Map<String, String> loaded = Map.from(_defaultVisibilities);
+
+    final jsonStr = prefs.getString(_prefKey);
+    if (jsonStr != null && jsonStr.isNotEmpty) {
+      try {
+        final Map<String, dynamic> decoded = json.decode(jsonStr);
+        for (final entry in decoded.entries) {
+          if (CategoryVisibility.all.contains(entry.value)) {
+            loaded[entry.key] = entry.value as String;
+          }
+        }
+      } catch (_) {}
+    }
+    state = loaded;
+  }
+
+  String getVisibility(String category) {
+    return state[category.trim()] ?? CategoryVisibility.expense;
+  }
+
+  Future<void> updateVisibility(String category, String visibility) async {
+    if (!CategoryVisibility.all.contains(visibility)) return;
+    final updated = Map<String, String>.from(state)..[category.trim()] = visibility;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_prefKey, json.encode(updated));
+    state = updated;
+  }
+
+  Future<void> removeVisibility(String category) async {
+    final updated = Map<String, String>.from(state)..remove(category.trim());
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_prefKey, json.encode(updated));
+    state = updated;
+  }
+
+  Future<void> renameVisibility(String oldName, String newName) async {
+    final oldTrimmed = oldName.trim();
+    final newTrimmed = newName.trim();
+    if (state.containsKey(oldTrimmed)) {
+      final vis = state[oldTrimmed]!;
+      final updated = Map<String, String>.from(state)
+        ..remove(oldTrimmed)
+        ..[newTrimmed] = vis;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_prefKey, json.encode(updated));
+      state = updated;
+    }
   }
 }
 

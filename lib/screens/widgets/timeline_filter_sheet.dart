@@ -320,9 +320,10 @@ class _TimelineFilterSheetState extends ConsumerState<TimelineFilterSheet> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? TallyTapTheme.primaryMint.withOpacity(0.1) : TallyTapTheme.obsidianCard,
+          color: isSelected ? TallyTapTheme.primaryMint.withOpacity(0.15) : TallyTapTheme.obsidianCard,
           border: Border.all(
-            color: isSelected ? TallyTapTheme.primaryMint : TallyTapTheme.borderGreen,
+            color: isSelected ? TallyTapTheme.primaryMint.withOpacity(0.5) : TallyTapTheme.borderGreen,
+            width: isSelected ? 1.5 : 1.0,
           ),
           borderRadius: BorderRadius.circular(100),
         ),
@@ -330,7 +331,7 @@ class _TimelineFilterSheetState extends ConsumerState<TimelineFilterSheet> {
           label,
           style: TextStyle(
             color: isSelected ? TallyTapTheme.primaryMint : TallyTapTheme.textGray,
-            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
             fontSize: 13,
           ),
         ),

@@ -211,6 +211,81 @@ class _GroupTransactionDetailsScreenState extends ConsumerState<GroupTransaction
                         ],
                       ),
                     ),
+                    
+                    if (groupTransactions.any((t) => t.id.endsWith('_main') && t.notes.contains('Itemized Receipt:'))) ...[
+                      const SizedBox(height: 32),
+                      const Text(
+                        'RECEIPT DETAILS',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: TallyTapTheme.textGray,
+                          letterSpacing: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: TallyTapTheme.obsidianCard,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: TallyTapTheme.borderGreen),
+                        ),
+                        child: Builder(
+                          builder: (context) {
+                            final receiptData = groupTransactions.firstWhere((t) => t.id.endsWith('_main')).notes.split('Itemized Receipt:\n').last.trim();
+                            final items = receiptData.split('\n');
+                            
+                            return Column(
+                              children: items.asMap().entries.map((entry) {
+                                final index = entry.key;
+                                final line = entry.value;
+                                final parts = line.split(':::');
+                                
+                                Widget childWidget;
+                                if (parts.length != 3) {
+                                   childWidget = Text(line, style: const TextStyle(color: TallyTapTheme.textLight, fontSize: 13));
+                                } else {
+                                   childWidget = Row(
+                                     children: [
+                                       Container(
+                                         width: 36, height: 36,
+                                         decoration: BoxDecoration(color: TallyTapTheme.primaryMint.withOpacity(0.1), shape: BoxShape.circle),
+                                         child: const Icon(Icons.receipt_long, size: 16, color: TallyTapTheme.primaryMint),
+                                       ),
+                                       const SizedBox(width: 16),
+                                       Expanded(
+                                         child: Column(
+                                           crossAxisAlignment: CrossAxisAlignment.start,
+                                           children: [
+                                              Text(parts[0], style: const TextStyle(color: TallyTapTheme.textLight, fontWeight: FontWeight.bold, fontSize: 14)),
+                                              const SizedBox(height: 4),
+                                              Text("Shared by: ${parts[2]}", style: const TextStyle(color: TallyTapTheme.textGray, fontSize: 11)),
+                                           ]
+                                         )
+                                       ),
+                                       const SizedBox(width: 8),
+                                       Text("₹${parts[1]}", style: const TextStyle(color: TallyTapTheme.textLight, fontWeight: FontWeight.w900, fontSize: 14)),
+                                     ]
+                                   );
+                                }
+
+                                return Column(
+                                   children: [
+                                      if (index > 0) const Divider(color: TallyTapTheme.borderGreen, height: 1),
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                        child: childWidget,
+                                      ),
+                                   ]
+                                );
+                              }).toList(),
+                            );
+                          }
+                        ),
+                      ),
+                    ],
+
                     const SizedBox(height: 32),
                     
                     const Text(

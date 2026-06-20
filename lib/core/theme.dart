@@ -123,6 +123,12 @@ class TallyTapTheme {
       return Icons.subscriptions_outlined;
     } else if (clean.contains('utility') || clean.contains('bill') || clean.contains('electricity')) {
       return Icons.bolt_outlined;
+    } else if (clean.contains('salary') || clean.contains('income')) {
+      return Icons.payments_outlined;
+    } else if (clean.contains('bonus') || clean.contains('dividend') || clean.contains('invest')) {
+      return Icons.trending_up_outlined;
+    } else if (clean.contains('gift')) {
+      return Icons.card_giftcard_outlined;
     } else {
       return Icons.local_mall_outlined;
     }
@@ -143,6 +149,12 @@ class TallyTapTheme {
       return const Color(0xFF1B2B3A);
     } else if (clean.contains('utility') || clean.contains('bill') || clean.contains('electricity')) {
       return const Color(0xFF332A15);
+    } else if (clean.contains('salary') || clean.contains('income')) {
+      return const Color(0xFF163321);
+    } else if (clean.contains('bonus') || clean.contains('dividend') || clean.contains('invest')) {
+      return const Color(0xFF332015);
+    } else if (clean.contains('gift')) {
+      return const Color(0xFF331526);
     } else {
       return const Color(0xFF142B24);
     }

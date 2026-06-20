@@ -151,7 +151,7 @@ class _CreateTransactionScreenState
       ));
       return;
     }
-    final category = _isIncome ? 'Income' : (_selectedCategory ?? 'Other');
+    final category = _selectedCategory ?? 'Other';
     final source = _selectedPaymentMethod ?? 'Cash';
     final merchant = _merchantController.text.trim().isNotEmpty
         ? _merchantController.text.trim()
@@ -259,18 +259,26 @@ class _CreateTransactionScreenState
 
   // ── build ─────────────────────────────────────────────────────────────────
 
-  @override
   Widget build(BuildContext context) {
     final currency = ref.watch(currencyProvider);
+    final visibilities = ref.watch(categoryVisibilityProvider);
     final categories = ref.watch(categoriesListProvider)
-        .where((c) => c.toLowerCase() != 'income')
+        .where((c) {
+          if (c.toLowerCase() == 'income') return false;
+          final vis = visibilities[c] ?? CategoryVisibility.expense;
+          if (_isIncome) {
+            return vis == CategoryVisibility.income || vis == CategoryVisibility.both;
+          } else {
+            return vis == CategoryVisibility.expense || vis == CategoryVisibility.both;
+          }
+        })
         .toList();
     final sources = ref.watch(sourcesListProvider);
     final allTx = ref.watch(transactionListProvider);
     final startingBalances = ref.watch(sourceStartingBalancesProvider);
 
     // auto-select defaults
-    if (_selectedCategory == null && categories.isNotEmpty) {
+    if (!categories.contains(_selectedCategory) && categories.isNotEmpty) {
       _selectedCategory = categories.first;
     }
     if (_selectedPaymentMethod == null && sources.isNotEmpty) {
@@ -405,8 +413,7 @@ class _CreateTransactionScreenState
                         ),
                       ),
 
-                      // ── CATEGORY ROW (Expense only) ──────────────────────
-                      if (!_isIncome) ...[
+                      // ── CATEGORY ROW ─────────────────────────────────────
                         const SizedBox(height: 24),
                         Row(
                           key: TutorialService.createTxCategoryKey,
@@ -518,8 +525,6 @@ class _CreateTransactionScreenState
                             },
                           ),
                         ),
-                      ],
-
                       // ── PAYMENT SOURCE CARDS ─────────────────────────────
                       const SizedBox(height: 24),
                       SectionLabel(label: 'Payment Source'),
