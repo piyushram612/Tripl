@@ -89,11 +89,13 @@ class _ManageCategoriesSheetState extends ConsumerState<ManageCategoriesSheet> {
               await ref.read(budgetLimitsProvider.notifier).loadLimits();
             },
             onDelete: (name) async {
+              await ref.read(categoryVisibilityProvider.notifier).removeVisibility(name);
               await ref.read(categoriesListProvider.notifier).deleteCategory(name);
               await ref.read(budgetLimitsProvider.notifier).loadLimits();
             },
             onUpdate: (oldName, newName) async {
               await ref.read(customizationProvider.notifier).migrateCategoryCustomizations(oldName, newName);
+              await ref.read(categoryVisibilityProvider.notifier).renameVisibility(oldName, newName);
               await ref.read(categoriesListProvider.notifier).updateCategory(oldName, newName);
               try {
                 final txListNotifier = ref.read(transactionListProvider.notifier);

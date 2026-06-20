@@ -572,7 +572,7 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
           ref.read(activeTabProvider.notifier).state = 3;
         } else if (identify.startsWith("TargetToolkit") && identify != "TargetToolkitTab") {
           ref.read(activeTabProvider.notifier).state = 4;
-        } else if (identify == "TargetHomeDashboard" || identify == "TargetFAB") {
+        } else if (identify == "TargetHomeAccounts" || identify == "TargetHomeWidgets" || identify == "TargetFAB") {
           ref.read(activeTabProvider.notifier).state = 0;
         }
 
@@ -670,7 +670,7 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
     ));
 
     targets.add(TargetFocus(
-      identify: "TargetHomeDashboard",
+      identify: "TargetHomeAccounts",
       keyTarget: TutorialService.homeAccountsKey,
       alignSkip: Alignment.topRight,
       shape: ShapeLightFocus.RRect,
@@ -678,7 +678,21 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
       contents: [
         TargetContent(
           align: ContentAlign.bottom,
-          builder: (context, controller) => _buildTutorialContent(controller, "Dashboard Widgets", "View your accounts, summaries, and categories. Long-press any card here to enter Edit Mode, where you can drag and reorder them."),
+          builder: (context, controller) => _buildTutorialContent(controller, "Accounts & Balances", "These start at 0 so you can track fresh expenses right away. If you prefer to track your true net worth, tap an account to set its 'Correct Balance'."),
+        ),
+      ],
+    ));
+
+    targets.add(TargetFocus(
+      identify: "TargetHomeWidgets",
+      keyTarget: TutorialService.homeSummaryKey,
+      alignSkip: Alignment.topRight,
+      shape: ShapeLightFocus.RRect,
+      radius: 12,
+      contents: [
+        TargetContent(
+          align: ContentAlign.bottom,
+          builder: (context, controller) => _buildTutorialContent(controller, "Dashboard Widgets", "View your summaries and categories below. Long-press any card to enter Edit Mode, where you can drag and reorder them."),
         ),
       ],
     ));

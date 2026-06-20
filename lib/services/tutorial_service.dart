@@ -77,6 +77,7 @@ class TutorialService {
   // Expense Splitter Targets
   static final GlobalKey splitterAmountKey = GlobalKey();
   static final GlobalKey splitterResultKey = GlobalKey();
+  static final GlobalKey splitterModesKey = GlobalKey();
 
   // Tip Calculator Targets
   static final GlobalKey tipAmountKey = GlobalKey();

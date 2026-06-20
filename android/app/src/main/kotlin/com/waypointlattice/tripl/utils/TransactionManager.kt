@@ -131,4 +131,42 @@ object TransactionManager {
             emptyMap()
         }
     }
+
+    /**
+     * Reads the category visibilities from SharedPreferences.
+     * Returns a map of category name -> visibility string (expense, income, both).
+     */
+    fun getCategoryVisibilities(context: Context): Map<String, String> {
+        val prefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+        
+        val defaultVisibilities = mutableMapOf(
+            "Dining" to "expense",
+            "Commute" to "expense",
+            "Subscriptions" to "expense",
+            "Utilities" to "expense",
+            "Groceries" to "expense",
+            "Shopping" to "expense",
+            "Housing" to "expense",
+            "Health" to "expense",
+            "Travel" to "expense",
+            "Investments" to "both",
+            "Savings" to "both",
+            "Salary" to "income",
+            "Bonus" to "income",
+            "Dividends" to "income",
+            "Gift" to "both",
+            "Other" to "both"
+        )
+        
+        return try {
+            val json = prefs.getString("flutter.category_visibilities_json", null)
+            if (json != null) {
+                val obj = org.json.JSONObject(json)
+                obj.keys().forEach { key -> defaultVisibilities[key] = obj.getString(key) }
+            }
+            defaultVisibilities
+        } catch (e: Exception) {
+            defaultVisibilities
+        }
+    }
 }

@@ -817,6 +817,77 @@ class _EditItemSheetState extends ConsumerState<_EditItemSheet> {
                   );
                 }).toList(),
               ),
+              
+              const SizedBox(height: 24),
+              
+              // Visibility customizer
+              const Text(
+                'CUSTOMIZE VISIBILITY',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.5,
+                  color: TallyTapTheme.textGray,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: CategoryVisibility.all.map((vis) {
+                  final visibilities = ref.watch(categoryVisibilityProvider);
+                  final currentVis = visibilities[_currentItemName] ?? CategoryVisibility.expense;
+                  final isSelected = currentVis == vis;
+                  
+                  final color = isSelected ? TallyTapTheme.primaryMint : TallyTapTheme.textLight;
+                  final icon = vis == CategoryVisibility.expense 
+                      ? Icons.arrow_upward_rounded 
+                      : (vis == CategoryVisibility.income ? Icons.arrow_downward_rounded : Icons.swap_vert_rounded);
+                  
+                  final label = vis == CategoryVisibility.expense ? 'Expense' : (vis == CategoryVisibility.income ? 'Income' : 'Both');
+                  
+                  return Expanded(
+                    child: GestureDetector(
+                      onTap: () async {
+                        HapticFeedback.selectionClick();
+                        await ref.read(categoryVisibilityProvider.notifier).updateVisibility(_currentItemName, vis);
+                        setState(() {});
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        decoration: BoxDecoration(
+                          color: isSelected ? color.withOpacity(0.15) : TallyTapTheme.obsidianCard,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isSelected ? color.withOpacity(0.5) : TallyTapTheme.borderGreen,
+                            width: isSelected ? 1.5 : 1.0,
+                          ),
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              icon,
+                              color: isSelected ? color : TallyTapTheme.textGray,
+                              size: 16,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
+                                color: isSelected ? color : TallyTapTheme.textLight,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
             ],
             
             const SizedBox(height: 32),

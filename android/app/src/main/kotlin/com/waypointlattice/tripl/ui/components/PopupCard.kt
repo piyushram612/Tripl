@@ -106,6 +106,7 @@ fun PopupCard(
     val sources = remember(context) { TransactionManager.getCustomSources(context) }
     val categoryColors = remember(context) { TransactionManager.getCategoryColors(context) }
     val sourceColors = remember(context) { TransactionManager.getSourceColors(context) }
+    val categoryVisibilities = remember(context) { TransactionManager.getCategoryVisibilities(context) }
 
     var visible by remember { mutableStateOf(false) }
     var isExpanded by remember { mutableStateOf(false) }
@@ -126,6 +127,24 @@ fun PopupCard(
     var reminderTime by remember { mutableStateOf("09:00") }
     
     val isIncome = transactionType == "INCOME"
+
+    val filteredCategories = remember(isIncome, categories, categoryVisibilities) {
+        categories.filter { cat ->
+            if (cat.equals("income", ignoreCase = true)) return@filter false
+            val vis = categoryVisibilities[cat] ?: "expense"
+            if (isIncome) {
+                vis == "income" || vis == "both"
+            } else {
+                vis == "expense" || vis == "both"
+            }
+        }
+    }
+
+    LaunchedEffect(filteredCategories) {
+        if (filteredCategories.isNotEmpty() && !filteredCategories.contains(selectedCategory)) {
+            selectedCategory = filteredCategories.first()
+        }
+    }
 
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
@@ -297,7 +316,7 @@ fun PopupCard(
                                 .horizontalScroll(rememberScrollState()),
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            categories.forEach { cat ->
+                            filteredCategories.forEach { cat ->
                                 ScrollableCategoryCapsule(
                                     label = cat,
                                     isSelected = (selectedCategory == cat),
