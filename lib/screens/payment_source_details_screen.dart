@@ -408,7 +408,7 @@ class _PaymentSourceDetailsScreenState extends ConsumerState<PaymentSourceDetail
     double totalExpense = 0.0;
 
     for (final tx in sourceTxs) {
-      final isInc = tx.category.toLowerCase() == 'income';
+      final isInc = tx.isIncome;
       if (isInc) {
         totalIncome += tx.amount.abs();
       } else {
@@ -452,7 +452,7 @@ class _PaymentSourceDetailsScreenState extends ConsumerState<PaymentSourceDetail
       daysRemaining = dueDate.difference(DateTime(today.year, today.month, today.day)).inDays;
 
       for (final tx in sourceTxs) {
-        if (tx.category.toLowerCase() != 'income') {
+        if (!tx.isIncome) {
           // Check if transaction falls inside current billing cycle
           if (tx.date.isAfter(statementStart.subtract(const Duration(seconds: 1))) &&
               tx.date.isBefore(statementEnd.add(const Duration(days: 1)))) {
@@ -484,7 +484,7 @@ class _PaymentSourceDetailsScreenState extends ConsumerState<PaymentSourceDetail
 
     for (int i = 0; i < sortedChronological.length; i++) {
       final tx = sortedChronological[i];
-      final isInc = tx.category.toLowerCase() == 'income';
+      final isInc = tx.isIncome;
       runningBalance += isInc ? tx.amount : -tx.amount;
       graphValues.add(runningBalance);
 
@@ -506,7 +506,7 @@ class _PaymentSourceDetailsScreenState extends ConsumerState<PaymentSourceDetail
     final Map<String, double> incomeSum = {};
 
     for (final tx in sourceTxs) {
-      final isInc = tx.category.toLowerCase() == 'income';
+      final isInc = tx.isIncome;
       if (isInc) {
         incomeSum[tx.category] = (incomeSum[tx.category] ?? 0.0) + tx.amount;
       } else {

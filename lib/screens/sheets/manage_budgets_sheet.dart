@@ -95,12 +95,18 @@ class _ManageBudgetsSheetState extends ConsumerState<ManageBudgetsSheet> {
     final currency = ref.watch(currencyProvider);
     final excludedCategories = ref.watch(excludedCategoriesProvider);
 
+    final double topPadding = MediaQuery.of(context).padding.top;
+    final double bottomPadding = MediaQuery.of(context).padding.bottom;
+    final double keyboardPadding = MediaQuery.of(context).viewInsets.bottom;
+
     return Padding(
       padding: EdgeInsets.only(
         left: 24,
         right: 24,
-        top: 24,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+        top: topPadding > 0 ? topPadding + 32 : 36,
+        bottom: keyboardPadding > 0
+            ? keyboardPadding + 16
+            : (bottomPadding > 0 ? bottomPadding + 12 : 24),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,

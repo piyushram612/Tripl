@@ -56,6 +56,7 @@ class OutstandingListNotifier extends StateNotifier<List<OutstandingRecord>> {
             ? 'Lent: ${record.notes}'.trim()
             : 'Borrowed: ${record.notes}'.trim(),
         paidTo: record.isLent ? record.personName : '',
+        isIncome: isIncome,
       );
 
       // Save to transaction provider
@@ -94,6 +95,7 @@ class OutstandingListNotifier extends StateNotifier<List<OutstandingRecord>> {
             ? 'Settled: Rahul paid back for "${record.notes}"'.replaceAll('Rahul', record.personName)
             : 'Settled: Paid back Rahul for "${record.notes}"'.replaceAll('Rahul', record.personName),
         paidTo: !record.isLent ? record.personName : '',
+        isIncome: isIncome,
       );
 
       await _ref.read(transactionListProvider.notifier).addTransaction(timelineTx);
@@ -145,7 +147,7 @@ final combinedOutstandingProvider = Provider<List<OutstandingRecord>>((ref) {
   final synthRecords = transactions
       .where((tx) => tx.wasFinishLater && !tx.hideFromLedger && !manualLinkedIds.contains(tx.id))
       .map((tx) {
-    final isIncome = tx.category.toLowerCase() == 'income';
+    final isIncome = tx.isIncome;
     final isLent = isIncome; // Income means they owe me
     final personName = tx.paidTo.isNotEmpty ? tx.paidTo : tx.merchant;
 

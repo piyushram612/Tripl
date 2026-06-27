@@ -13,8 +13,8 @@ class ExpenseTransaction {
   final DateTime? reminderDate;
   final bool wasFinishLater;
   final bool hideFromLedger;
-
   final String? groupId;
+  final bool isIncome;
 
   ExpenseTransaction({
     required this.id,
@@ -30,6 +30,7 @@ class ExpenseTransaction {
     this.wasFinishLater = false,
     this.hideFromLedger = false,
     this.groupId,
+    this.isIncome = false,
   });
 
   ExpenseTransaction copyWith({
@@ -46,6 +47,7 @@ class ExpenseTransaction {
     bool? wasFinishLater,
     bool? hideFromLedger,
     String? groupId,
+    bool? isIncome,
   }) {
     return ExpenseTransaction(
       id: id ?? this.id,
@@ -61,6 +63,7 @@ class ExpenseTransaction {
       wasFinishLater: wasFinishLater ?? this.wasFinishLater,
       hideFromLedger: hideFromLedger ?? this.hideFromLedger,
       groupId: groupId ?? this.groupId,
+      isIncome: isIncome ?? this.isIncome,
     );
   }
 
@@ -79,17 +82,26 @@ class ExpenseTransaction {
       'wasFinishLater': wasFinishLater,
       'hideFromLedger': hideFromLedger,
       'groupId': groupId,
+      'isIncome': isIncome,
     };
   }
 
   factory ExpenseTransaction.fromMap(Map<String, dynamic> map) {
+    final cat = (map['category'] ?? 'Other').toString();
+    final lowerCat = cat.toLowerCase();
+    // Guess isIncome based on default exclusive income categories or 'income' category
+    final guessedIsIncome = lowerCat == 'income' ||
+        lowerCat == 'salary' ||
+        lowerCat == 'bonus' ||
+        lowerCat == 'dividends';
+
     return ExpenseTransaction(
       id: map['id'] ?? '',
       amount: (map['amount'] as num).toDouble(),
       merchant: map['merchant'] ?? '',
       date: DateTime.parse(map['date']),
       paymentMethod: map['paymentMethod'] ?? '',
-      category: map['category'] ?? 'Other',
+      category: cat,
       notes: map['notes'] ?? '',
       paidTo: map['paidTo'] ?? '',
       needsVerification: map['needsVerification'] ?? false,
@@ -97,6 +109,7 @@ class ExpenseTransaction {
       wasFinishLater: map['wasFinishLater'] ?? (map['needsVerification'] ?? false), // Backwards compat: if needsVerification was true, it wasFinishLater.
       hideFromLedger: map['hideFromLedger'] ?? false,
       groupId: map['groupId'],
+      isIncome: map['isIncome'] ?? guessedIsIncome,
     );
   }
 

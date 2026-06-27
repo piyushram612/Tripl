@@ -123,34 +123,51 @@ class _TallyTapAppState extends ConsumerState<TallyTapApp> with WidgetsBindingOb
 
   @override
   Widget build(BuildContext context) {
-    final isUnlocked = ref.watch(appUnlockedProvider);
-
     return MaterialApp(
       title: 'Tripl',
       debugShowCheckedModeBanner: false,
       theme: TallyTapTheme.darkTheme,
       darkTheme: TallyTapTheme.darkTheme,
       themeMode: ThemeMode.dark,
-      home: isUnlocked
-          ? FutureBuilder<_AppStartState>(
-              future: _startStateFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const TallyTapSplashScreen();
-                }
+      home: FutureBuilder<_AppStartState>(
+        future: _startStateFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const TallyTapSplashScreen();
+          }
 
-                switch (snapshot.data) {
-                  case _AppStartState.calibrationPending:
-                    return const CalibrationScreen();
-                  case _AppStartState.onboardingPending:
-                    return const OnboardingScreen();
-                  case _AppStartState.ready:
-                  default:
-                    return const MainScreen();
-                }
-              },
-            )
-          : const LockScreen(),
+          switch (snapshot.data) {
+            case _AppStartState.calibrationPending:
+              return const CalibrationScreen();
+            case _AppStartState.onboardingPending:
+              return const OnboardingScreen();
+            case _AppStartState.ready:
+            default:
+              return const MainScreen();
+          }
+        },
+      ),
+      builder: (context, child) {
+        return Consumer(
+          builder: (context, ref, _) {
+            final isUnlocked = ref.watch(appUnlockedProvider);
+            return Stack(
+              children: [
+                if (child != null)
+                  ExcludeSemantics(
+                    excluding: !isUnlocked,
+                    child: AbsorbPointer(
+                      absorbing: !isUnlocked,
+                      child: child,
+                    ),
+                  ),
+                if (!isUnlocked)
+                  const LockScreen(),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 }

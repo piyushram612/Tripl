@@ -543,7 +543,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
     double monthlyExpense = 0.0;
 
     for (final tx in monthlyTransactions) {
-      final isIncome = tx.category.toLowerCase() == 'income';
+      final isIncome = tx.isIncome;
       final absAmount = tx.amount.abs();
       if (isIncome) {
         monthlyIncome += absAmount;
@@ -575,7 +575,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
         bool matchesTab = true;
         double netVal = 0.0;
         for (final tx in item.groupTransactions!) {
-          final isInc = tx.category.toLowerCase() == 'income';
+          final isInc = tx.isIncome;
           netVal += isInc ? tx.amount : -tx.amount;
         }
 
@@ -615,9 +615,9 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
 
         bool matchesTab = true;
         if (_activeFilter == "Income") {
-          matchesTab = tx.category.toLowerCase() == 'income';
+          matchesTab = tx.isIncome;
         } else if (_activeFilter == "Expenses") {
-          matchesTab = tx.category.toLowerCase() != 'income';
+          matchesTab = !tx.isIncome;
         } else if (_activeFilter == "Transfers") {
           matchesTab = false;
         }
@@ -1105,7 +1105,7 @@ class _GroupTransactionCardState extends State<GroupTransactionCard> {
   Widget build(BuildContext context) {
     double netAmount = 0.0;
     for (final tx in widget.transactions) {
-      final isInc = tx.category.toLowerCase() == 'income';
+      final isInc = tx.isIncome;
       netAmount += isInc ? tx.amount.abs() : -tx.amount.abs();
     }
     final isNetIncome = netAmount >= 0;
@@ -1247,7 +1247,7 @@ class _GroupTransactionCardState extends State<GroupTransactionCard> {
                 ),
                 itemBuilder: (context, index) {
                   final tx = widget.transactions[index];
-                  final isInc = tx.category.toLowerCase() == 'income';
+                  final isInc = tx.isIncome;
                   final color = isInc ? const Color(0xFF10B981) : TallyTapTheme.textLight;
                   int hour = tx.date.hour;
                   final period = hour >= 12 ? 'PM' : 'AM';

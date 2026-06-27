@@ -179,7 +179,7 @@ class ToolkitScreen extends ConsumerWidget {
         return;
       }
 
-      // Check if it's already using TallyTap's exact headers
+      // Check if it's already using Tripl's exact headers
       final headersLower = rawData.headers.map((h) => h.toLowerCase().trim()).toList();
       final bool hasExactRequired = headersLower.contains('amount') &&
                                     headersLower.contains('merchant') &&
@@ -289,7 +289,7 @@ class ToolkitScreen extends ConsumerWidget {
                               ),
                               SizedBox(height: 2),
                               Text(
-                                'Align external app headers with TallyTap fields',
+                                'Align external app headers with Tripl fields',
                                 style: TextStyle(fontSize: 12, color: TallyTapTheme.textGray),
                               ),
                             ],
@@ -300,7 +300,7 @@ class ToolkitScreen extends ConsumerWidget {
                     const SizedBox(height: 16),
 
                     const Text(
-                      'TallyTap has auto-detected closely matching columns from your file. Please verify and fill in the required mappings (*) to parse the transactions correctly.',
+                      'Tripl has auto-detected closely matching columns from your file. Please verify and fill in the required mappings (*) to parse the transactions correctly.',
                       style: TextStyle(fontSize: 12, color: TallyTapTheme.textGray, height: 1.4),
                     ),
                     const SizedBox(height: 20),
@@ -566,7 +566,7 @@ class ToolkitScreen extends ConsumerWidget {
                               ),
                               SizedBox(height: 2),
                               Text(
-                                'Align CSV bank accounts with TallyTap accounts',
+                                'Align CSV bank accounts with Tripl accounts',
                                 style: TextStyle(fontSize: 12, color: TallyTapTheme.textGray),
                               ),
                             ],
@@ -577,7 +577,7 @@ class ToolkitScreen extends ConsumerWidget {
                     const SizedBox(height: 16),
 
                     const Text(
-                      'TallyTap detected these payment accounts in your CSV file. You can map them to existing accounts in the app, or create them freshly.',
+                      'Tripl detected these payment accounts in your CSV file. You can map them to existing accounts in the app, or create them freshly.',
                       style: TextStyle(fontSize: 12, color: TallyTapTheme.textGray, height: 1.4),
                     ),
                     const SizedBox(height: 20),

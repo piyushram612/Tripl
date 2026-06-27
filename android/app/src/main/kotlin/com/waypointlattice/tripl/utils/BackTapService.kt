@@ -20,10 +20,11 @@ import android.os.PowerManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.waypointlattice.tripl.ui.PopupActivity
+import com.waypointlattice.tripl.MainActivity
 
 class BackTapService : Service(), SensorEventListener {
     private var sensorManager: SensorManager? = null
-    private var accelerometer: Sensor? = null
+    private var motionSensor: Sensor? = null
     var detector: BackTapDetector? = null
     private var isSensorRegistered = false
     private var hapticsEnabled = true
@@ -61,6 +62,14 @@ class BackTapService : Service(), SensorEventListener {
             android.util.Log.d(TAG, "Sensitivity updated live to ${ms}ms")
         }
 
+        fun updateThresholds(force: Float, jerk: Float) {
+            instance?.detector?.let {
+                it.tapThreshold = force
+                it.jerkThreshold = jerk
+                android.util.Log.d(TAG, "Thresholds updated live to Force=$force, Jerk=$jerk")
+            }
+        }
+
         fun updateHapticsEnabled(enabled: Boolean) {
             instance?.let {
                 it.hapticsEnabled = enabled
@@ -77,9 +86,16 @@ class BackTapService : Service(), SensorEventListener {
         // Load saved sensitivity from SharedPreferences
         val savedMs = try {
             val prefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-            val raw = prefs.getInt("flutter.tap_sensitivity_ms", DEFAULT_SENSITIVITY_MS.toInt())
-            // Clamp to valid range to guard against corrupted values
-            raw.toLong().coerceIn(200L, 1000L)
+            val value = prefs.all["flutter.tap_sensitivity_ms"]
+            val raw = when (value) {
+                is Long -> value
+                is Int -> value.toLong()
+                is Float -> value.toLong()
+                is Double -> value.toLong()
+                is String -> value.toLongOrNull() ?: DEFAULT_SENSITIVITY_MS
+                else -> DEFAULT_SENSITIVITY_MS
+            }
+            raw.coerceIn(200L, 1000L)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to load tap sensitivity, using default: ${e.message}")
             DEFAULT_SENSITIVITY_MS
@@ -88,7 +104,12 @@ class BackTapService : Service(), SensorEventListener {
 
         hapticsEnabled = try {
             val prefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-            prefs.getBoolean("flutter.haptics_enabled", true)
+            val value = prefs.all["flutter.haptics_enabled"]
+            when (value) {
+                is Boolean -> value
+                is String -> value.toBoolean()
+                else -> true
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to load haptics preference, using default: ${e.message}")
             true
@@ -96,24 +117,65 @@ class BackTapService : Service(), SensorEventListener {
         Log.d(TAG, "Loaded haptics enabled: $hapticsEnabled")
 
         sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
-        accelerometer = sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+        
+        // Exclusively use TYPE_ACCELEROMETER for robust raw sensor physics
+        motionSensor = sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+        Log.d(TAG, "Using Sensor.TYPE_ACCELEROMETER")
 
-        detector = BackTapDetector {
+        val defaultForce = 2.5f
+        val defaultJerk = 2.0f
+
+        val savedForce = try {
+            val prefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            val value = prefs.all["flutter.tap_threshold"]
+            val raw = when (value) {
+                is Float -> value
+                is Double -> value.toFloat()
+                is Long -> value.toFloat()
+                is Int -> value.toFloat()
+                is String -> value.toFloatOrNull() ?: defaultForce
+                else -> defaultForce
+            }
+            raw.coerceIn(2.2f, 4.5f)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to load tap threshold, using default: ${e.message}")
+            defaultForce
+        }
+
+        val savedJerk = try {
+            val prefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+            val value = prefs.all["flutter.jerk_threshold"]
+            val raw = when (value) {
+                is Float -> value
+                is Double -> value.toFloat()
+                is Long -> value.toFloat()
+                is Int -> value.toFloat()
+                is String -> value.toFloatOrNull() ?: defaultJerk
+                else -> defaultJerk
+            }
+            raw.coerceIn(1.5f, 2.2f)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to load jerk threshold, using default: ${e.message}")
+            defaultJerk
+        }
+        Log.d(TAG, "Loaded tap force threshold: $savedForce, jerk threshold: $savedJerk")
+
+        detector = BackTapDetector { force, jerk ->
             val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
             if (keyguardManager.isKeyguardLocked) {
                 Log.d(TAG, "Triple tap detected, but device is locked. Ignoring.")
                 return@BackTapDetector
             }
 
-            Log.d(TAG, "Back tap gesture triggered!")
+            Log.d(TAG, "Back tap gesture triggered! Force=$force, Jerk=$jerk")
             triggerVibration()
 
             // Always notify MainActivity (used by calibration event stream)
-            Log.d("TallyTapCalib", "BackTapService: triple tap complete, notifying MainActivity. calibrationMode=${com.waypointlattice.tripl.MainActivity.calibrationMode}")
-            com.waypointlattice.tripl.MainActivity.onBackTapDetected()
+            Log.d("TallyTapCalib", "BackTapService: triple tap complete, notifying MainActivity. calibrationMode=${MainActivity.calibrationMode}")
+            MainActivity.onBackTapDetected(force, jerk)
 
             // Only launch/dismiss popup when NOT in calibration mode
-            if (!com.waypointlattice.tripl.MainActivity.calibrationMode) {
+            if (!MainActivity.calibrationMode) {
                 val dismissed = PopupActivity.dismissActiveInstance()
                 if (dismissed) {
                     Log.d(TAG, "Active popup dismissed via re-trigger gesture")
@@ -132,6 +194,8 @@ class BackTapService : Service(), SensorEventListener {
         }
 
         detector?.tapWindowMaxMs = savedMs
+        detector?.tapThreshold = savedForce
+        detector?.jerkThreshold = savedJerk
 
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, createNotification())
@@ -184,11 +248,11 @@ class BackTapService : Service(), SensorEventListener {
 
     private fun registerSensor() {
         if (!isSensorRegistered) {
-            accelerometer?.let {
+            motionSensor?.let {
                 isSensorRegistered = sensorManager?.registerListener(this, it, SensorManager.SENSOR_DELAY_GAME) ?: false
-                Log.d(TAG, "registerSensor: Accelerometer registered successfully? $isSensorRegistered")
+                Log.d(TAG, "registerSensor: Motion sensor registered successfully? $isSensorRegistered with SENSOR_DELAY_GAME")
             } ?: run {
-                Log.e(TAG, "registerSensor: Accelerometer sensor not found on this device!")
+                Log.e(TAG, "registerSensor: No motion sensor found on this device!")
             }
         }
     }

@@ -72,7 +72,7 @@ class _GroupTransactionDetailsScreenState extends ConsumerState<GroupTransaction
 
     double netAmount = 0.0;
     for (final tx in groupTransactions) {
-      final isInc = tx.category.toLowerCase() == 'income';
+      final isInc = tx.isIncome;
       netAmount += isInc ? tx.amount : -tx.amount;
     }
     final isNetIncome = netAmount >= 0;
@@ -306,7 +306,7 @@ class _GroupTransactionDetailsScreenState extends ConsumerState<GroupTransaction
                       separatorBuilder: (context, index) => const SizedBox(height: 12),
                       itemBuilder: (context, index) {
                         final tx = groupTransactions[index];
-                        final isInc = tx.category.toLowerCase() == 'income';
+                        final isInc = tx.isIncome;
                         final color = isInc ? const Color(0xFF10B981) : TallyTapTheme.textLight;
                         
                         final dateStr = DateFormat('MMM d, y • h:mm a').format(tx.date);

@@ -113,7 +113,6 @@ class TallyTapTheme {
     if (customCategoryIcons.containsKey(trimmed)) {
       return customCategoryIcons[trimmed]!;
     }
-    if (isIncome || trimmed.toLowerCase() == 'income') return Icons.arrow_downward_rounded;
     final clean = trimmed.toLowerCase();
     if (clean.contains('dining') || clean.contains('food') || clean.contains('dinner') || clean.contains('restaurant')) {
       return Icons.local_cafe_outlined;
@@ -127,10 +126,12 @@ class TallyTapTheme {
       return Icons.payments_outlined;
     } else if (clean.contains('bonus') || clean.contains('dividend') || clean.contains('invest')) {
       return Icons.trending_up_outlined;
+    } else if (clean.contains('savings')) {
+      return Icons.savings_outlined;
     } else if (clean.contains('gift')) {
       return Icons.card_giftcard_outlined;
     } else {
-      return Icons.local_mall_outlined;
+      return isIncome || clean == 'income' ? Icons.arrow_downward_rounded : Icons.local_mall_outlined;
     }
   }
 
@@ -139,7 +140,6 @@ class TallyTapTheme {
     if (customCategoryColors.containsKey(trimmed)) {
       return customCategoryColors[trimmed]!.withOpacity(0.15);
     }
-    if (isIncome || trimmed.toLowerCase() == 'income') return const Color(0xFF0F2B20); // Green tint
     final clean = trimmed.toLowerCase();
     if (clean.contains('dining') || clean.contains('food') || clean.contains('dinner') || clean.contains('restaurant')) {
       return const Color(0xFF261D4C);
@@ -153,10 +153,12 @@ class TallyTapTheme {
       return const Color(0xFF163321);
     } else if (clean.contains('bonus') || clean.contains('dividend') || clean.contains('invest')) {
       return const Color(0xFF332015);
+    } else if (clean.contains('savings')) {
+      return const Color(0xFF0F2B20);
     } else if (clean.contains('gift')) {
       return const Color(0xFF331526);
     } else {
-      return const Color(0xFF142B24);
+      return isIncome || clean == 'income' ? const Color(0xFF0F2B20) : const Color(0xFF142B24);
     }
   }
 

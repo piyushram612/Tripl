@@ -130,6 +130,7 @@ class _TransactionDetailsScreenState
       wasFinishLater: widget.transaction.wasFinishLater || _finishLater,
       hideFromLedger: widget.transaction.hideFromLedger,
       groupId: widget.transaction.groupId,
+      isIncome: widget.transaction.isIncome,
     );
 
     ref.read(transactionListProvider.notifier).updateTransaction(tx);
@@ -218,8 +219,9 @@ class _TransactionDetailsScreenState
     final currency = ref.watch(currencyProvider);
     final categories = ref.watch(categoriesListProvider);
     final sources = ref.watch(sourcesListProvider);
+    final visibilities = ref.watch(categoryVisibilityProvider);
 
-    final isIncome = _selectedCategory.toLowerCase() == 'income';
+    final isIncome = widget.transaction.isIncome;
     final activeColor =
         isIncome ? const Color(0xFF10B981) : TallyTapTheme.primaryMint;
     final accentColor = TallyTapTheme.getColorForCategory(_selectedCategory);
@@ -236,6 +238,19 @@ class _TransactionDetailsScreenState
     final dropdownSources = List<String>.from(sources);
     if (!dropdownSources.contains(_selectedPaymentMethod)) {
       dropdownSources.add(_selectedPaymentMethod);
+    }
+
+    final filteredCategories = dropdownCategories.where((c) {
+      if (c.toLowerCase() == 'income') return false;
+      final vis = visibilities[c] ?? CategoryVisibility.expense;
+      if (isIncome) {
+        return vis == CategoryVisibility.income || vis == CategoryVisibility.both;
+      } else {
+        return vis == CategoryVisibility.expense || vis == CategoryVisibility.both;
+      }
+    }).toList();
+    if (!filteredCategories.contains(_selectedCategory)) {
+      filteredCategories.insert(0, _selectedCategory);
     }
 
     final dateLabel = _isToday(_selectedDate)
@@ -439,117 +454,111 @@ class _TransactionDetailsScreenState
                       ],
 
                       // ── CATEGORY SECTION ───────────────────────────────
-                      if (!isIncome) ...[
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            _SectionLabel(label: 'Category'),
-                            if (!_isEditing)
-                              _CategoryPill(
-                                  category: _selectedCategory,
-                                  color: accentColor),
-                          ],
-                        ),
-                        if (_isEditing) ...[
-                          const SizedBox(height: 12),
-                          SizedBox(
-                            height: 84,
-                            child: ListView.separated(
-                              scrollDirection: Axis.horizontal,
-                              physics: const BouncingScrollPhysics(),
-                              itemCount: dropdownCategories
-                                  .where((c) =>
-                                      c.toLowerCase() != 'income')
-                                  .length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(width: 12),
-                              itemBuilder: (ctx, i) {
-                                final cat = dropdownCategories
-                                    .where((c) =>
-                                        c.toLowerCase() != 'income')
-                                    .toList()[i];
-                                final selected = cat == _selectedCategory;
-                                final color =
-                                    TallyTapTheme.getColorForCategory(cat);
-                                return GestureDetector(
-                                  onTap: () {
-                                    HapticFeedback.selectionClick();
-                                    setState(() => _selectedCategory = cat);
-                                  },
-                                  child: AnimatedContainer(
-                                    duration:
-                                        const Duration(milliseconds: 200),
-                                    width: 72,
-                                    decoration: BoxDecoration(
-                                      color: selected
-                                          ? color.withOpacity(0.15)
-                                          : TallyTapTheme.obsidianCard,
-                                      borderRadius:
-                                          BorderRadius.circular(18),
-                                      border: Border.all(
-                                        color: selected
-                                            ? color
-                                            : TallyTapTheme.borderGreen,
-                                        width: selected ? 1.8 : 1.0,
-                                      ),
-                                      boxShadow: selected
-                                          ? [
-                                              BoxShadow(
-                                                color:
-                                                    color.withOpacity(0.25),
-                                                blurRadius: 10,
-                                                offset: const Offset(0, 4),
-                                              )
-                                            ]
-                                          : null,
-                                    ),
-                                    child: Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Container(
-                                          width: 40,
-                                          height: 40,
-                                          decoration: BoxDecoration(
-                                            shape: BoxShape.circle,
-                                            color: selected
-                                                ? color.withOpacity(0.2)
-                                                : TallyTapTheme.obsidianBg
-                                                    .withOpacity(0.5),
-                                          ),
-                                          child: Icon(
-                                            TallyTapTheme.getIconForCategory(
-                                                cat, false),
-                                            color: selected
-                                                ? color
-                                                : TallyTapTheme.textGray,
-                                            size: 20,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          cat,
-                                          textAlign: TextAlign.center,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w700,
-                                            color: selected
-                                                ? color
-                                                : TallyTapTheme.textGray,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          _SectionLabel(label: 'Category'),
+                          if (!_isEditing)
+                            _CategoryPill(
+                                category: _selectedCategory,
+                                color: accentColor),
                         ],
-                        const SizedBox(height: 24),
+                      ),
+                      if (_isEditing) ...[
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          height: 84,
+                          child: ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            physics: const BouncingScrollPhysics(),
+                            itemCount: filteredCategories.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(width: 12),
+                            itemBuilder: (ctx, i) {
+                              final cat = filteredCategories[i];
+                              final selected = cat == _selectedCategory;
+                              final color =
+                                  TallyTapTheme.getColorForCategory(cat);
+                              return GestureDetector(
+                                onTap: () {
+                                  HapticFeedback.selectionClick();
+                                  setState(() => _selectedCategory = cat);
+                                },
+                                child: AnimatedContainer(
+                                  duration:
+                                      const Duration(milliseconds: 200),
+                                  width: 72,
+                                  decoration: BoxDecoration(
+                                    color: selected
+                                        ? color.withOpacity(0.15)
+                                        : TallyTapTheme.obsidianCard,
+                                    borderRadius:
+                                        BorderRadius.circular(18),
+                                    border: Border.all(
+                                      color: selected
+                                          ? color
+                                          : TallyTapTheme.borderGreen,
+                                      width: selected ? 1.8 : 1.0,
+                                    ),
+                                    boxShadow: selected
+                                        ? [
+                                            BoxShadow(
+                                              color:
+                                                  color.withOpacity(0.25),
+                                              blurRadius: 10,
+                                              offset: const Offset(0, 4),
+                                            )
+                                          ]
+                                        : null,
+                                  ),
+                                  child: Column(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.center,
+                                    children: [
+                                      Container(
+                                        width: 40,
+                                        height: 40,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: selected
+                                              ? color.withOpacity(0.2)
+                                              : TallyTapTheme.obsidianBg
+                                                  .withOpacity(0.5),
+                                        ),
+                                        child: Icon(
+                                          TallyTapTheme.getIconForCategory(
+                                              cat, isIncome),
+                                          color: selected
+                                              ? color
+                                              : TallyTapTheme.textGray,
+                                          size: 20,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        cat,
+                                        textAlign: TextAlign.center,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w700,
+                                          color: selected
+                                              ? color
+                                              : TallyTapTheme.textGray,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
                       ],
+                      const SizedBox(height: 24),
+
+
 
                       // ── PAYMENT SOURCE SECTION ─────────────────────────
                       Row(

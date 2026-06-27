@@ -172,8 +172,8 @@ class HomeScreen extends ConsumerWidget {
     final recentTimeframe = ref.watch(homeRecentTimeframeProvider);
 
     final filteredRecentTransactions = transactions.where((tx) {
-      if (recentType == 'expenses' && tx.category.toLowerCase() == 'income') return false;
-      if (recentType == 'income' && tx.category.toLowerCase() != 'income') return false;
+      if (recentType == 'expenses' && tx.isIncome) return false;
+      if (recentType == 'income' && !tx.isIncome) return false;
       
       if (recentTimeframe != 'all') {
         final txDate = tx.date;
@@ -199,7 +199,7 @@ class HomeScreen extends ConsumerWidget {
     // 1. Dynamic overall spent (for header greeting only, based on active global budget period)
     double totalSpent = 0.0;
     for (var tx in transactions) {
-      if (tx.category.toLowerCase() != 'income') {
+      if (!tx.isIncome) {
         if (globalBudget.period == 'weekly') {
           if (_isDateInCurrentWeek(tx.date)) {
             totalSpent += tx.amount.abs();
@@ -223,7 +223,7 @@ class HomeScreen extends ConsumerWidget {
     // 2. Summary Card metrics (Line Graph, based on summaryPeriod & summaryOffset)
     double summaryTotalSpent = 0.0;
     for (var tx in transactions) {
-      if (tx.category.toLowerCase() != 'income') {
+      if (!tx.isIncome) {
         if (summaryPeriod == 'weekly') {
           if (_isDateInWeek(tx.date, adjustedNow)) {
             summaryTotalSpent += tx.amount.abs();
@@ -241,7 +241,7 @@ class HomeScreen extends ConsumerWidget {
     if (summaryPeriod == 'weekly') {
       priorReferenceDate = adjustedNow.subtract(const Duration(days: 7));
       for (var tx in transactions) {
-        if (tx.category.toLowerCase() != 'income') {
+        if (!tx.isIncome) {
           if (_isDateInWeek(tx.date, priorReferenceDate)) {
             summaryPrevSpent += tx.amount.abs();
           }
@@ -250,7 +250,7 @@ class HomeScreen extends ConsumerWidget {
     } else {
       priorReferenceDate = DateTime(adjustedNow.year, adjustedNow.month - 1, 15);
       for (var tx in transactions) {
-        if (tx.category.toLowerCase() != 'income') {
+        if (!tx.isIncome) {
           if (_isDateInMonth(tx.date, priorReferenceDate)) {
             summaryPrevSpent += tx.amount.abs();
           }
@@ -282,7 +282,7 @@ class HomeScreen extends ConsumerWidget {
           final txDateOnly = DateTime(tx.date.year, tx.date.month, tx.date.day);
           final targetDateOnly = DateTime(targetDate.year, targetDate.month, targetDate.day);
           if (txDateOnly.isBefore(targetDateOnly) || txDateOnly.isAtSameMomentAs(targetDateOnly)) {
-            if (tx.category.toLowerCase() == 'income') {
+            if (tx.isIncome) {
               balance += tx.amount.abs();
             } else {
               balance -= tx.amount.abs();
@@ -303,7 +303,7 @@ class HomeScreen extends ConsumerWidget {
           final txDateOnly = DateTime(tx.date.year, tx.date.month, tx.date.day);
           final targetDateOnly = DateTime(targetDate.year, targetDate.month, targetDate.day);
           if (txDateOnly.isBefore(targetDateOnly) || txDateOnly.isAtSameMomentAs(targetDateOnly)) {
-            if (tx.category.toLowerCase() == 'income') {
+            if (tx.isIncome) {
               balance += tx.amount.abs();
             } else {
               balance -= tx.amount.abs();
@@ -355,7 +355,7 @@ class HomeScreen extends ConsumerWidget {
     // Group actual categories dynamically based strictly on user transactions in the current period
     final Map<String, double> catSum = {};
     for (var tx in transactions) {
-      if (tx.category.toLowerCase() != 'income') {
+      if (!tx.isIncome) {
         if (breakdownPeriod == 'weekly') {
           if (!_isDateInWeek(tx.date, adjustedBreakdownNow)) continue;
         } else {
@@ -423,7 +423,7 @@ class HomeScreen extends ConsumerWidget {
                         double inflows = 0.0;
                         double outflows = 0.0;
                         for (final tx in srcTxs) {
-                          if (tx.category.toLowerCase() == 'income') {
+                          if (tx.isIncome) {
                             inflows += tx.amount.abs();
                           } else {
                             outflows += tx.amount.abs();

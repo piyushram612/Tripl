@@ -26,14 +26,18 @@ class MainActivity : FlutterFragmentActivity() {
         var backTapEventSink: EventChannel.EventSink? = null
         var flutterEngineInstance: FlutterEngine? = null
 
-        fun onBackTapDetected() {
+        fun onBackTapDetected(recommendedForce: Float, recommendedJerk: Float) {
             android.util.Log.d("TallyTapCalib", "onBackTapDetected: calibrationMode=$calibrationMode sink=$backTapEventSink")
             if (calibrationMode) {
                 // EventSink.success() must be called on the main thread
                 android.os.Handler(android.os.Looper.getMainLooper()).post {
                     if (backTapEventSink != null) {
-                        android.util.Log.d("TallyTapCalib", "Sending tap event to Flutter event channel")
-                        backTapEventSink?.success("tap")
+                        android.util.Log.d("TallyTapCalib", "Sending tap event to Flutter event channel with recommended thresholds")
+                        backTapEventSink?.success(mapOf(
+                            "event" to "tap",
+                            "recommendedForce" to recommendedForce.toDouble(),
+                            "recommendedJerk" to recommendedJerk.toDouble()
+                        ))
                     } else {
                         android.util.Log.w("TallyTapCalib", "Sink is null! Flutter has not subscribed to the event channel yet.")
                     }
@@ -95,7 +99,12 @@ class MainActivity : FlutterFragmentActivity() {
                         // When calibration ends, stop the service only if the user
                         // hasn't permanently enabled back tap in Settings.
                         val prefs = getSharedPreferences("FlutterSharedPreferences", android.content.Context.MODE_PRIVATE)
-                        val userEnabled = prefs.getBoolean("flutter.back_tap_enabled", false)
+                        val value = prefs.all["flutter.back_tap_enabled"]
+                        val userEnabled = when (value) {
+                            is Boolean -> value
+                            is String -> value.toBoolean()
+                            else -> false
+                        }
                         if (!userEnabled) {
                             stopService(Intent(this, BackTapService::class.java))
                         }
@@ -109,6 +118,19 @@ class MainActivity : FlutterFragmentActivity() {
                     // Also persist so next service start picks it up
                     val prefs = getSharedPreferences("FlutterSharedPreferences", android.content.Context.MODE_PRIVATE)
                     prefs.edit().putInt("flutter.tap_sensitivity_ms", ms.toInt()).apply()
+                    result.success(null)
+                }
+                "setTapThresholds" -> {
+                    val force = (call.argument<Double>("force") ?: 2.5).toFloat()
+                    val jerk = (call.argument<Double>("jerk") ?: 2.5).toFloat()
+                    // Update running service
+                    BackTapService.updateThresholds(force, jerk)
+                    // Also persist so next service start picks it up
+                    val prefs = getSharedPreferences("FlutterSharedPreferences", android.content.Context.MODE_PRIVATE)
+                    prefs.edit()
+                        .putFloat("flutter.tap_threshold", force)
+                        .putFloat("flutter.jerk_threshold", jerk)
+                        .apply()
                     result.success(null)
                 }
                 "setHapticsEnabled" -> {
@@ -165,7 +187,11 @@ class MainActivity : FlutterFragmentActivity() {
             
             startBackTapService()
         } else {
-            stopService(Intent(this, BackTapService::class.java))
+            if (!calibrationMode) {
+                stopService(Intent(this, BackTapService::class.java))
+            } else {
+                android.util.Log.d("MainActivity", "toggleBackTapService: Request to stop service ignored because calibrationMode is active")
+            }
         }
     }
 

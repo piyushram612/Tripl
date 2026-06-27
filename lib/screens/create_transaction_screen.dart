@@ -106,7 +106,7 @@ class _CreateTransactionScreenState
     double b = startingBalance;
     for (final t in txs) {
       if (t.paymentMethod == src) {
-        b += t.category.toLowerCase() == 'income' ? t.amount.abs() : -t.amount.abs();
+        b += t.isIncome ? t.amount.abs() : -t.amount.abs();
       }
     }
     return b;
@@ -180,6 +180,7 @@ class _CreateTransactionScreenState
         _reminderTime.minute,
       ) : null,
       wasFinishLater: _finishLater,
+      isIncome: _isIncome,
     );
 
     ref.read(transactionListProvider.notifier).addTransaction(tx);
