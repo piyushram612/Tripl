@@ -74,4 +74,16 @@ class PlatformService {
       print("Failed to toggle haptics: ${e.message}");
     }
   }
+
+  /// Push custom tap force and jerk thresholds directly to the running BackTapDetector.
+  static Future<void> setTapThresholds(double force, double jerk) async {
+    try {
+      await _channel.invokeMethod('setTapThresholds', {'force': force, 'jerk': jerk});
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setDouble('tap_threshold', force);
+      await prefs.setDouble('jerk_threshold', jerk);
+    } on PlatformException catch (e) {
+      print("Failed to set tap thresholds: ${e.message}");
+    }
+  }
 }

@@ -11,7 +11,7 @@
 
     <application
 
-        android:label="Tripl"
+        android:label="${appName}"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
@@ -73,7 +73,7 @@
         <!-- Quick Settings Tile Service -->
         <service
             android:name="com.waypointlattice.tripl.native.TriplTileService"
-            android:label="Tripl"
+            android:label="${appName}"
             android:icon="@mipmap/ic_launcher"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:exported="true">
@@ -85,7 +85,7 @@
         <!-- Home Screen 1x1 App Widget -->
         <receiver
             android:name="com.waypointlattice.tripl.native.TriplWidgetProvider"
-            android:label="Tripl Widget"
+            android:label="${appName} Widget"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />

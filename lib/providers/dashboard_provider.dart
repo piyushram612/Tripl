@@ -58,7 +58,7 @@ final dashboardProvider = Provider<DashboardState>((ref) {
   }
 
   for (var tx in transactions) {
-    if (tx.category.toLowerCase() != 'income') {
+    if (!tx.isIncome) {
       if (globalBudget.period == 'weekly') {
         if (!isDateInCurrentWeek(tx.date)) continue;
       } else {
@@ -81,7 +81,7 @@ final dashboardProvider = Provider<DashboardState>((ref) {
       final targetDateOnly = DateTime(targetDate.year, targetDate.month, targetDate.day);
       
       if (txDateOnly.isBefore(targetDateOnly) || txDateOnly.isAtSameMomentAs(targetDateOnly)) {
-        if (tx.category.toLowerCase() == 'income') {
+        if (tx.isIncome) {
           balance += tx.amount;
         } else {
           balance -= tx.amount;

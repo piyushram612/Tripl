@@ -41,7 +41,9 @@ import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.unit.sp
-import com.waypointlattice.tripl.ui.components.core.*
+import com.waypointlattice.tripl.ui.components.core.ScrollableCategoryCapsule
+import com.waypointlattice.tripl.ui.components.core.SectionHeader
+import com.waypointlattice.tripl.ui.components.core.CustomInputField
 import com.waypointlattice.tripl.utils.TransactionManager
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -67,7 +69,6 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 
 // Obsidian Green Theme tokens for native compose
 val GreenPrimary = Color(0xFF4EDEA3)
@@ -209,7 +210,7 @@ fun PopupCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .verticalScroll(rememberScrollState())
-                            .padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 48.dp), // Reduced height/top padding
+                            .padding(top = 36.dp, bottom = 48.dp), // Added extra top padding to give title clearance
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         // 1. TITLE INPUT FIELD
@@ -245,7 +246,9 @@ fun PopupCard(
                                 imeAction = ImeAction.Next
                             ),
                             singleLine = true,
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 24.dp)
                         )
 
                         Spacer(modifier = Modifier.height(6.dp))
@@ -303,47 +306,110 @@ fun PopupCard(
                             singleLine = true,
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .padding(horizontal = 24.dp)
                                 .focusRequester(focusRequester)
                         )
 
                         Spacer(modifier = Modifier.height(16.dp))
 
                         // 3. CATEGORY HEADER & CAPSULES ROW
-                        SectionHeader("CATEGORY")
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            filteredCategories.forEach { cat ->
-                                ScrollableCategoryCapsule(
-                                    label = cat,
-                                    isSelected = (selectedCategory == cat),
-                                    onClick = { selectedCategory = cat },
-                                    accentColor = categoryColors[cat]?.let { Color(it) } ?: GreenPrimary
-                                )
+                        SectionHeader("CATEGORY", modifier = Modifier.padding(horizontal = 24.dp))
+                        Box(modifier = Modifier.fillMaxWidth().height(66.dp)) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Spacer(modifier = Modifier.width(14.dp))
+                                filteredCategories.forEach { cat ->
+                                    ScrollableCategoryCapsule(
+                                        label = cat,
+                                        isSelected = (selectedCategory == cat),
+                                        onClick = { selectedCategory = cat },
+                                        accentColor = categoryColors[cat]?.let { Color(it) } ?: GreenPrimary
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(14.dp))
                             }
+                            
+                            // Left Fading Edge Overlay
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.CenterStart)
+                                    .fillMaxHeight()
+                                    .width(24.dp)
+                                    .background(
+                                        brush = androidx.compose.ui.graphics.Brush.horizontalGradient(
+                                            colors = listOf(CardBgDark, Color.Transparent)
+                                        )
+                                    )
+                            )
+                            
+                            // Right Fading Edge Overlay
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.CenterEnd)
+                                    .fillMaxHeight()
+                                    .width(24.dp)
+                                    .background(
+                                        brush = androidx.compose.ui.graphics.Brush.horizontalGradient(
+                                            colors = listOf(Color.Transparent, CardBgDark)
+                                        )
+                                    )
+                            )
                         }
 
                         Spacer(modifier = Modifier.height(16.dp))
 
                         // 4. SOURCE HEADER & CAPSULES ROW
-                        SectionHeader("SOURCE")
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            sources.forEach { src ->
-                                ScrollableCategoryCapsule(
-                                    label = src,
-                                    isSelected = (selectedSource == src),
-                                    onClick = { selectedSource = src },
-                                    accentColor = sourceColors[src]?.let { Color(it) } ?: GreenPrimary
-                                )
+                        SectionHeader("SOURCE", modifier = Modifier.padding(horizontal = 24.dp))
+                        Box(modifier = Modifier.fillMaxWidth().height(66.dp)) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Spacer(modifier = Modifier.width(14.dp))
+                                sources.forEach { src ->
+                                    ScrollableCategoryCapsule(
+                                        label = src,
+                                        isSelected = (selectedSource == src),
+                                        onClick = { selectedSource = src },
+                                        accentColor = sourceColors[src]?.let { Color(it) } ?: GreenPrimary
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(14.dp))
                             }
+                            
+                            // Left Fading Edge Overlay
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.CenterStart)
+                                    .fillMaxHeight()
+                                    .width(24.dp)
+                                    .background(
+                                        brush = androidx.compose.ui.graphics.Brush.horizontalGradient(
+                                            colors = listOf(CardBgDark, Color.Transparent)
+                                        )
+                                    )
+                            )
+                            
+                            // Right Fading Edge Overlay
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.CenterEnd)
+                                    .fillMaxHeight()
+                                    .width(24.dp)
+                                    .background(
+                                        brush = androidx.compose.ui.graphics.Brush.horizontalGradient(
+                                            colors = listOf(Color.Transparent, CardBgDark)
+                                        )
+                                    )
+                            )
                         }
 
                         // EXPANDED CONTENT
@@ -352,10 +418,11 @@ fun PopupCard(
                                 Spacer(modifier = Modifier.height(16.dp))
                                 
                                 // TYPE
-                                SectionHeader("TYPE")
+                                SectionHeader("TYPE", modifier = Modifier.padding(horizontal = 24.dp))
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
+                                        .padding(horizontal = 24.dp)
                                         .height(46.dp),
                                     horizontalArrangement = Arrangement.SpaceEvenly
                                 ) {
@@ -396,7 +463,9 @@ fun PopupCard(
 
                                 // DATE & TIME
                                 Row(
-                                    modifier = Modifier.fillMaxWidth(),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 24.dp),
                                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                                 ) {
                                     Box(modifier = Modifier.weight(1f)) {
@@ -420,13 +489,15 @@ fun PopupCard(
                                 Spacer(modifier = Modifier.height(16.dp))
 
                                 // PAID TO / BY
-                                CustomInputField(
-                                    label = if (isIncome) "PAID BY (OPTIONAL)" else "PAID TO (OPTIONAL)",
-                                    value = paidTo,
-                                    onValueChange = { paidTo = it },
-                                    icon = Icons.Default.Storefront,
-                                    placeholder = if (isIncome) "e.g. Employer, Client..." else "e.g. Landlord, Store Name..."
-                                )
+                                Box(modifier = Modifier.padding(horizontal = 24.dp)) {
+                                    CustomInputField(
+                                        label = if (isIncome) "PAID BY (OPTIONAL)" else "PAID TO (OPTIONAL)",
+                                        value = paidTo,
+                                        onValueChange = { paidTo = it },
+                                        icon = Icons.Default.Storefront,
+                                        placeholder = if (isIncome) "e.g. Employer, Client..." else "e.g. Landlord, Store Name..."
+                                    )
+                                }
 
                                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -434,6 +505,7 @@ fun PopupCard(
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
+                                        .padding(horizontal = 24.dp)
                                         .clickable(
                                             interactionSource = remember { MutableInteractionSource() },
                                             indication = null
@@ -462,7 +534,9 @@ fun PopupCard(
                                     Column {
                                         Spacer(modifier = Modifier.height(16.dp))
                                         Row(
-                                            modifier = Modifier.fillMaxWidth(),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 24.dp),
                                             horizontalArrangement = Arrangement.spacedBy(16.dp)
                                         ) {
                                             Box(modifier = Modifier.weight(1f)) {
@@ -493,6 +567,7 @@ fun PopupCard(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .padding(horizontal = 24.dp)
                                 .height(56.dp)
                                 .outerGlow(color = GreenPrimary, radius = 24.dp, alpha = 0.45f, cornerRadius = 100.dp)
                                 .background(GreenPrimary, RoundedCornerShape(100.dp))
@@ -565,7 +640,7 @@ fun PopupCard(
                         )
                     }
 
-                    // OPEN IN APP BUTTON (INCREASED SIZE)
+                    // OPEN IN APP BUTTON (ICON ONLY)
                     Box(
                         modifier = Modifier
                             .align(Alignment.TopEnd)
@@ -580,27 +655,14 @@ fun PopupCard(
                                 context.startActivity(launchIntent)
                                 onClose()
                             }
-                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                            .padding(10.dp)
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.OpenInNew,
-                                contentDescription = "Open in app",
-                                tint = GreenPrimary,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Text(
-                                text = "Open in App",
-                                style = TextStyle(
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White.copy(alpha = 0.9f)
-                                )
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Default.OpenInNew,
+                            contentDescription = "Open in app",
+                            tint = GreenPrimary,
+                            modifier = Modifier.size(16.dp)
+                        )
                     }
                 }
             }

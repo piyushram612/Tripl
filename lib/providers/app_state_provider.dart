@@ -200,3 +200,63 @@ final homeRecentTypeProvider = StateNotifierProvider<PrefNotifier<String>, Strin
 final homeRecentSortProvider = StateNotifierProvider<PrefNotifier<String>, String>((ref) => PrefNotifier<String>('recent_ref_sort', 'newest'));
 final homeRecentDensityProvider = StateNotifierProvider<PrefNotifier<String>, String>((ref) => PrefNotifier<String>('recent_ref_density', 'comfortable'));
 final homeRecentTimeframeProvider = StateNotifierProvider<PrefNotifier<String>, String>((ref) => PrefNotifier<String>('recent_ref_time', 'all'));
+
+// ─── Back Tap Custom Threshold Providers ─────────────────────────────────────
+
+class TapThresholdNotifier extends StateNotifier<double> {
+  static const _key = 'tap_threshold';
+  static const defaultVal = 2.5;
+
+  TapThresholdNotifier(this.ref) : super(defaultVal) {
+    _init();
+  }
+  
+  final Ref ref;
+
+  Future<void> _init() async {
+    final prefs = await SharedPreferences.getInstance();
+    state = prefs.getDouble(_key) ?? defaultVal;
+  }
+
+  Future<void> setThreshold(double val) async {
+    state = val;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_key, val);
+    // Sync to native
+    final jerk = ref.read(jerkThresholdProvider);
+    await PlatformService.setTapThresholds(val, jerk);
+  }
+}
+
+final tapThresholdProvider = StateNotifierProvider<TapThresholdNotifier, double>((ref) {
+  return TapThresholdNotifier(ref);
+});
+
+class JerkThresholdNotifier extends StateNotifier<double> {
+  static const _key = 'jerk_threshold';
+  static const defaultVal = 2.0;
+
+  JerkThresholdNotifier(this.ref) : super(defaultVal) {
+    _init();
+  }
+
+  final Ref ref;
+
+  Future<void> _init() async {
+    final prefs = await SharedPreferences.getInstance();
+    state = prefs.getDouble(_key) ?? defaultVal;
+  }
+
+  Future<void> setThreshold(double val) async {
+    state = val;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_key, val);
+    // Sync to native
+    final force = ref.read(tapThresholdProvider);
+    await PlatformService.setTapThresholds(force, val);
+  }
+}
+
+final jerkThresholdProvider = StateNotifierProvider<JerkThresholdNotifier, double>((ref) {
+  return JerkThresholdNotifier(ref);
+});

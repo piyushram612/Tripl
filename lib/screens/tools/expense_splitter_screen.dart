@@ -302,6 +302,7 @@ class _ExpenseSplitterScreenState extends ConsumerState<ExpenseSplitterScreen> {
         needsVerification: _friendVerificationFlags[i],
         wasFinishLater: _friendVerificationFlags[i],
         groupId: generatedGroupId,
+        isIncome: true,
       );
       await listNotifier.addTransaction(repaymentTx);
     }
@@ -1194,7 +1195,7 @@ class _ExpenseSplitterScreenState extends ConsumerState<ExpenseSplitterScreen> {
     double b = startingBalance;
     for (final t in txs) {
       if (t.paymentMethod == src) {
-        b += t.category.toLowerCase() == 'income' ? t.amount.abs() : -t.amount.abs();
+        b += t.isIncome ? t.amount.abs() : -t.amount.abs();
       }
     }
     return b;

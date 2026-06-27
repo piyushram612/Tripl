@@ -61,9 +61,10 @@ class RecurringTransactionsNotifier extends StateNotifier<List<RecurringTransact
             merchant: tx.merchant ?? tx.title,
             date: tx.nextDueDate,
             paymentMethod: tx.paymentMethod,
-            category: tx.type == TransactionType.income ? 'Income' : tx.category,
+            category: tx.category,
             needsVerification: tx.logAsPending,
             wasFinishLater: tx.logAsPending,
+            isIncome: tx.type == TransactionType.income,
           );
           await _ref.read(transactionListProvider.notifier).addTransaction(newExpense);
           
@@ -161,7 +162,8 @@ class RecurringTransactionsNotifier extends StateNotifier<List<RecurringTransact
       merchant: tx.merchant ?? tx.title,
       date: DateTime.now(), // Create transaction with current time
       paymentMethod: tx.paymentMethod,
-      category: tx.type == TransactionType.income ? 'Income' : tx.category,
+      category: tx.category,
+      isIncome: tx.type == TransactionType.income,
     );
     await _ref.read(transactionListProvider.notifier).addTransaction(newExpense);
 

@@ -25,7 +25,7 @@ class TransactionItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isIncome = transaction.category.toLowerCase() == 'income';
+    final isIncome = transaction.isIncome;
     final activeColor = isIncome ? const Color(0xFF10B981) : TallyTapTheme.textLight;
     
     final icon = isSelected

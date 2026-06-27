@@ -84,6 +84,14 @@ class _CalibrationScreenState extends ConsumerState<CalibrationScreen>
   void _onBackTapReceived(dynamic event) {
     if (_status == _TapStatus.success) return; // locked after success
 
+    double? force;
+    double? jerk;
+    
+    if (event is Map) {
+      force = event['recommendedForce']?.toDouble();
+      jerk = event['recommendedJerk']?.toDouble();
+    }
+
     // Each event from native = one complete triple tap (BackTapDetector already
     // counted to 3 internally). So one event = success.
     HapticFeedback.heavyImpact();
@@ -96,10 +104,19 @@ class _CalibrationScreenState extends ConsumerState<CalibrationScreen>
       _calibrationSucceeded = true;
     });
 
+    // Save thresholds on success
+    if (force != null && jerk != null) {
+      ref.read(tapThresholdProvider.notifier).setThreshold(force);
+      ref.read(jerkThresholdProvider.notifier).setThreshold(jerk);
+    }
+
     // Save sensitivity on success
     ref
         .read(tapSensitivityProvider.notifier)
         .setSensitivity(_sensitivityMs.round());
+
+    // Auto-enable back tap service on success immediately
+    ref.read(backTapEnabledProvider.notifier).toggle(true);
 
     // Auto-reset dots after 2.5s so user can re-test if they want
     _resetTimer?.cancel();
@@ -213,6 +230,11 @@ class _CalibrationScreenState extends ConsumerState<CalibrationScreen>
               ),
 
               const SizedBox(height: 28),
+
+              // ── Back Tap Toggle ──
+              _buildBackTapToggle(),
+
+              const SizedBox(height: 16),
 
               // ── Sensitivity Slider ──
               _buildSensitivitySlider(),
@@ -587,6 +609,69 @@ class _CalibrationScreenState extends ConsumerState<CalibrationScreen>
                         fontWeight: FontWeight.w600)),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBackTapToggle() {
+    final isEnabled = ref.watch(backTapEnabledProvider);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0D1A14),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: TallyTapTheme.borderGreen, width: 0.8),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0F1B17),
+              borderRadius: BorderRadius.circular(9),
+              border: Border.all(
+                  color: TallyTapTheme.borderGreen, width: 0.5),
+            ),
+            child: const Icon(Icons.gesture_rounded,
+                color: TallyTapTheme.primaryMint, size: 16),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Enable Triple Back Tap',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: TallyTapTheme.textLight,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'Run gesture detector in the background',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: TallyTapTheme.textGray,
+                    height: 1.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch.adaptive(
+            value: isEnabled,
+            activeColor: TallyTapTheme.primaryMint,
+            activeTrackColor: TallyTapTheme.primaryMint.withOpacity(0.2),
+            inactiveThumbColor: TallyTapTheme.textGray,
+            inactiveTrackColor: Colors.transparent,
+            onChanged: (val) async {
+              HapticFeedback.lightImpact();
+              await ref.read(backTapEnabledProvider.notifier).toggle(val);
+            },
           ),
         ],
       ),

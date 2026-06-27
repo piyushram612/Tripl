@@ -161,8 +161,8 @@ final insightsProvider = Provider<InsightsState>((ref) {
   final Map<String, double> categorySpent = {};
 
   for (var tx in transactions) {
+    if (tx.isIncome) continue;
     final clean = tx.category.trim();
-    if (clean.toLowerCase() == 'income') continue;
 
     // Filter by date!
     if (filter.start != null && tx.date.isBefore(filter.start!)) continue;

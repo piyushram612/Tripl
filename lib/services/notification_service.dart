@@ -128,9 +128,10 @@ class NotificationService {
                     merchant: rTx.merchant ?? rTx.title,
                     date: rTx.nextDueDate,
                     paymentMethod: rTx.paymentMethod,
-                    category: rTx.type == TransactionType.income ? 'Income' : rTx.category,
+                    category: rTx.category,
                     needsVerification: false,
                     wasFinishLater: true,
+                    isIncome: rTx.type == TransactionType.income,
                   );
                   txs.add(newExpense);
                   await prefs.setString('transactions_json', json.encode(txs.map((e) => e.toMap()).toList()));
@@ -186,7 +187,8 @@ class NotificationService {
                 merchant: rTx.merchant ?? rTx.title,
                 date: DateTime.now(),
                 paymentMethod: rTx.paymentMethod,
-                category: rTx.type == TransactionType.income ? 'Income' : rTx.category,
+                category: rTx.category,
+                isIncome: rTx.type == TransactionType.income,
               );
               txs.add(newExpense);
               await prefs.setString('transactions_json', json.encode(txs.map((e) => e.toMap()).toList()));
