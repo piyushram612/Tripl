@@ -123,6 +123,9 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> with SingleTicker
 
   @override
   Widget build(BuildContext context) {
+    final double textScale = MediaQuery.textScalerOf(context).scale(1.0);
+    final double bottomPadding = 72.0 + MediaQuery.of(context).padding.bottom + (MediaQuery.of(context).padding.bottom > 0 ? 10.0 : 20.0) + 24.0;
+
     // Replay entrance animation when switching to the Budgets tab
     ref.listen<int>(activeTabProvider, (previous, next) {
       if (next == 1) {
@@ -543,11 +546,11 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> with SingleTicker
                         : GridView.builder(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 2,
                           crossAxisSpacing: 12,
                           mainAxisSpacing: 12,
-                          childAspectRatio: 1.75,
+                          childAspectRatio: (1.75 / textScale).clamp(1.0, 1.75),
                         ),
                         itemCount: filteredCategories.length,
                         itemBuilder: (context, index) {
@@ -609,7 +612,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> with SingleTicker
                     ),
                   ],
                     
-                  const SizedBox(height: 120),
+                  SizedBox(height: bottomPadding),
           ],
         ),
       ),
@@ -868,13 +871,17 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> with SingleTicker
                 children: [
                   Row(
                     children: [
-                      Text(
-                        title.toUpperCase(),
-                        style: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.0,
-                          color: TallyTapTheme.textGray,
+                      Flexible(
+                        child: Text(
+                          title.toUpperCase(),
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.0,
+                            color: TallyTapTheme.textGray,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       if (isActive) ...[

@@ -302,13 +302,15 @@ class _ManageItemsSheetState extends ConsumerState<ManageItemsSheet> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              widget.title,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w900,
-                color: TallyTapTheme.primaryMint,
-                letterSpacing: -0.5,
+            Expanded(
+              child: Text(
+                widget.title,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                  color: TallyTapTheme.primaryMint,
+                  letterSpacing: -0.5,
+                ),
               ),
             ),
             Row(
@@ -430,7 +432,7 @@ class _ManageItemsSheetState extends ConsumerState<ManageItemsSheet> {
           left: 24,
           right: 24,
           top: 24,
-          bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+          bottom: MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).padding.bottom + 24,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -449,7 +451,7 @@ class _ManageItemsSheetState extends ConsumerState<ManageItemsSheet> {
         left: 24,
         right: 24,
         top: 24,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+        bottom: MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).padding.bottom + 24,
       ),
       child: SingleChildScrollView(
         controller: widget.scrollController,
@@ -534,7 +536,7 @@ class _EditItemSheetState extends ConsumerState<_EditItemSheet> {
         left: 24,
         right: 24,
         top: 12,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+        bottom: MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).padding.bottom + 24,
       ),
       child: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),

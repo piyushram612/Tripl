@@ -400,6 +400,7 @@ class ToolkitScreen extends ConsumerWidget {
     int paymentIdx = CsvService.findBestHeaderMatch(rawData.headers, ['paymentmethod', 'payment', 'method', 'source', 'account', 'card', 'wallet']);
     int notesIdx = CsvService.findBestHeaderMatch(rawData.headers, ['notes', 'note', 'comment', 'memo', 'remarks', 'reference']);
     int paidToIdx = CsvService.findBestHeaderMatch(rawData.headers, ['paid_to', 'paidto', 'recipient', 'to']);
+    int isIncomeIdx = CsvService.findBestHeaderMatch(rawData.headers, ['is_income', 'isincome', 'income', 'type', 'transaction_type', 'transactiontype']);
 
     showModalBottomSheet(
       context: context,
@@ -498,6 +499,14 @@ class ToolkitScreen extends ConsumerWidget {
                       onChanged: (val) => setState(() => categoryIdx = val ?? -1),
                     ),
                     _buildMappingDropdown(
+                      label: 'Is Income Column (Optional)',
+                      subtitle: 'Header indicating if transaction is income (true/false, inflow/outflow, etc.)',
+                      currentValue: isIncomeIdx,
+                      headers: rawData.headers,
+                      isRequired: false,
+                      onChanged: (val) => setState(() => isIncomeIdx = val ?? -1),
+                    ),
+                    _buildMappingDropdown(
                       label: 'Payment Method Column',
                       subtitle: 'Cash, Credit Card, Bank, account name, etc.',
                       currentValue: paymentIdx,
@@ -545,6 +554,7 @@ class ToolkitScreen extends ConsumerWidget {
                           'paymentMethod': paymentIdx,
                           'notes': notesIdx,
                           'paidTo': paidToIdx,
+                          'isIncome': isIncomeIdx,
                         };
 
                         final parsedTransactions = CsvService.parseCsvWithMapping(rawData.rows, mapping);
@@ -874,19 +884,7 @@ class ToolkitScreen extends ConsumerWidget {
 
                           final mappedVal = selectedMappings[trimmedMethod];
                           if (mappedVal != null && mappedVal != '__CREATE_NEW__') {
-                            return ExpenseTransaction(
-                              id: tx.id,
-                              amount: tx.amount,
-                              merchant: tx.merchant,
-                              date: tx.date,
-                              category: tx.category,
-                              paymentMethod: mappedVal,
-                              notes: tx.notes,
-                              paidTo: tx.paidTo,
-                              groupId: tx.groupId,
-                              reminderDate: tx.reminderDate,
-                              needsVerification: tx.needsVerification,
-                            );
+                            return tx.copyWith(paymentMethod: mappedVal);
                           } else if (mappedVal == '__CREATE_NEW__') {
                             if (!newSourcesToCreate.contains(trimmedMethod)) {
                               newSourcesToCreate.add(trimmedMethod);
@@ -1227,6 +1225,8 @@ class ToolkitScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final double bottomPadding = 72.0 + MediaQuery.of(context).padding.bottom + (MediaQuery.of(context).padding.bottom > 0 ? 10.0 : 20.0) + 24.0;
+
     final backTapEnabled = ref.watch(backTapEnabledProvider);
 
     return SingleChildScrollView(
@@ -1900,7 +1900,7 @@ class ToolkitScreen extends ConsumerWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 120),
+            SizedBox(height: bottomPadding),
           ],
         ),
       ),

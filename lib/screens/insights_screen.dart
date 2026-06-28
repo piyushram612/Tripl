@@ -14,6 +14,8 @@ class InsightsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final double bottomPadding = 72.0 + MediaQuery.of(context).padding.bottom + (MediaQuery.of(context).padding.bottom > 0 ? 10.0 : 20.0) + 24.0;
+
     final currency = ref.watch(currencyProvider);
     final insights = ref.watch(insightsProvider);
     final splitTargets = ref.watch(budgetSplitProvider);
@@ -172,7 +174,7 @@ class InsightsScreen extends ConsumerWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 120),
+              SizedBox(height: bottomPadding),
             ],
           ),
         ),
