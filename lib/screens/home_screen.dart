@@ -19,9 +19,10 @@ import '../services/tutorial_service.dart';
 import 'sheets/recent_transactions_settings_sheet.dart';
 
 final homeSummaryPeriodProvider = StateProvider<String>((ref) => 'weekly');
-final homeBreakdownPeriodProvider = StateProvider<String>((ref) => 'weekly');
 final homeSummaryOffsetProvider = StateProvider<int>((ref) => 0);
+final homeBreakdownPeriodProvider = StateProvider<String>((ref) => 'weekly');
 final homeBreakdownOffsetProvider = StateProvider<int>((ref) => 0);
+final homeBreakdownTypeProvider = StateProvider<String>((ref) => 'expense');
 final homeLegendExpandedProvider = StateProvider<bool>((ref) => false);
 
 // Recent Reflections Settings Providers are in app_state_provider.dart
@@ -58,11 +59,16 @@ class HomeScreen extends ConsumerWidget {
     final List<String> months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     final startMonth = months[startOfWeek.month - 1];
     final endMonth = months[endOfWeek.month - 1];
+    
+    final currentYear = DateTime.now().year;
+    final showYear = startOfWeek.year != currentYear || endOfWeek.year != currentYear;
+
     if (startOfWeek.year == endOfWeek.year) {
+      final yearStr = showYear ? ", ${startOfWeek.year}" : "";
       if (startOfWeek.month == endOfWeek.month) {
-        return "$startMonth ${startOfWeek.day} - ${endOfWeek.day}, ${startOfWeek.year}";
+        return "$startMonth ${startOfWeek.day} - ${endOfWeek.day}$yearStr";
       } else {
-        return "$startMonth ${startOfWeek.day} - $endMonth ${endOfWeek.day}, ${startOfWeek.year}";
+        return "$startMonth ${startOfWeek.day} - $endMonth ${endOfWeek.day}$yearStr";
       }
     } else {
       return "$startMonth ${startOfWeek.day}, ${startOfWeek.year} - $endMonth ${endOfWeek.day}, ${endOfWeek.year}";
@@ -70,7 +76,11 @@ class HomeScreen extends ConsumerWidget {
   }
 
   String _getMonthString(DateTime referenceDate) {
-    final List<String> months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    final List<String> months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final currentYear = DateTime.now().year;
+    if (referenceDate.year == currentYear) {
+      return months[referenceDate.month - 1];
+    }
     return "${months[referenceDate.month - 1]} ${referenceDate.year}";
   }
 
@@ -149,6 +159,9 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final double textScale = MediaQuery.textScalerOf(context).scale(1.0);
+    final double bottomPadding = 72.0 + MediaQuery.of(context).padding.bottom + (MediaQuery.of(context).padding.bottom > 0 ? 10.0 : 20.0) + 24.0;
+
     ref.watch(customizationProvider); // Rebuild when source/category colors change
     final transactions = ref.watch(transactionListProvider);
     final categories = ref.watch(categoriesListProvider);
@@ -158,6 +171,7 @@ class HomeScreen extends ConsumerWidget {
     final summaryPeriod = ref.watch(homeSummaryPeriodProvider);
     final breakdownPeriod = ref.watch(homeBreakdownPeriodProvider);
     final breakdownOffset = ref.watch(homeBreakdownOffsetProvider);
+    final breakdownType = ref.watch(homeBreakdownTypeProvider);
     final sources = ref.watch(sourcesListProvider);
     final startingBalances = ref.watch(sourceStartingBalancesProvider);
     final now = DateTime.now();
@@ -355,7 +369,8 @@ class HomeScreen extends ConsumerWidget {
     // Group actual categories dynamically based strictly on user transactions in the current period
     final Map<String, double> catSum = {};
     for (var tx in transactions) {
-      if (!tx.isIncome) {
+      final matchesType = breakdownType == 'income' ? tx.isIncome : !tx.isIncome;
+      if (matchesType) {
         if (breakdownPeriod == 'weekly') {
           if (!_isDateInWeek(tx.date, adjustedBreakdownNow)) continue;
         } else {
@@ -408,7 +423,7 @@ class HomeScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 12),
                   SizedBox(
-                    height: 94,
+                    height: 94 * textScale,
                     child: ListView.builder(
                       scrollDirection: Axis.horizontal,
                       physics: const BouncingScrollPhysics(),
@@ -721,15 +736,21 @@ class HomeScreen extends ConsumerWidget {
                           children: [
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
-                                const Text(
-                                  'Spending Breakdown',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w800,
-                                    color: TallyTapTheme.textLight,
+                                Expanded(
+                                  child: Text(
+                                    breakdownType == 'income' ? 'Income Breakdown' : 'Spending Breakdown',
+                                    style: const TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w800,
+                                      color: TallyTapTheme.textLight,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
+                                const SizedBox(width: 12),
                                 _buildMiniPeriodToggle(
                                   activePeriod: breakdownPeriod,
                                   onChanged: (val) {
@@ -739,60 +760,81 @@ class HomeScreen extends ConsumerWidget {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 10),
+                            const SizedBox(height: 14),
                             Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                GestureDetector(
-                                  onTap: () {
-                                    ref.read(homeBreakdownOffsetProvider.notifier).state--;
+                                Expanded(
+                                  child: Row(
+                                    children: [
+                                      GestureDetector(
+                                        onTap: () {
+                                          ref.read(homeBreakdownOffsetProvider.notifier).state--;
+                                        },
+                                        behavior: HitTestBehavior.opaque,
+                                        child: Container(
+                                          padding: const EdgeInsets.all(4),
+                                          decoration: BoxDecoration(
+                                            color: TallyTapTheme.obsidianCard,
+                                            borderRadius: BorderRadius.circular(6),
+                                            border: Border.all(color: TallyTapTheme.borderGreen, width: 0.5),
+                                          ),
+                                          child: const Icon(
+                                            Icons.chevron_left_rounded,
+                                            color: TallyTapTheme.primaryMint,
+                                            size: 16,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Center(
+                                          child: FittedBox(
+                                            fit: BoxFit.scaleDown,
+                                            child: Text(
+                                              dateRangeBreakdownString,
+                                              style: const TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w800,
+                                                color: TallyTapTheme.primaryMint,
+                                                letterSpacing: 0.5,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      GestureDetector(
+                                        onTap: breakdownOffset < 0 ? () {
+                                          ref.read(homeBreakdownOffsetProvider.notifier).state++;
+                                        } : null,
+                                        behavior: HitTestBehavior.opaque,
+                                        child: Opacity(
+                                          opacity: breakdownOffset < 0 ? 1.0 : 0.4,
+                                          child: Container(
+                                            padding: const EdgeInsets.all(4),
+                                            decoration: BoxDecoration(
+                                              color: TallyTapTheme.obsidianCard,
+                                              borderRadius: BorderRadius.circular(6),
+                                              border: Border.all(color: TallyTapTheme.borderGreen, width: 0.5),
+                                            ),
+                                            child: const Icon(
+                                              Icons.chevron_right_rounded,
+                                              color: TallyTapTheme.primaryMint,
+                                              size: 16,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                _buildMiniTypeToggle(
+                                  activeType: breakdownType,
+                                  onChanged: (val) {
+                                    ref.read(homeBreakdownTypeProvider.notifier).state = val;
                                   },
-                                  behavior: HitTestBehavior.opaque,
-                                  child: Container(
-                                    padding: const EdgeInsets.all(4),
-                                    decoration: BoxDecoration(
-                                      color: TallyTapTheme.obsidianCard,
-                                      borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(color: TallyTapTheme.borderGreen, width: 0.5),
-                                    ),
-                                    child: const Icon(
-                                      Icons.chevron_left_rounded,
-                                      color: TallyTapTheme.primaryMint,
-                                      size: 16,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Text(
-                                  dateRangeBreakdownString,
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w800,
-                                    color: TallyTapTheme.primaryMint,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                GestureDetector(
-                                  onTap: breakdownOffset < 0 ? () {
-                                    ref.read(homeBreakdownOffsetProvider.notifier).state++;
-                                  } : null,
-                                  behavior: HitTestBehavior.opaque,
-                                  child: Opacity(
-                                    opacity: breakdownOffset < 0 ? 1.0 : 0.4,
-                                    child: Container(
-                                      padding: const EdgeInsets.all(4),
-                                      decoration: BoxDecoration(
-                                        color: TallyTapTheme.obsidianCard,
-                                        borderRadius: BorderRadius.circular(6),
-                                        border: Border.all(color: TallyTapTheme.borderGreen, width: 0.5),
-                                      ),
-                                      child: const Icon(
-                                        Icons.chevron_right_rounded,
-                                        color: TallyTapTheme.primaryMint,
-                                        size: 16,
-                                      ),
-                                    ),
-                                  ),
                                 ),
                               ],
                             ),
@@ -807,12 +849,12 @@ class HomeScreen extends ConsumerWidget {
                               const SizedBox(height: 24),
                               // 2. Legends below the chart
                               if (dynamicCategories.isEmpty)
-                                const Center(
+                                Center(
                                   child: Padding(
-                                    padding: EdgeInsets.symmetric(vertical: 12.0),
+                                    padding: const EdgeInsets.symmetric(vertical: 12.0),
                                     child: Text(
-                                      'No expenses yet',
-                                      style: TextStyle(
+                                      breakdownType == 'income' ? 'No income yet' : 'No expenses yet',
+                                      style: const TextStyle(
                                         fontSize: 13,
                                         color: TallyTapTheme.textGray,
                                         fontWeight: FontWeight.w500,
@@ -1055,7 +1097,7 @@ class HomeScreen extends ConsumerWidget {
                 child: isEditMode
                     ? ReorderableListView(
                         buildDefaultDragHandles: false,
-                        padding: const EdgeInsets.only(bottom: 120),
+                        padding: EdgeInsets.only(bottom: bottomPadding),
                         physics: const BouncingScrollPhysics(),
                         header: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1165,7 +1207,7 @@ class HomeScreen extends ConsumerWidget {
                             for (int i = 0; i < homeLayout.length; i++)
                               if (widgetsMap.containsKey(homeLayout[i]))
                                 _wrapForEditMode(widgetsMap[homeLayout[i]]!, homeLayout[i], isEditMode, ref, i),
-                            const SizedBox(height: 120),
+                            SizedBox(height: bottomPadding),
                           ],
                         ),
                       ),
@@ -1175,7 +1217,7 @@ class HomeScreen extends ConsumerWidget {
         ),
         if (isEditMode)
           Positioned(
-            bottom: 120,
+            bottom: bottomPadding,
             left: 0,
             right: 0,
             child: Center(
@@ -1239,6 +1281,50 @@ class HomeScreen extends ConsumerWidget {
   }
 
   Widget _buildMiniPeriodTab(String text, {required bool isActive, required VoidCallback onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: isActive ? TallyTapTheme.primaryMint : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          text.toUpperCase(),
+          style: TextStyle(
+            fontSize: 9,
+            fontWeight: FontWeight.w900,
+            color: isActive ? TallyTapTheme.obsidianBg : TallyTapTheme.textGray,
+            letterSpacing: 0.5,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMiniTypeToggle({
+    required String activeType,
+    required ValueChanged<String> onChanged,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(2),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F1B17),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: TallyTapTheme.borderGreen, width: 0.5),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildMiniTypeTab('expense', isActive: activeType == 'expense', onTap: () => onChanged('expense')),
+          _buildMiniTypeTab('income', isActive: activeType == 'income', onTap: () => onChanged('income')),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMiniTypeTab(String text, {required bool isActive, required VoidCallback onTap}) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),

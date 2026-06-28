@@ -526,6 +526,8 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final double bottomPadding = 72.0 + MediaQuery.of(context).padding.bottom + (MediaQuery.of(context).padding.bottom > 0 ? 10.0 : 20.0) + 24.0;
+
     final transactions = ref.watch(transactionListProvider);
     final currency = ref.watch(currencyProvider);
 
@@ -849,7 +851,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                         ),
                         const SizedBox(height: 60),
                       ],
-                      const SizedBox(height: 120),
+                      SizedBox(height: bottomPadding),
                     ],
                   ),
                 ),

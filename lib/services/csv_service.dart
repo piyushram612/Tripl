@@ -26,7 +26,8 @@ class CsvService {
       'PaidTo',
       'NeedsVerification',
       'ReminderDate',
-      'GroupId'
+      'GroupId',
+      'IsIncome'
     ];
 
     final buffer = StringBuffer();
@@ -45,6 +46,7 @@ class CsvService {
         tx.needsVerification ? 'true' : 'false',
         tx.reminderDate?.toIso8601String() ?? '',
         tx.groupId ?? '',
+        tx.isIncome ? 'TRUE' : 'FALSE',
       ];
 
       final escapedFields = fields.map((field) {
@@ -91,6 +93,7 @@ class CsvService {
     final needsVerificationIndex = headersLower.indexOf('needsverification');
     final reminderDateIndex = headersLower.indexOf('reminderdate');
     final groupIdIndex = headersLower.indexOf('groupid');
+    final isIncomeIndex = headersLower.indexOf('isincome');
 
     if (amountIndex == -1 || merchantIndex == -1 || dateIndex == -1) {
       throw const FormatException('CSV is missing required headers (Amount, Merchant, Date)');
@@ -108,6 +111,7 @@ class CsvService {
       'needsVerification': needsVerificationIndex,
       'reminderDate': reminderDateIndex,
       'groupId': groupIdIndex,
+      'isIncome': isIncomeIndex,
     };
 
     final dataRows = parsedRows.skip(1).toList();
@@ -131,6 +135,7 @@ class CsvService {
     final needsVerificationIndex = headersLower.indexOf('needsverification');
     final reminderDateIndex = headersLower.indexOf('reminderdate');
     final groupIdIndex = headersLower.indexOf('groupid');
+    final isIncomeIndex = headersLower.indexOf('isincome');
 
     if (amountIndex == -1 || merchantIndex == -1 || dateIndex == -1) {
       throw const FormatException('CSV is missing required headers (Amount, Merchant, Date)');
@@ -148,6 +153,7 @@ class CsvService {
       'needsVerification': needsVerificationIndex,
       'reminderDate': reminderDateIndex,
       'groupId': groupIdIndex,
+      'isIncome': isIncomeIndex,
     };
 
     return parseCsvWithMapping(rawData.rows, mapping);
@@ -247,6 +253,72 @@ class CsvService {
   ) {
     final List<ExpenseTransaction> transactions = [];
 
+    final int amountIdx = mapping['amount'] ?? -1;
+
+    // Detect if the CSV contains any negative numbers in the amount column
+    bool csvHasNegativeAmounts = false;
+    if (amountIdx != -1) {
+      for (final row in rows) {
+        if (amountIdx >= 0 && amountIdx < row.length) {
+          final val = row[amountIdx].trim();
+          if (val.contains('-') || (val.startsWith('(') && val.endsWith(')'))) {
+            csvHasNegativeAmounts = true;
+            break;
+          }
+        }
+      }
+    }
+
+    // Analyze the sign convention of the CSV by correlating signs with category/merchant keywords
+    bool negativeIsIncome = false;
+    if (amountIdx != -1 && csvHasNegativeAmounts) {
+      int negIsIncomeCount = 0;
+      int negIsExpenseCount = 0;
+      int posIsIncomeCount = 0;
+      int posIsExpenseCount = 0;
+
+      final List<String> incomeKeywords = [
+        'income', 'salary', 'stipend', 'bonus', 'dividend', 'refund', 'reimbursement', 
+        'interest', 'paycheck', 'earning', 'deposit', 'cashback'
+      ];
+      final List<String> expenseKeywords = [
+        'food', 'grocery', 'groceries', 'shopping', 'rent', 'bill', 'utility', 'utilities', 
+        'subscription', 'travel', 'restaurant', 'cafe', 'fuel', 'gas', 'cab', 'uber', 
+        'entertainment', 'movie', 'insurance', 'spent', 'expense', 'purchase'
+      ];
+
+      final int categoryIdx = mapping['category'] ?? -1;
+      final int merchantIdx = mapping['merchant'] ?? -1;
+
+      for (final row in rows) {
+        if (amountIdx >= 0 && amountIdx < row.length) {
+          final String amountStr = row[amountIdx].trim();
+          final bool isNegative = amountStr.contains('-') || (amountStr.startsWith('(') && amountStr.endsWith(')'));
+          
+          String cat = '';
+          if (categoryIdx >= 0 && categoryIdx < row.length) cat = row[categoryIdx].toLowerCase();
+          String merch = '';
+          if (merchantIdx >= 0 && merchantIdx < row.length) merch = row[merchantIdx].toLowerCase();
+
+          final bool matchesIncome = incomeKeywords.any((kw) => cat.contains(kw) || merch.contains(kw));
+          final bool matchesExpense = expenseKeywords.any((kw) => cat.contains(kw) || merch.contains(kw));
+
+          if (isNegative) {
+            if (matchesIncome) negIsIncomeCount++;
+            if (matchesExpense) negIsExpenseCount++;
+          } else {
+            if (matchesIncome) posIsIncomeCount++;
+            if (matchesExpense) posIsExpenseCount++;
+          }
+        }
+      }
+
+      // If we have clear signals, determine the convention
+      if (negIsIncomeCount > negIsExpenseCount || posIsExpenseCount > posIsIncomeCount) {
+        negativeIsIncome = true;
+      }
+    }
+
     for (int r = 0; r < rows.length; r++) {
       final row = rows[r];
       if (row.isEmpty || (row.length == 1 && row[0].trim().isEmpty)) continue;
@@ -262,12 +334,12 @@ class CsvService {
       final String rawId = getValue(idIdx, '');
       final String id = rawId.isNotEmpty ? rawId : '${DateTime.now().microsecondsSinceEpoch}_$r';
 
-      final int amountIdx = mapping['amount'] ?? -1;
       final String amountStr = getValue(amountIdx, '0.0');
       
       // Strip currency symbols (e.g. $, €, £) and commas from amount to parse double safely
       final cleanAmountStr = amountStr.replaceAll(RegExp(r'[^\d\.\-]'), '');
-      final double amount = (double.tryParse(cleanAmountStr) ?? 0.0).abs();
+      final double parsedAmountValue = double.tryParse(cleanAmountStr) ?? 0.0;
+      final double amount = parsedAmountValue.abs();
 
       final int merchantIdx = mapping['merchant'] ?? -1;
       final String merchant = getValue(merchantIdx, 'Unknown');
@@ -310,6 +382,76 @@ class CsvService {
       final int groupIdIdx = mapping['groupId'] ?? -1;
       final String groupId = groupIdIdx != -1 ? getValue(groupIdIdx, '') : '';
 
+      // Determine isIncome
+      final int isIncomeIdx = mapping['isIncome'] ?? -1;
+      bool isIncome = false;
+      bool hasExplicitIsIncome = false;
+
+      if (isIncomeIdx != -1) {
+        final String isIncomeStr = getValue(isIncomeIdx, '').toLowerCase();
+        if (isIncomeStr.isNotEmpty) {
+          hasExplicitIsIncome = true;
+          if (isIncomeStr == 'true' || 
+              isIncomeStr == '1' || 
+              isIncomeStr == 'yes' || 
+              isIncomeStr == 'y' || 
+              isIncomeStr == 'income' || 
+              isIncomeStr == 'inflow' || 
+              isIncomeStr == 'credit') {
+            isIncome = true;
+          } else if (isIncomeStr == 'false' || 
+                     isIncomeStr == '0' || 
+                     isIncomeStr == 'no' || 
+                     isIncomeStr == 'n' || 
+                     isIncomeStr == 'expense' || 
+                     isIncomeStr == 'outflow' || 
+                     isIncomeStr == 'debit') {
+            isIncome = false;
+          } else {
+            isIncome = isIncomeStr.contains('income') || isIncomeStr.contains('inflow') || isIncomeStr.contains('credit');
+          }
+        }
+      }
+
+      if (!hasExplicitIsIncome) {
+        final bool isNegativeValue = amountStr.contains('-') || (amountStr.startsWith('(') && amountStr.endsWith(')'));
+        
+        // Check keywords first to be absolutely sure
+        final String lowerCat = category.toLowerCase();
+        final String lowerMerchant = merchant.toLowerCase();
+        final List<String> incomeKeywords = [
+          'income', 'salary', 'stipend', 'bonus', 'dividend', 'refund', 'reimbursement', 
+          'interest', 'paycheck', 'earning', 'deposit', 'cashback'
+        ];
+        final List<String> expenseKeywords = [
+          'food', 'grocery', 'groceries', 'shopping', 'rent', 'bill', 'utility', 'utilities', 
+          'subscription', 'travel', 'restaurant', 'cafe', 'fuel', 'gas', 'cab', 'uber', 
+          'entertainment', 'movie', 'insurance', 'spent', 'expense', 'purchase'
+        ];
+        
+        final bool matchesIncome = incomeKeywords.any((kw) => lowerCat.contains(kw) || lowerMerchant.contains(kw));
+        final bool matchesExpense = expenseKeywords.any((kw) => lowerCat.contains(kw) || lowerMerchant.contains(kw));
+
+        if (matchesIncome) {
+          isIncome = true;
+        } else if (matchesExpense) {
+          isIncome = false;
+        } else {
+          // Fallback to sign convention
+          if (csvHasNegativeAmounts) {
+            if (isNegativeValue) {
+              isIncome = negativeIsIncome;
+            } else {
+              isIncome = !negativeIsIncome;
+            }
+          } else {
+            // No negative numbers in CSV, so positive numbers are expenses by default
+            final bool hasPlusSign = amountStr.contains('+');
+            isIncome = hasPlusSign;
+          }
+        }
+      }
+
       transactions.add(ExpenseTransaction(
         id: id,
         amount: amount,
@@ -322,6 +464,7 @@ class CsvService {
         needsVerification: needsVerification,
         reminderDate: reminderDate,
         groupId: groupId.isNotEmpty ? groupId : null,
+        isIncome: isIncome,
       ));
     }
 

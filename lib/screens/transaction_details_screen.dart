@@ -38,6 +38,7 @@ class _TransactionDetailsScreenState
   late bool _finishLater;
   late DateTime _reminderDate;
   late TimeOfDay _reminderTime;
+  late bool _isIncome;
 
   @override
   void initState() {
@@ -58,6 +59,7 @@ class _TransactionDetailsScreenState
     _reminderTime = widget.transaction.reminderDate != null
         ? TimeOfDay.fromDateTime(widget.transaction.reminderDate!)
         : TimeOfDay.now();
+    _isIncome = widget.transaction.isIncome;
   }
 
   @override
@@ -130,7 +132,7 @@ class _TransactionDetailsScreenState
       wasFinishLater: widget.transaction.wasFinishLater || _finishLater,
       hideFromLedger: widget.transaction.hideFromLedger,
       groupId: widget.transaction.groupId,
-      isIncome: widget.transaction.isIncome,
+      isIncome: _isIncome,
     );
 
     ref.read(transactionListProvider.notifier).updateTransaction(tx);
@@ -214,6 +216,38 @@ class _TransactionDetailsScreenState
 
   // ── build ─────────────────────────────────────────────────────────────────
 
+  void _toggleTransactionType(bool isIncomeSelected) {
+    if (_isIncome == isIncomeSelected) return;
+    setState(() {
+      _isIncome = isIncomeSelected;
+      
+      // Update selected category if it doesn't match the new transaction type
+      final categories = ref.read(categoriesListProvider);
+      final visibilities = ref.read(categoryVisibilityProvider);
+      final dropdownCategories = List<String>.from(categories);
+      if (!dropdownCategories.contains(_selectedCategory)) {
+        dropdownCategories.add(_selectedCategory);
+      }
+      final newFiltered = dropdownCategories.where((c) {
+        if (c.toLowerCase() == 'income') return false;
+        final vis = visibilities[c] ?? CategoryVisibility.expense;
+        if (_isIncome) {
+          return vis == CategoryVisibility.income || vis == CategoryVisibility.both;
+        } else {
+          return vis == CategoryVisibility.expense || vis == CategoryVisibility.both;
+        }
+      }).toList();
+      
+      if (!newFiltered.contains(_selectedCategory)) {
+        if (newFiltered.isNotEmpty) {
+          _selectedCategory = newFiltered.first;
+        } else {
+          _selectedCategory = 'Other';
+        }
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final currency = ref.watch(currencyProvider);
@@ -221,7 +255,7 @@ class _TransactionDetailsScreenState
     final sources = ref.watch(sourcesListProvider);
     final visibilities = ref.watch(categoryVisibilityProvider);
 
-    final isIncome = widget.transaction.isIncome;
+    final isIncome = _isIncome;
     final activeColor =
         isIncome ? const Color(0xFF10B981) : TallyTapTheme.primaryMint;
     final accentColor = TallyTapTheme.getColorForCategory(_selectedCategory);
@@ -302,6 +336,7 @@ class _TransactionDetailsScreenState
                   _reminderTime = widget.transaction.reminderDate != null
                       ? TimeOfDay.fromDateTime(widget.transaction.reminderDate!)
                       : TimeOfDay.now();
+                  _isIncome = widget.transaction.isIncome;
                 }
                 _isEditing = !_isEditing;
               });
@@ -341,6 +376,82 @@ class _TransactionDetailsScreenState
                         merchantController: _merchantController,
                         selectedCategory: _selectedCategory,
                       ),
+
+                      if (_isEditing) ...[
+                        const SizedBox(height: 20),
+                        _SectionLabel(label: 'Transaction Type'),
+                        const SizedBox(height: 10),
+                        Container(
+                          height: 50,
+                          decoration: BoxDecoration(
+                            color: TallyTapTheme.obsidianCard,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: TallyTapTheme.borderGreen),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () {
+                                    HapticFeedback.selectionClick();
+                                    _toggleTransactionType(false);
+                                  },
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 200),
+                                    alignment: Alignment.center,
+                                    margin: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: !isIncome
+                                          ? TallyTapTheme.primaryMint
+                                          : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      'Expense',
+                                      style: TextStyle(
+                                        color: !isIncome
+                                            ? TallyTapTheme.obsidianBg
+                                            : TallyTapTheme.textGray,
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () {
+                                    HapticFeedback.selectionClick();
+                                    _toggleTransactionType(true);
+                                  },
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 200),
+                                    alignment: Alignment.center,
+                                    margin: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: isIncome
+                                          ? const Color(0xFF10B981)
+                                          : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      'Income',
+                                      style: TextStyle(
+                                        color: isIncome
+                                            ? TallyTapTheme.obsidianBg
+                                            : TallyTapTheme.textGray,
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
 
                       const SizedBox(height: 24),
 
@@ -457,7 +568,10 @@ class _TransactionDetailsScreenState
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          _SectionLabel(label: 'Category'),
+                          Expanded(
+                            child: _SectionLabel(label: 'Category'),
+                          ),
+                          const SizedBox(width: 8),
                           if (!_isEditing)
                             _CategoryPill(
                                 category: _selectedCategory,
@@ -564,10 +678,13 @@ class _TransactionDetailsScreenState
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          _SectionLabel(
-                              label: isIncome
-                                  ? 'Deposit Destination'
-                                  : 'Payment Source'),
+                          Expanded(
+                            child: _SectionLabel(
+                                label: isIncome
+                                    ? 'Deposit Destination'
+                                    : 'Payment Source'),
+                          ),
+                          const SizedBox(width: 8),
                           if (!_isEditing)
                             _SourcePill(
                               source: _selectedPaymentMethod,
@@ -1147,6 +1264,7 @@ class _TransactionDetailsScreenState
                           wasFinishLater: true,
                           hideFromLedger: widget.transaction.hideFromLedger,
                           groupId: widget.transaction.groupId,
+                          isIncome: widget.transaction.isIncome,
                         );
 
                         ref.read(transactionListProvider.notifier).updateTransaction(tx);

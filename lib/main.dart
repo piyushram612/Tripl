@@ -151,19 +151,25 @@ class _TallyTapAppState extends ConsumerState<TallyTapApp> with WidgetsBindingOb
         return Consumer(
           builder: (context, ref, _) {
             final isUnlocked = ref.watch(appUnlockedProvider);
-            return Stack(
-              children: [
-                if (child != null)
-                  ExcludeSemantics(
-                    excluding: !isUnlocked,
-                    child: AbsorbPointer(
-                      absorbing: !isUnlocked,
-                      child: child,
+            final mediaQueryData = MediaQuery.of(context);
+            return MediaQuery(
+              data: mediaQueryData.copyWith(
+                textScaler: mediaQueryData.textScaler.clamp(minScaleFactor: 0.8, maxScaleFactor: 1.22),
+              ),
+              child: Stack(
+                children: [
+                  if (child != null)
+                    ExcludeSemantics(
+                      excluding: !isUnlocked,
+                      child: AbsorbPointer(
+                        absorbing: !isUnlocked,
+                        child: child,
+                      ),
                     ),
-                  ),
-                if (!isUnlocked)
-                  const LockScreen(),
-              ],
+                  if (!isUnlocked)
+                    const LockScreen(),
+                ],
+              ),
             );
           },
         );
