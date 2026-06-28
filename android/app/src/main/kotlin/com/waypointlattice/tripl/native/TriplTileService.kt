@@ -8,16 +8,14 @@ import android.service.quicksettings.Tile
 import com.waypointlattice.tripl.ui.PopupActivity
 import android.graphics.drawable.Icon
 import com.waypointlattice.tripl.R
+import com.waypointlattice.tripl.utils.BackTapService
 
 class TriplTileService : TileService() {
     override fun onStartListening() {
         super.onStartListening()
-        qsTile?.apply {
-            icon = Icon.createWithResource(this@TriplTileService, R.drawable.ic_plus_tile)
-            state = Tile.STATE_ACTIVE
-            updateTile()
-        }
+        updateTileState()
     }
+
     override fun onClick() {
         val intent = Intent(this, PopupActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -36,4 +34,15 @@ class TriplTileService : TileService() {
             startActivityAndCollapse(intent)
         }
     }
+
+    private fun updateTileState() {
+        val isServiceRunning = BackTapService.instance != null
+        qsTile?.apply {
+            icon = Icon.createWithResource(this@TriplTileService, R.drawable.ic_plus_tile)
+            state = if (isServiceRunning) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
+            updateTile()
+        }
+    }
 }
+
+

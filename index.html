@@ -639,20 +639,37 @@
             <!-- Section 9 -->
             <section id="contact-info">
                 <h2>Contact</h2>
-                <p>For questions regarding this Privacy Policy, please contact:</p>
+                <p>For questions regarding this Privacy Policy, please contact the developers:</p>
                 
-                <div class="contact-box">
-                    <div class="contact-name">
-                        <i data-lucide="user"></i> Piyush Ram Kimidi
+                <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+                    <!-- Developer 1: Piyush -->
+                    <div class="contact-box" style="margin-top: 0;">
+                        <div class="contact-name">
+                            <i data-lucide="user"></i> Piyush Ram Kimidi
+                        </div>
+                        <div class="contact-actions">
+                            <a href="mailto:piyushram.edu@gmail.com" class="btn btn-primary">
+                                <i data-lucide="mail"></i> Email Piyush
+                            </a>
+                            <button class="btn btn-secondary" onclick="copyEmail('piyushram.edu@gmail.com')">
+                                <i data-lucide="copy"></i> Copy Email
+                            </button>
+                        </div>
                     </div>
-                    <div class="contact-actions">
-                        <!-- Standard mailto link fallback -->
-                        <a href="mailto:piyushram.edu@gmail.com" class="btn btn-primary" id="email-btn">
-                            <i data-lucide="mail"></i> Email Developer
-                        </a>
-                        <button class="btn btn-secondary" id="copy-btn">
-                            <i data-lucide="copy"></i> Copy Email Address
-                        </button>
+
+                    <!-- Developer 2: Sushanth -->
+                    <div class="contact-box" style="margin-top: 0;">
+                        <div class="contact-name">
+                            <i data-lucide="user"></i> Sushanth Guddeti
+                        </div>
+                        <div class="contact-actions">
+                            <a href="mailto:aurus7900@gmail.com" class="btn btn-primary">
+                                <i data-lucide="mail"></i> Email Sushanth
+                            </a>
+                            <button class="btn btn-secondary" onclick="copyEmail('aurus7900@gmail.com')">
+                                <i data-lucide="copy"></i> Copy Email
+                            </button>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -676,11 +693,9 @@
         lucide.createIcons();
 
         // Copy Email Functionality
-        const emailAddress = "piyushram.edu@gmail.com";
-        const copyBtn = document.getElementById('copy-btn');
         const toast = document.getElementById('toast');
 
-        copyBtn.addEventListener('click', () => {
+        function copyEmail(emailAddress) {
             navigator.clipboard.writeText(emailAddress).then(() => {
                 // Show toast
                 toast.classList.add('show');
@@ -692,7 +707,7 @@
             }).catch(err => {
                 console.error('Could not copy text: ', err);
             });
-        });
+        }
     </script>
 </body>
 </html>

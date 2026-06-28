@@ -671,82 +671,163 @@ class _TransactionDetailsScreenState
 
                       // ── DATE ROW ───────────────────────────────────────
                       const SizedBox(height: 24),
-                      GestureDetector(
-                        onTap: _isEditing
-                            ? () => _pickDate(context)
-                            : null,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 20, vertical: 14),
-                          decoration: BoxDecoration(
-                            color: TallyTapTheme.obsidianCard,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                                color: TallyTapTheme.borderGreen),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(Icons.calendar_today_outlined,
-                                  color: activeColor, size: 18),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: _isEditing
-                                    ? Text(
-                                        dateLabel,
-                                        style: TextStyle(
-                                          color: activeColor,
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 14,
-                                        ),
-                                      )
-                                    : Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
+                      _isEditing
+                          ? Row(
+                              children: [
+                                Expanded(
+                                  child: GestureDetector(
+                                    onTap: () async {
+                                      final darkScheme = const ColorScheme.dark(
+                                        primary: TallyTapTheme.primaryMint,
+                                        onPrimary: TallyTapTheme.obsidianBg,
+                                        surface: TallyTapTheme.obsidianCard,
+                                        onSurface: TallyTapTheme.textLight,
+                                      );
+                                      final picked = await showDatePicker(
+                                        context: context,
+                                        initialDate: _selectedDate,
+                                        firstDate: DateTime(2020),
+                                        lastDate: DateTime(2101),
+                                        builder: (ctx, child) =>
+                                            Theme(data: Theme.of(ctx).copyWith(colorScheme: darkScheme), child: child!),
+                                      );
+                                      if (picked == null) return;
+                                      setState(() {
+                                        _selectedDate = DateTime(
+                                          picked.year,
+                                          picked.month,
+                                          picked.day,
+                                          _selectedDate.hour,
+                                          _selectedDate.minute,
+                                        );
+                                      });
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                      decoration: BoxDecoration(
+                                        color: TallyTapTheme.obsidianCard,
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(color: TallyTapTheme.borderGreen),
+                                      ),
+                                      child: Row(
                                         children: [
-                                          Text(
-                                            formattedDate,
-                                            style: const TextStyle(
-                                              color:
-                                                  TallyTapTheme.textLight,
-                                              fontWeight: FontWeight.w700,
-                                              fontSize: 13,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            formattedTime,
-                                            style: const TextStyle(
-                                              color:
-                                                  TallyTapTheme.textGray,
-                                              fontSize: 12,
+                                          Icon(Icons.calendar_today_outlined, color: activeColor, size: 18),
+                                          const SizedBox(width: 10),
+                                          Expanded(
+                                            child: Text(
+                                              dateLabel,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                color: activeColor,
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 13,
+                                              ),
                                             ),
                                           ),
                                         ],
                                       ),
-                              ),
-                              if (_isEditing)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 14, vertical: 6),
-                                  decoration: BoxDecoration(
-                                    color: TallyTapTheme.borderGreen
-                                        .withOpacity(0.4),
-                                    borderRadius:
-                                        BorderRadius.circular(20),
-                                  ),
-                                  child: const Text(
-                                    'Change',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                      color: TallyTapTheme.textLight,
                                     ),
                                   ),
                                 ),
-                            ],
-                          ),
-                        ),
-                      ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: GestureDetector(
+                                    onTap: () async {
+                                      final darkScheme = const ColorScheme.dark(
+                                        primary: TallyTapTheme.primaryMint,
+                                        onPrimary: TallyTapTheme.obsidianBg,
+                                        surface: TallyTapTheme.obsidianCard,
+                                        onSurface: TallyTapTheme.textLight,
+                                      );
+                                      final time = await showTimePicker(
+                                        context: context,
+                                        initialTime: TimeOfDay.fromDateTime(_selectedDate),
+                                        builder: (ctx, child) =>
+                                            Theme(data: Theme.of(ctx).copyWith(colorScheme: darkScheme), child: child!),
+                                      );
+                                      if (time == null) return;
+                                      setState(() {
+                                        _selectedDate = DateTime(
+                                          _selectedDate.year,
+                                          _selectedDate.month,
+                                          _selectedDate.day,
+                                          time.hour,
+                                          time.minute,
+                                        );
+                                      });
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                      decoration: BoxDecoration(
+                                        color: TallyTapTheme.obsidianCard,
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(color: TallyTapTheme.borderGreen),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Icon(Icons.access_time_rounded, color: activeColor, size: 18),
+                                          const SizedBox(width: 10),
+                                          Expanded(
+                                            child: Text(
+                                              formattedTime,
+                                              style: TextStyle(
+                                                color: activeColor,
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 13,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            )
+                          : Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 20, vertical: 14),
+                              decoration: BoxDecoration(
+                                color: TallyTapTheme.obsidianCard,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                    color: TallyTapTheme.borderGreen),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.calendar_today_outlined,
+                                      color: activeColor, size: 18),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          formattedDate,
+                                          style: const TextStyle(
+                                            color:
+                                                TallyTapTheme.textLight,
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          formattedTime,
+                                          style: const TextStyle(
+                                            color:
+                                                TallyTapTheme.textGray,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                       const SizedBox(height: 24),
 
                       // ── NOTES SECTION ─────────────────────────────────

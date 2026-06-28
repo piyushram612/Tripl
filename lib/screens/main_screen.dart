@@ -39,8 +39,8 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     
-    // Listen for native navigation requests
-    const MethodChannel('com.piyushram612.tallytap/popup').setMethodCallHandler((call) async {
+    // Listen for native requests
+    const MethodChannel('com.waypointlattice.tripl/popup').setMethodCallHandler((call) async {
       if (call.method == 'navigate' && call.arguments == 'create_transaction') {
         if (mounted) {
           Navigator.push(
@@ -50,6 +50,9 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
             ),
           );
         }
+      } else if (call.method == 'onBackTapStateChanged') {
+        final enabled = call.arguments as bool;
+        ref.read(backTapEnabledProvider.notifier).updateState(enabled);
       }
     });
 
@@ -81,6 +84,7 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
       ref.read(budgetLimitsProvider.notifier).loadLimits();
       ref.read(globalBudgetProvider.notifier).loadGlobalBudget();
       ref.read(recurringTransactionsProvider.notifier).checkDueTransactions();
+      ref.read(backTapEnabledProvider.notifier).refresh();
     }
   }
 

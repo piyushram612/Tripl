@@ -116,8 +116,8 @@ fun PopupCard(
     // Input States
     var title by remember { mutableStateOf("") }
     var amount by remember { mutableStateOf(TextFieldValue("", selection = TextRange(0))) }
-    var selectedCategory by remember { mutableStateOf(categories.firstOrNull() ?: "Dining") }
-    var selectedSource by remember { mutableStateOf(sources.firstOrNull() ?: "Cash") }
+    var selectedCategory by remember { mutableStateOf<String?>(null) }
+    var selectedSource by remember { mutableStateOf<String?>(null) }
     
     var transactionType by remember { mutableStateOf("EXPENSE") }
     var dateText by remember { mutableStateOf(SimpleDateFormat("dd MMM yyyy", Locale.US).format(Date())) }
@@ -142,8 +142,8 @@ fun PopupCard(
     }
 
     LaunchedEffect(filteredCategories) {
-        if (filteredCategories.isNotEmpty() && !filteredCategories.contains(selectedCategory)) {
-            selectedCategory = filteredCategories.first()
+        if (selectedCategory != null && !filteredCategories.contains(selectedCategory)) {
+            selectedCategory = null
         }
     }
 
@@ -312,6 +312,56 @@ fun PopupCard(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
+                        // TYPE Segmented Button (Now in main view!)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 24.dp)
+                                .height(48.dp)
+                                .background(InactivePill, RoundedCornerShape(24.dp))
+                                .border(1.dp, BorderDark, RoundedCornerShape(24.dp))
+                                .padding(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            listOf("EXPENSE", "INCOME").forEach { type ->
+                                val isSelected = transactionType == type
+                                val isExpense = type == "EXPENSE"
+                                
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxHeight()
+                                        .clip(RoundedCornerShape(20.dp))
+                                        .background(
+                                            if (isSelected) {
+                                                if (isExpense) GreenPrimary else Color(0xFF10B981)
+                                            } else {
+                                                Color.Transparent
+                                            }
+                                        )
+                                        .clickable(
+                                            interactionSource = remember { MutableInteractionSource() },
+                                            indication = null
+                                        ) { 
+                                            transactionType = type 
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = type,
+                                        style = TextStyle(
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.W900,
+                                            letterSpacing = 0.5.sp,
+                                            color = if (isSelected) GreenBgDark else Color.White.copy(alpha = 0.6f)
+                                        )
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
                         // 3. CATEGORY HEADER & CAPSULES ROW
                         SectionHeader("CATEGORY", modifier = Modifier.padding(horizontal = 24.dp))
                         Box(modifier = Modifier.fillMaxWidth().height(66.dp)) {
@@ -417,49 +467,8 @@ fun PopupCard(
                             Column(modifier = Modifier.fillMaxWidth()) {
                                 Spacer(modifier = Modifier.height(16.dp))
                                 
-                                // TYPE
-                                SectionHeader("TYPE", modifier = Modifier.padding(horizontal = 24.dp))
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 24.dp)
-                                        .height(46.dp),
-                                    horizontalArrangement = Arrangement.SpaceEvenly
-                                ) {
-                                    listOf("EXPENSE", "INCOME").forEach { type ->
-                                        val isSelected = transactionType == type
-                                        Box(
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .fillMaxHeight()
-                                                .clickable(
-                                                    interactionSource = remember { MutableInteractionSource() },
-                                                    indication = null
-                                                ) { transactionType = type },
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            if (isSelected) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .fillMaxSize()
-                                                        .outerGlow(color = GreenPrimary, radius = 16.dp, alpha = 0.3f, cornerRadius = 14.dp)
-                                                        .background(GreenPrimary, RoundedCornerShape(14.dp))
-                                                )
-                                            }
-                                            Text(
-                                                text = type,
-                                                style = TextStyle(
-                                                    fontSize = 12.sp,
-                                                    fontWeight = FontWeight.W800,
-                                                    letterSpacing = 1.0.sp,
-                                                    color = if (isSelected) GreenBgDark else Color.White.copy(alpha = 0.6f)
-                                                )
-                                            )
-                                        }
-                                    }
-                                }
-
-                                Spacer(modifier = Modifier.height(16.dp))
+                                // TYPE is now handled by the segmented button in the main view
+                                Spacer(modifier = Modifier.height(0.dp))
 
                                 // DATE & TIME
                                 Row(
@@ -572,33 +581,51 @@ fun PopupCard(
                                 .outerGlow(color = GreenPrimary, radius = 24.dp, alpha = 0.45f, cornerRadius = 100.dp)
                                 .background(GreenPrimary, RoundedCornerShape(100.dp))
                                 .clickable {
-                                    if (amount.text.isNotBlank()) {
-                                        val isoReminderDate = if (finishLater) {
-                                            try {
-                                                val sdfInput = SimpleDateFormat("dd.MM.yyyy hh:mm a", Locale.US)
-                                                val parsedDate = sdfInput.parse("$reminderDate $reminderTime")
-                                                val sdfOutput = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
-                                                    timeZone = TimeZone.getTimeZone("UTC")
-                                                }
-                                                if (parsedDate != null) sdfOutput.format(parsedDate) else null
-                                            } catch (e: Exception) { null }
-                                        } else null
-
-                                        TransactionManager.saveTransactionToPrefs(
-                                            context = context,
-                                            titleText = if (title.isNotBlank()) title else "Quick Expense",
-                                            amountText = amount.text,
-                                            category = selectedCategory,
-                                            source = selectedSource,
-                                            paidTo = paidTo,
-                                            needsVerification = finishLater,
-                                            reminderDate = isoReminderDate
-                                        )
-                                        Toast.makeText(context, "Logged: $currency${amount.text} to $selectedCategory", Toast.LENGTH_SHORT).show()
-                                        onClose()
-                                    } else {
+                                    if (amount.text.isBlank()) {
                                         Toast.makeText(context, "Please enter an amount", Toast.LENGTH_SHORT).show()
+                                        return@clickable
                                     }
+
+                                    val cat = selectedCategory
+                                    val src = selectedSource
+                                    if (cat == null || src == null) {
+                                        Toast.makeText(context, "Please select a category and payment source", Toast.LENGTH_SHORT).show()
+                                        return@clickable
+                                    }
+
+                                    val isoReminderDate = if (finishLater) {
+                                        try {
+                                            val sdfInput = SimpleDateFormat("dd.MM.yyyy hh:mm a", Locale.US)
+                                            val parsedDate = sdfInput.parse("$reminderDate $reminderTime")
+                                            val sdfOutput = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
+                                                timeZone = TimeZone.getTimeZone("UTC")
+                                            }
+                                            if (parsedDate != null) sdfOutput.format(parsedDate) else null
+                                        } catch (e: Exception) { null }
+                                    } else null
+
+                                    val isoDate = try {
+                                        val sdfInput = SimpleDateFormat("dd MMM yyyy hh:mm a", Locale.US)
+                                        val parsedDate = sdfInput.parse("$dateText $timeText")
+                                        val sdfOutput = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS", Locale.US)
+                                        if (parsedDate != null) sdfOutput.format(parsedDate) else null
+                                    } catch (e: Exception) {
+                                        null
+                                    }
+
+                                    TransactionManager.saveTransactionToPrefs(
+                                        context = context,
+                                        titleText = if (title.isNotBlank()) title else (if (transactionType == "INCOME") "Quick Income" else "Quick Expense"),
+                                        amountText = amount.text,
+                                        category = cat,
+                                        source = src,
+                                        paidTo = paidTo,
+                                        needsVerification = finishLater,
+                                        reminderDate = isoReminderDate,
+                                        dateString = isoDate
+                                    )
+                                    Toast.makeText(context, "Logged: $currency${amount.text} to $cat", Toast.LENGTH_SHORT).show()
+                                    onClose()
                                 },
                             contentAlignment = Alignment.Center
                         ) {

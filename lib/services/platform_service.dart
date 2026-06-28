@@ -35,6 +35,9 @@ class PlatformService {
   /// Check if the back tap detector is currently marked as enabled.
   static Future<bool> isBackTapEnabled() async {
     final prefs = await SharedPreferences.getInstance();
+    try {
+      await prefs.reload();
+    } catch (_) {}
     final isEnabled = prefs.getBool(_backTapKey) ?? false;
 
     // Sync status with native service on startup
@@ -84,6 +87,15 @@ class PlatformService {
       await prefs.setDouble('jerk_threshold', jerk);
     } on PlatformException catch (e) {
       print("Failed to set tap thresholds: ${e.message}");
+    }
+  }
+
+  /// Launch native email client to send bug report or feedback.
+  static Future<void> sendEmail(String email, String subject) async {
+    try {
+      await _channel.invokeMethod('sendEmail', {'email': email, 'subject': subject});
+    } on PlatformException catch (e) {
+      print("Failed to launch email: ${e.message}");
     }
   }
 }
