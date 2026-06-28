@@ -13,7 +13,8 @@
 
         android:label="${appName}"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round">
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -80,7 +81,21 @@
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE" />
             </intent-filter>
+            <meta-data
+                android:name="android.service.quicksettings.action.QS_TILE_PREFERENCES"
+                android:value="com.waypointlattice.tripl.native.TileSettingsActivity" />
         </service>
+
+        <!-- Quick Settings Tile Long Press Activity (Invisible) -->
+        <activity
+            android:name="com.waypointlattice.tripl.native.TileSettingsActivity"
+            android:theme="@android:style/Theme.NoDisplay"
+            android:excludeFromRecents="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE_PREFERENCES" />
+            </intent-filter>
+        </activity>
 
         <!-- Home Screen 1x1 App Widget -->
         <receiver

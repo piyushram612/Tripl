@@ -142,6 +142,24 @@ class MainActivity : FlutterFragmentActivity() {
                     prefs.edit().putBoolean("flutter.haptics_enabled", enabled).apply()
                     result.success(null)
                 }
+                "sendEmail" -> {
+                    val email = call.argument<String>("email") ?: ""
+                    val subject = call.argument<String>("subject") ?: ""
+                    val intent = Intent(Intent.ACTION_SENDTO).apply {
+                        data = Uri.parse("mailto:$email")
+                        putExtra(Intent.EXTRA_SUBJECT, subject)
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    try {
+                        startActivity(intent)
+                    } catch (e: Exception) {
+                        val clipboard = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                        val clip = android.content.ClipData.newPlainText("email", email)
+                        clipboard.setPrimaryClip(clip)
+                        Toast.makeText(this, "No email app found. Copied to clipboard.", Toast.LENGTH_LONG).show()
+                    }
+                    result.success(null)
+                }
                 else -> result.notImplemented()
             }
         }

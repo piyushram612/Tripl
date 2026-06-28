@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/theme.dart';
 import '../providers/app_state_provider.dart';
@@ -80,6 +81,165 @@ class ToolkitScreen extends ConsumerWidget {
       MaterialPageRoute(
         builder: (_) => const CalibrationScreen(fromSettings: true),
       ),
+    );
+  }
+
+  void _showFeedbackSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: TallyTapTheme.obsidianBg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0F1B17),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: TallyTapTheme.borderGreen, width: 0.5),
+                    ),
+                    child: const Icon(Icons.bug_report_rounded, color: TallyTapTheme.primaryMint, size: 24),
+                  ),
+                  const SizedBox(width: 16),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Help & Feedback',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: TallyTapTheme.textLight,
+                          ),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'Report a bug or share your suggestions with us',
+                          style: TextStyle(fontSize: 12, color: TallyTapTheme.textGray),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              
+              // Piyush Contact Row
+              const Text(
+                'CONTACT PIYUSH',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.5,
+                  color: TallyTapTheme.primaryMint,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: ListTile(
+                      onTap: () {
+                        Navigator.pop(context);
+                        PlatformService.sendEmail('piyushram.edu@gmail.com', 'TallyTap Feedback');
+                      },
+                      leading: const Icon(Icons.mail_rounded, color: TallyTapTheme.primaryMint, size: 18),
+                      title: const Text('Email', style: TextStyle(color: TallyTapTheme.textLight, fontWeight: FontWeight.bold, fontSize: 13)),
+                      tileColor: const Color(0xFF141F1B),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ListTile(
+                      onTap: () async {
+                        Navigator.pop(context);
+                        await Clipboard.setData(const ClipboardData(text: 'piyushram.edu@gmail.com'));
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text("Piyush's email copied!"),
+                              behavior: SnackBarBehavior.floating,
+                              backgroundColor: TallyTapTheme.primaryMint,
+                            ),
+                          );
+                        }
+                      },
+                      leading: const Icon(Icons.copy_rounded, color: TallyTapTheme.primaryMint, size: 18),
+                      title: const Text('Copy Address', style: TextStyle(color: TallyTapTheme.textLight, fontWeight: FontWeight.bold, fontSize: 13)),
+                      tileColor: const Color(0xFF141F1B),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                ],
+              ),
+              
+              const SizedBox(height: 20),
+              
+              // Sushanth Contact Row
+              const Text(
+                'CONTACT SUSHANTH',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.5,
+                  color: TallyTapTheme.primaryMint,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: ListTile(
+                      onTap: () {
+                        Navigator.pop(context);
+                        PlatformService.sendEmail('aurus7900@gmail.com', 'TallyTap Feedback');
+                      },
+                      leading: const Icon(Icons.mail_rounded, color: TallyTapTheme.primaryMint, size: 18),
+                      title: const Text('Email', style: TextStyle(color: TallyTapTheme.textLight, fontWeight: FontWeight.bold, fontSize: 13)),
+                      tileColor: const Color(0xFF141F1B),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ListTile(
+                      onTap: () async {
+                        Navigator.pop(context);
+                        await Clipboard.setData(const ClipboardData(text: 'aurus7900@gmail.com'));
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text("Sushanth's email copied!"),
+                              behavior: SnackBarBehavior.floating,
+                              backgroundColor: TallyTapTheme.primaryMint,
+                            ),
+                          );
+                        }
+                      },
+                      leading: const Icon(Icons.copy_rounded, color: TallyTapTheme.primaryMint, size: 18),
+                      title: const Text('Copy Address', style: TextStyle(color: TallyTapTheme.textLight, fontWeight: FontWeight.bold, fontSize: 13)),
+                      tileColor: const Color(0xFF141F1B),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -1373,7 +1533,7 @@ class ToolkitScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 20),
-                // Card: Share
+                // Card: Help & Support (Share & Feedback)
                 Card(
                   key: TutorialService.toolkitShareKey,
                   child: Padding(
@@ -1384,7 +1544,7 @@ class ToolkitScreen extends ConsumerWidget {
                         const Padding(
                           padding: EdgeInsets.only(left: 20.0, top: 16.0, bottom: 8.0),
                           child: Text(
-                            'SHARE',
+                            'HELP & SUPPORT',
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w800,
@@ -1393,6 +1553,13 @@ class ToolkitScreen extends ConsumerWidget {
                             ),
                           ),
                         ),
+                        _buildSettingsTile(
+                          icon: Icons.bug_report_rounded,
+                          title: 'Report a Bug / Feedback',
+                          subtitle: 'Provide feedback or report issues',
+                          onTap: () => _showFeedbackSheet(context),
+                        ),
+                        const Divider(color: TallyTapTheme.borderGreen, height: 1, indent: 20, endIndent: 20),
                         _buildSettingsTile(
                           icon: Icons.share_rounded,
                           title: 'Share Tripl',

@@ -21,6 +21,10 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.waypointlattice.tripl.ui.PopupActivity
 import com.waypointlattice.tripl.MainActivity
+import io.flutter.plugin.common.MethodChannel
+import android.content.ComponentName
+import android.service.quicksettings.TileService
+
 
 class BackTapService : Service(), SensorEventListener {
     private var sensorManager: SensorManager? = null
@@ -214,6 +218,27 @@ class BackTapService : Service(), SensorEventListener {
         
         // Initial check
         checkAndRegisterSensor()
+
+        // Notify Flutter of state change
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            MainActivity.flutterEngineInstance?.let { engine ->
+                try {
+                    MethodChannel(engine.dartExecutor.binaryMessenger, "com.waypointlattice.tripl/popup")
+                        .invokeMethod("onBackTapStateChanged", true)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to send state change to Flutter: ${e.message}")
+                }
+            }
+        }
+
+        // Request Quick Settings tile update
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            try {
+                TileService.requestListeningState(this, ComponentName(this, "com.waypointlattice.tripl.native.TriplTileService"))
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to request tile listening state: ${e.message}")
+            }
+        }
     }
 
     private fun triggerVibration() {
@@ -279,6 +304,28 @@ class BackTapService : Service(), SensorEventListener {
             Log.e(TAG, "Receiver not registered", e)
         }
         unregisterSensor()
+
+        // Notify Flutter of state change
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            MainActivity.flutterEngineInstance?.let { engine ->
+                try {
+                    MethodChannel(engine.dartExecutor.binaryMessenger, "com.waypointlattice.tripl/popup")
+                        .invokeMethod("onBackTapStateChanged", false)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to send state change to Flutter: ${e.message}")
+                }
+            }
+        }
+
+        // Request Quick Settings tile update
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            try {
+                TileService.requestListeningState(this, ComponentName(this, "com.waypointlattice.tripl.native.TriplTileService"))
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to request tile listening state: ${e.message}")
+            }
+        }
+
         super.onDestroy()
     }
 

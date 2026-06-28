@@ -19,6 +19,18 @@ class BackTapNotifier extends StateNotifier<bool> {
     state = await PlatformService.isBackTapEnabled();
   }
 
+  Future<void> refresh() async {
+    final prefs = await SharedPreferences.getInstance();
+    try {
+      await prefs.reload();
+    } catch (_) {}
+    state = prefs.getBool('back_tap_enabled') ?? false;
+  }
+
+  void updateState(bool val) {
+    state = val;
+  }
+
   Future<void> toggle(bool val) async {
     state = val;
     await PlatformService.setBackTapEnabled(val);
