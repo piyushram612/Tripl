@@ -310,57 +310,7 @@ fun PopupCard(
                                 .focusRequester(focusRequester)
                         )
 
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        // TYPE Segmented Button (Now in main view!)
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 24.dp)
-                                .height(48.dp)
-                                .background(InactivePill, RoundedCornerShape(24.dp))
-                                .border(1.dp, BorderDark, RoundedCornerShape(24.dp))
-                                .padding(4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            listOf("EXPENSE", "INCOME").forEach { type ->
-                                val isSelected = transactionType == type
-                                val isExpense = type == "EXPENSE"
-                                
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .fillMaxHeight()
-                                        .clip(RoundedCornerShape(20.dp))
-                                        .background(
-                                            if (isSelected) {
-                                                if (isExpense) GreenPrimary else Color(0xFF10B981)
-                                            } else {
-                                                Color.Transparent
-                                            }
-                                        )
-                                        .clickable(
-                                            interactionSource = remember { MutableInteractionSource() },
-                                            indication = null
-                                        ) { 
-                                            transactionType = type 
-                                        },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = type,
-                                        style = TextStyle(
-                                            fontSize = 13.sp,
-                                            fontWeight = FontWeight.W900,
-                                            letterSpacing = 0.5.sp,
-                                            color = if (isSelected) GreenBgDark else Color.White.copy(alpha = 0.6f)
-                                        )
-                                    )
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(24.dp))
 
                         // 3. CATEGORY HEADER & CAPSULES ROW
                         SectionHeader("CATEGORY", modifier = Modifier.padding(horizontal = 24.dp))
@@ -395,7 +345,7 @@ fun PopupCard(
                                             colors = listOf(CardBgDark, Color.Transparent)
                                         )
                                     )
-                            )
+                                )
                             
                             // Right Fading Edge Overlay
                             Box(
@@ -467,8 +417,55 @@ fun PopupCard(
                             Column(modifier = Modifier.fillMaxWidth()) {
                                 Spacer(modifier = Modifier.height(16.dp))
                                 
-                                // TYPE is now handled by the segmented button in the main view
-                                Spacer(modifier = Modifier.height(0.dp))
+                                // TYPE Segmented Button (now below SOURCE)
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 24.dp)
+                                        .height(48.dp)
+                                        .background(InactivePill, RoundedCornerShape(24.dp))
+                                        .border(1.dp, BorderDark, RoundedCornerShape(24.dp))
+                                        .padding(4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    listOf("EXPENSE", "INCOME").forEach { type ->
+                                        val isSelected = transactionType == type
+                                        val isExpense = type == "EXPENSE"
+                                        
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .fillMaxHeight()
+                                                .clip(RoundedCornerShape(20.dp))
+                                                .background(
+                                                    if (isSelected) {
+                                                        if (isExpense) GreenPrimary else Color(0xFF10B981)
+                                                    } else {
+                                                        Color.Transparent
+                                                    }
+                                                )
+                                                .clickable(
+                                                    interactionSource = remember { MutableInteractionSource() },
+                                                    indication = null
+                                                ) { 
+                                                    transactionType = type 
+                                                },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = type,
+                                                style = TextStyle(
+                                                    fontSize = 13.sp,
+                                                    fontWeight = FontWeight.W900,
+                                                    letterSpacing = 0.5.sp,
+                                                    color = if (isSelected) GreenBgDark else Color.White.copy(alpha = 0.6f)
+                                                )
+                                            )
+                                        }
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(16.dp))
 
                                 // DATE & TIME
                                 Row(

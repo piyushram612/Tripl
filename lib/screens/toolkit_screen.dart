@@ -15,10 +15,12 @@ import 'sheets/manage_categories_sheet.dart';
 import 'sheets/manage_sources_sheet.dart';
 import 'sheets/manage_currency_sheet.dart';
 import 'sheets/manage_profile_sheet.dart';
+import 'sheets/customize_layout_sheet.dart';
 import 'recurring_transactions_list_screen.dart';
 import 'tools/expense_splitter_screen.dart';
 import 'tools/tip_calculator_screen.dart';
 import 'tools/outstanding_ledger_screen.dart';
+import 'tools/transfer_funds_screen.dart';
 import '../providers/customization_provider.dart';
 import 'sheets/snooze_duration_sheet.dart';
 import '../providers/tutorial_provider.dart';
@@ -29,6 +31,15 @@ import 'package:share_plus/share_plus.dart';
 
 class ToolkitScreen extends ConsumerWidget {
   const ToolkitScreen({super.key});
+
+  void _showCustomizeHomeLayoutSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const CustomizeLayoutSheet(),
+    );
+  }
 
   void _showManageCategoriesSheet(BuildContext context) {
     showModalBottomSheet(
@@ -1435,6 +1446,13 @@ class ToolkitScreen extends ConsumerWidget {
                     ),
                     const Divider(color: TallyTapTheme.borderGreen, height: 1, indent: 20, endIndent: 20),
                     _buildSettingsTile(
+                      icon: Icons.dashboard_customize_rounded,
+                      title: 'Customize Home Layout',
+                      subtitle: 'Reorder cards on your home dashboard',
+                      onTap: () => _showCustomizeHomeLayoutSheet(context),
+                    ),
+                    const Divider(color: TallyTapTheme.borderGreen, height: 1, indent: 20, endIndent: 20),
+                    _buildSettingsTile(
                       icon: Icons.category_rounded,
                       title: 'Manage Categories',
                       subtitle: 'Add or remove custom expense categories',
@@ -1528,6 +1546,17 @@ class ToolkitScreen extends ConsumerWidget {
                       },
                     ),
                     const Divider(color: TallyTapTheme.borderGreen, height: 1, indent: 20, endIndent: 20),
+                    _buildSettingsTile(
+                      icon: Icons.swap_horiz_rounded,
+                      title: 'Account Transfer',
+                      subtitle: 'Transfer funds between your accounts',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const TransferFundsScreen()),
+                        );
+                      },
+                    ),
                     ],
                 ),
               ),

@@ -101,12 +101,19 @@ class _CreateTransactionScreenState
   IconData _categoryIcon(String cat) =>
       TallyTapTheme.getIconForCategory(cat, _isIncome);
 
-  /// Sum transactions for a given source to show a rough balance.
   double _balanceForSource(List<ExpenseTransaction> txs, String src, double startingBalance) {
     double b = startingBalance;
     for (final t in txs) {
-      if (t.paymentMethod == src) {
-        b += t.isIncome ? t.amount.abs() : -t.amount.abs();
+      if (t.category.toLowerCase() == 'transfer') {
+        if (t.paymentMethod == src) {
+          b -= t.amount.abs();
+        } else if (t.paidTo == src) {
+          b += t.amount.abs();
+        }
+      } else {
+        if (t.paymentMethod == src) {
+          b += t.isIncome ? t.amount.abs() : -t.amount.abs();
+        }
       }
     }
     return b;
@@ -348,7 +355,7 @@ class _CreateTransactionScreenState
                       const SizedBox(height: 24),
 
                       // ── MERCHANT FIELD ───────────────────────────────────
-                      SectionLabel(label: 'Merchant / Title'),
+                      SectionLabel(label: 'Title / Purpose'),
                       const SizedBox(height: 10),
                       TextFormField(
                         controller: _merchantController,
@@ -382,7 +389,7 @@ class _CreateTransactionScreenState
 
                       // ── PAID TO / PAID BY FIELD ──────────────────────────
                       const SizedBox(height: 24),
-                      SectionLabel(label: _isIncome ? 'Paid By (optional)' : 'Paid To (optional)'),
+                      SectionLabel(label: _isIncome ? 'Paid By (optional)' : 'Paid To / Merchant (optional)'),
                       const SizedBox(height: 10),
                       TextFormField(
                         controller: _paidToController,

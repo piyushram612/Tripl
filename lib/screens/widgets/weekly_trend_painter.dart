@@ -7,12 +7,28 @@ class WeeklyTrendGraph extends ConsumerStatefulWidget {
   final List<double> values;
   final List<String> labels;
   final bool isOverspending;
+  final String styleType;
+  final String metricMode;
+  final bool showGrid;
+  final bool showLabels;
+  final bool showGradient;
+  final bool showGlow;
+  final bool showTooltips;
+  final String currency;
   
   const WeeklyTrendGraph({
     super.key,
     required this.values,
     required this.labels,
     this.isOverspending = false,
+    this.styleType = 'bezier',
+    this.metricMode = 'spent',
+    this.showGrid = true,
+    this.showLabels = true,
+    this.showGradient = true,
+    this.showGlow = true,
+    this.showTooltips = true,
+    required this.currency,
   });
 
   @override
@@ -24,6 +40,7 @@ class _WeeklyTrendGraphState extends ConsumerState<WeeklyTrendGraph> with Single
   late Animation<double> _animation;
   List<double> _sourceValues = [];
   List<double> _targetValues = [];
+  int? _draggedIndex;
 
   @override
   void initState() {
@@ -87,6 +104,57 @@ class _WeeklyTrendGraphState extends ConsumerState<WeeklyTrendGraph> with Single
     super.dispose();
   }
 
+  void _handleTouch(Offset localPosition, double width, {bool isTap = false}) {
+    if (widget.values.isEmpty || !widget.showTooltips) return;
+    
+    double maxVal = widget.values.reduce((a, b) => a > b ? a : b);
+    if (widget.metricMode == 'spent' || widget.metricMode == 'income' || widget.metricMode == 'daily') {
+      if (maxVal <= 0.0) {
+        maxVal = 100.0;
+      }
+    } else {
+      if (maxVal < 0.0) maxVal = 0.0;
+    }
+
+    double rightPadding = 0.0;
+    if (widget.showLabels) {
+      final dummyPainter = TextPainter(
+        textDirection: TextDirection.ltr,
+      );
+      final String maxText = '${maxVal < 0 ? '-' : ''}${widget.currency}${maxVal.abs().toStringAsFixed(0)}';
+      dummyPainter.text = TextSpan(
+        text: maxText,
+        style: const TextStyle(
+          fontSize: 8,
+          fontWeight: FontWeight.w600,
+          fontFamily: 'Outfit',
+        ),
+      );
+      dummyPainter.layout();
+      rightPadding = dummyPainter.width + 16.0;
+    }
+
+    final double graphWidth = width - rightPadding;
+    final double stepX = graphWidth / (widget.values.length - 1 == 0 ? 1 : widget.values.length - 1);
+    final int index = (localPosition.dx / stepX).round().clamp(0, widget.values.length - 1);
+    
+    setState(() {
+      if (isTap && _draggedIndex == index) {
+        _draggedIndex = null;
+      } else {
+        _draggedIndex = index;
+      }
+    });
+  }
+
+  void _clearTouch() {
+    if (_draggedIndex != null) {
+      setState(() {
+        _draggedIndex = null;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // Replay entrance animation when switching back to the Home tab
@@ -96,19 +164,37 @@ class _WeeklyTrendGraphState extends ConsumerState<WeeklyTrendGraph> with Single
       }
     });
 
-    return AnimatedBuilder(
-      animation: _animation,
-      builder: (context, child) {
-        final animatedValues = _getCurrentAnimatedValues();
-        return SizedBox(
-          height: 110, // Expanded height to comfortably accommodate visual Day labels
-          width: double.infinity,
-          child: CustomPaint(
-            painter: _WeeklyTrendPainter(
-              values: animatedValues,
-              labels: widget.labels,
-              isOverspending: widget.isOverspending,
-            ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        return GestureDetector(
+          onPanStart: (details) => _handleTouch(details.localPosition, width, isTap: false),
+          onPanUpdate: (details) => _handleTouch(details.localPosition, width, isTap: false),
+          onTapDown: (details) => _handleTouch(details.localPosition, width, isTap: true),
+          child: AnimatedBuilder(
+            animation: _animation,
+            builder: (context, child) {
+              final animatedValues = _getCurrentAnimatedValues();
+              return SizedBox(
+                height: 110, // Expanded height to comfortably accommodate visual Day labels
+                width: double.infinity,
+                child: CustomPaint(
+                  painter: _WeeklyTrendPainter(
+                    values: animatedValues,
+                    labels: widget.labels,
+                    isOverspending: widget.isOverspending,
+                    styleType: widget.styleType,
+                    metricMode: widget.metricMode,
+                    showGrid: widget.showGrid,
+                    showLabels: widget.showLabels,
+                    showGradient: widget.showGradient,
+                    showGlow: widget.showGlow,
+                    draggedIndex: _draggedIndex,
+                    currency: widget.currency,
+                  ),
+                ),
+              );
+            },
           ),
         );
       },
@@ -120,11 +206,27 @@ class _WeeklyTrendPainter extends CustomPainter {
   final List<double> values;
   final List<String> labels;
   final bool isOverspending;
+  final String styleType;
+  final String metricMode;
+  final bool showGrid;
+  final bool showLabels;
+  final bool showGradient;
+  final bool showGlow;
+  final int? draggedIndex;
+  final String currency;
 
   _WeeklyTrendPainter({
     required this.values,
     required this.labels,
     required this.isOverspending,
+    required this.styleType,
+    required this.metricMode,
+    required this.showGrid,
+    required this.showLabels,
+    required this.showGradient,
+    required this.showGlow,
+    required this.draggedIndex,
+    required this.currency,
   });
 
   @override
@@ -138,22 +240,92 @@ class _WeeklyTrendPainter extends CustomPainter {
     const double bottomPadding = 24.0;
     final double graphHeight = height - bottomPadding;
 
-    // Grid paint for horizontal helper guidelines
-    final gridPaint = Paint()
-      ..color = const Color(0xFF152620)
-      ..strokeWidth = 0.8
-      ..style = PaintingStyle.stroke;
-    
-    // Draw horizontal grid lines for professional reference
-    canvas.drawLine(Offset(0, graphHeight * 0.3), Offset(width, graphHeight * 0.3), gridPaint);
-    canvas.drawLine(Offset(0, graphHeight * 0.7), Offset(width, graphHeight * 0.7), gridPaint);
-
     // Normalizing values between min and max height of the graph area
-    final double maxVal = values.reduce((a, b) => a > b ? a : b);
-    final double minVal = values.reduce((a, b) => a < b ? a : b);
-    final double range = maxVal - minVal == 0 ? 1 : maxVal - minVal;
+    double maxVal = values.reduce((a, b) => a > b ? a : b);
+    double minVal = values.reduce((a, b) => a < b ? a : b);
 
-    final double stepX = width / (values.length - 1 == 0 ? 1 : values.length - 1);
+    if (metricMode == 'spent' || metricMode == 'income' || metricMode == 'daily') {
+      minVal = 0.0;
+      if (maxVal <= 0.0) {
+        maxVal = 100.0; // Default height fallback
+      }
+    } else {
+      // Net mode
+      if (minVal > 0.0) minVal = 0.0;
+      if (maxVal < 0.0) maxVal = 0.0;
+      if (maxVal == minVal) {
+        maxVal = 100.0;
+        minVal = -100.0;
+      }
+    }
+    final double range = maxVal - minVal;
+
+    double getYForValue(double val) {
+      final double normalizedY = (val - minVal) / range;
+      // Invert Y since (0,0) is top-left
+      return graphHeight - (normalizedY * (graphHeight - 20) + 10);
+    }
+
+    double rightPadding = 0.0;
+    if (showLabels) {
+      final dummyPainter = TextPainter(
+        textDirection: TextDirection.ltr,
+      );
+      final String maxText = '${maxVal < 0 ? '-' : ''}$currency${maxVal.abs().toStringAsFixed(0)}';
+      dummyPainter.text = TextSpan(
+        text: maxText,
+        style: const TextStyle(
+          fontSize: 8,
+          fontWeight: FontWeight.w600,
+          fontFamily: 'Outfit',
+        ),
+      );
+      dummyPainter.layout();
+      rightPadding = dummyPainter.width + 16.0; // add 16px for padding/safety margin
+    }
+    final double graphWidth = width - rightPadding;
+
+    // Grid paint for horizontal helper guidelines
+    if (showGrid) {
+      final gridPaint = Paint()
+        ..color = const Color(0xFF152620)
+        ..strokeWidth = 0.8
+        ..style = PaintingStyle.stroke;
+      
+      // Draw horizontal grid lines up to graphWidth
+      canvas.drawLine(Offset(0, getYForValue(maxVal)), Offset(graphWidth, getYForValue(maxVal)), gridPaint);
+      canvas.drawLine(Offset(0, getYForValue((maxVal + minVal) / 2)), Offset(graphWidth, getYForValue((maxVal + minVal) / 2)), gridPaint);
+      canvas.drawLine(Offset(0, getYForValue(minVal)), Offset(graphWidth, getYForValue(minVal)), gridPaint);
+    }
+
+    // Draw Y Axis Labels if toggled
+    if (showLabels) {
+      final labelTextPainter = TextPainter(
+        textDirection: TextDirection.ltr,
+      );
+
+      void drawYLabel(double val, double y) {
+        final String text = '${val < 0 ? '-' : ''}$currency${val.abs().toStringAsFixed(0)}';
+        labelTextPainter.text = TextSpan(
+          text: text,
+          style: const TextStyle(
+            color: TallyTapTheme.textGray,
+            fontSize: 8,
+            fontWeight: FontWeight.w600,
+            fontFamily: 'Outfit',
+          ),
+        );
+        labelTextPainter.layout();
+        // Paint centered vertically in the right padding area
+        labelTextPainter.paint(canvas, Offset(graphWidth + 4, y - labelTextPainter.height / 2));
+      }
+
+      drawYLabel(maxVal, getYForValue(maxVal));
+      drawYLabel((maxVal + minVal) / 2, getYForValue((maxVal + minVal) / 2));
+      drawYLabel(minVal, getYForValue(minVal));
+    }
+
+    final double stepX = graphWidth / (values.length - 1 == 0 ? 1 : values.length - 1);
     final points = <Offset>[];
 
     final textPainter = TextPainter(
@@ -161,9 +333,7 @@ class _WeeklyTrendPainter extends CustomPainter {
     );
 
     for (int i = 0; i < values.length; i++) {
-      final double normalizedY = maxVal - minVal == 0 ? 0.5 : (values[i] - minVal) / range;
-      // Invert Y since (0,0) is top-left
-      final double y = graphHeight - (normalizedY * (graphHeight - 20) + 10);
+      final double y = getYForValue(values[i]);
       final double x = i * stepX;
       points.add(Offset(x, y));
 
@@ -186,74 +356,193 @@ class _WeeklyTrendPainter extends CustomPainter {
 
     // Determine curve and gradient colors based on overspending status (Mint Green vs Vibrant Red)
     final Color strokeColor = isOverspending ? const Color(0xFFEF4444) : TallyTapTheme.primaryMint;
-    final Color fillStartColor = isOverspending ? const Color(0xFFEF4444).withOpacity(0.2) : TallyTapTheme.primaryMint.withOpacity(0.25);
+    final Color fillStartColor = isOverspending ? const Color(0xFFEF4444).withValues(alpha: 0.2) : TallyTapTheme.primaryMint.withValues(alpha: 0.25);
 
-    // 1. Draw Gradient Fill beneath the curve
-    final fillPath = Path();
-    fillPath.moveTo(0, graphHeight);
-    fillPath.lineTo(points.first.dx, points.first.dy);
+    if (styleType == 'bar') {
+      // Draw Bar Chart representation
+      final double barWidth = (stepX * 0.55).clamp(4.0, 30.0);
+      final barPaint = Paint()..style = PaintingStyle.fill;
 
-    for (int i = 0; i < points.length - 1; i++) {
-      final p0 = points[i];
-      final p1 = points[i + 1];
-      
-      final controlX1 = p0.dx + (p1.dx - p0.dx) / 2;
-      final controlY1 = p0.dy;
-      final controlX2 = p0.dx + (p1.dx - p0.dx) / 2;
-      final controlY2 = p1.dy;
+      for (int i = 1; i < points.length; i++) {
+        final pt = points[i];
+        final double x = pt.dx;
+        final double y = pt.dy;
+        
+        final double zeroY = getYForValue(0.0);
+        final double top = y < zeroY ? y : zeroY;
+        final double bottom = y < zeroY ? zeroY : y;
+        
+        final rect = RRect.fromRectAndRadius(
+          Rect.fromLTRB(x - barWidth / 2, top, x + barWidth / 2, bottom),
+          const Radius.circular(6),
+        );
+        
+        barPaint.shader = LinearGradient(
+          colors: [
+            strokeColor,
+            strokeColor.withValues(alpha: showGradient ? 0.15 : 0.85),
+          ],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ).createShader(Rect.fromLTRB(x - barWidth / 2, top, x + barWidth / 2, bottom));
+        
+        canvas.drawRRect(rect, barPaint);
+      }
+    } else {
+      // Draw Line (Bezier / Straight)
+      final linePath = Path();
+      linePath.moveTo(points.first.dx, points.first.dy);
 
-      fillPath.cubicTo(controlX1, controlY1, controlX2, controlY2, p1.dx, p1.dy);
+      final fillPath = Path();
+      fillPath.moveTo(0, graphHeight);
+      fillPath.lineTo(points.first.dx, points.first.dy);
+
+      for (int i = 0; i < points.length - 1; i++) {
+        final p0 = points[i];
+        final p1 = points[i + 1];
+        
+        if (styleType == 'bezier') {
+          final controlX1 = p0.dx + (p1.dx - p0.dx) / 2;
+          final controlY1 = p0.dy;
+          final controlX2 = p0.dx + (p1.dx - p0.dx) / 2;
+          final controlY2 = p1.dy;
+
+          linePath.cubicTo(controlX1, controlY1, controlX2, controlY2, p1.dx, p1.dy);
+          fillPath.cubicTo(controlX1, controlY1, controlX2, controlY2, p1.dx, p1.dy);
+        } else {
+          // straight
+          linePath.lineTo(p1.dx, p1.dy);
+          fillPath.lineTo(p1.dx, p1.dy);
+        }
+      }
+
+      fillPath.lineTo(graphWidth, graphHeight);
+      fillPath.close();
+
+      // 1. Draw Gradient Fill beneath the curve
+      if (showGradient) {
+        final fillPaint = Paint()
+          ..shader = LinearGradient(
+            colors: [
+              fillStartColor,
+              strokeColor.withValues(alpha: 0.0),
+            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ).createShader(Rect.fromLTWH(0, 0, graphWidth, graphHeight))
+          ..style = PaintingStyle.fill;
+
+        canvas.drawPath(fillPath, fillPaint);
+      }
+
+      // 2. Draw Glow Effect
+      if (showGlow) {
+        final glowPaint = Paint()
+          ..color = strokeColor.withValues(alpha: 0.35)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 6.0
+          ..strokeCap = StrokeCap.round
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4.0)
+          ..isAntiAlias = true;
+
+        canvas.drawPath(linePath, glowPaint);
+      }
+
+      // 3. Draw Path Line
+      final linePaint = Paint()
+        ..color = strokeColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.5
+        ..strokeCap = StrokeCap.round
+        ..isAntiAlias = true;
+
+      canvas.drawPath(linePath, linePaint);
     }
-    fillPath.lineTo(width, graphHeight);
-    fillPath.close();
 
-    final fillPaint = Paint()
-      ..shader = LinearGradient(
-        colors: [
-          fillStartColor,
-          strokeColor.withOpacity(0.0),
-        ],
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-      ).createShader(Rect.fromLTWH(0, 0, width, graphHeight))
-      ..style = PaintingStyle.fill;
-
-    canvas.drawPath(fillPath, fillPaint);
-
-    // 2. Draw Bezier Line
-    final linePath = Path();
-    linePath.moveTo(points.first.dx, points.first.dy);
-
-    for (int i = 0; i < points.length - 1; i++) {
-      final p0 = points[i];
-      final p1 = points[i + 1];
+    // 4. Draw Interactive Tooltip & Highlight Marker
+    if (draggedIndex != null && draggedIndex! < points.length) {
+      final selectedPt = points[draggedIndex!];
       
-      final controlX1 = p0.dx + (p1.dx - p0.dx) / 2;
-      final controlY1 = p0.dy;
-      final controlX2 = p0.dx + (p1.dx - p0.dx) / 2;
-      final controlY2 = p1.dy;
+      // Draw vertical tracking guide line
+      final verticalLinePaint = Paint()
+        ..color = TallyTapTheme.textGray.withValues(alpha: 0.4)
+        ..strokeWidth = 1.0
+        ..style = PaintingStyle.stroke;
+      
+      double startY = 10;
+      const double dashHeight = 4.0;
+      const double dashGap = 4.0;
+      while (startY < graphHeight) {
+        canvas.drawLine(Offset(selectedPt.dx, startY), Offset(selectedPt.dx, startY + dashHeight), verticalLinePaint);
+        startY += dashHeight + dashGap;
+      }
 
-      linePath.cubicTo(controlX1, controlY1, controlX2, controlY2, p1.dx, p1.dy);
+      // Draw tracking circle point marker
+      final markerPaint = Paint()
+        ..color = strokeColor
+        ..style = PaintingStyle.fill;
+      
+      final markerOutlinePaint = Paint()
+        ..color = TallyTapTheme.obsidianCard
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.0;
+      
+      canvas.drawCircle(selectedPt, 6.0, markerPaint);
+      canvas.drawCircle(selectedPt, 6.0, markerOutlinePaint);
+
+      // Draw floating overlay tooltip card
+      final String dayName = draggedIndex! < labels.length ? labels[draggedIndex!] : '';
+      final double val = values[draggedIndex!];
+      final String tooltipText = '${dayName.isNotEmpty ? "$dayName: " : ""}${val < 0 ? '-' : ''}$currency${val.abs().toStringAsFixed(0)}';
+
+      final tooltipTextPainter = TextPainter(
+        textDirection: TextDirection.ltr,
+      );
+      tooltipTextPainter.text = TextSpan(
+        text: tooltipText,
+        style: const TextStyle(
+          color: TallyTapTheme.textLight,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+          fontFamily: 'Outfit',
+        ),
+      );
+      tooltipTextPainter.layout();
+
+      final double tooltipWidth = tooltipTextPainter.width + 16;
+      final double tooltipHeight = tooltipTextPainter.height + 8;
+      
+      double tooltipX = selectedPt.dx - tooltipWidth / 2;
+      if (tooltipX < 4) tooltipX = 4;
+      if (tooltipX + tooltipWidth > width - 4) tooltipX = width - tooltipWidth - 4;
+      
+      double tooltipY = selectedPt.dy - tooltipHeight - 10;
+      if (tooltipY < 4) {
+        tooltipY = selectedPt.dy + 10; // Draw below point if clipping top
+      }
+
+      final tooltipRect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(tooltipX, tooltipY, tooltipWidth, tooltipHeight),
+        const Radius.circular(8),
+      );
+      
+      final tooltipBgPaint = Paint()
+        ..color = const Color(0xFF162521)
+        ..style = PaintingStyle.fill;
+      
+      final tooltipBorderPaint = Paint()
+        ..color = strokeColor.withValues(alpha: 0.5)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.0;
+      
+      canvas.drawRRect(tooltipRect, tooltipBgPaint);
+      canvas.drawRRect(tooltipRect, tooltipBorderPaint);
+      
+      tooltipTextPainter.paint(
+        canvas,
+        Offset(tooltipX + 8, tooltipY + 4),
+      );
     }
-
-    final linePaint = Paint()
-      ..color = strokeColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.5
-      ..strokeCap = StrokeCap.round
-      ..isAntiAlias = true;
-
-    // Dotted/Blurred glow effect using mask filter
-    final glowPaint = Paint()
-      ..color = strokeColor.withOpacity(0.35)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 6.0
-      ..strokeCap = StrokeCap.round
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4.0)
-      ..isAntiAlias = true;
-
-    canvas.drawPath(linePath, glowPaint);
-    canvas.drawPath(linePath, linePaint);
   }
 
   @override

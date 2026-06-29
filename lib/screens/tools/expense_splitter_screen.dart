@@ -1194,8 +1194,16 @@ class _ExpenseSplitterScreenState extends ConsumerState<ExpenseSplitterScreen> {
   double _balanceForSource(List<ExpenseTransaction> txs, String src, double startingBalance) {
     double b = startingBalance;
     for (final t in txs) {
-      if (t.paymentMethod == src) {
-        b += t.isIncome ? t.amount.abs() : -t.amount.abs();
+      if (t.category.toLowerCase() == 'transfer') {
+        if (t.paymentMethod == src) {
+          b -= t.amount.abs();
+        } else if (t.paidTo == src) {
+          b += t.amount.abs();
+        }
+      } else {
+        if (t.paymentMethod == src) {
+          b += t.isIncome ? t.amount.abs() : -t.amount.abs();
+        }
       }
     }
     return b;

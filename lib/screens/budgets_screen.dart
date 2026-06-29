@@ -167,6 +167,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> with SingleTicker
     double monthlySpent = 0.0;
 
     for (var tx in transactions) {
+      if (tx.category.toLowerCase() == 'transfer') continue;
       if (!tx.isIncome) {
         if (isDateInCurrentWeek(tx.date)) {
           weeklySpent += tx.amount;

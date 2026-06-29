@@ -99,6 +99,9 @@ class TallyTapTheme {
 
   static Color getColorForCategory(String cat, [int index = 0]) {
     final trimmed = cat.trim();
+    if (trimmed.toLowerCase() == 'transfer') {
+      return const Color(0xFF94A3B8); // Slate color for transfer
+    }
     if (customCategoryColors.containsKey(trimmed)) {
       return customCategoryColors[trimmed]!;
     }
@@ -114,6 +117,9 @@ class TallyTapTheme {
       return customCategoryIcons[trimmed]!;
     }
     final clean = trimmed.toLowerCase();
+    if (clean == 'transfer') {
+      return Icons.swap_horiz_rounded;
+    }
     if (clean.contains('dining') || clean.contains('food') || clean.contains('dinner') || clean.contains('restaurant')) {
       return Icons.local_cafe_outlined;
     } else if (clean.contains('commute') || clean.contains('transport') || clean.contains('car') || clean.contains('cab')) {
@@ -141,6 +147,9 @@ class TallyTapTheme {
       return customCategoryColors[trimmed]!.withOpacity(0.15);
     }
     final clean = trimmed.toLowerCase();
+    if (clean == 'transfer') {
+      return const Color(0xFF1E293B); // Dark slate bg
+    }
     if (clean.contains('dining') || clean.contains('food') || clean.contains('dinner') || clean.contains('restaurant')) {
       return const Color(0xFF261D4C);
     } else if (clean.contains('commute') || clean.contains('transport') || clean.contains('car') || clean.contains('cab')) {
