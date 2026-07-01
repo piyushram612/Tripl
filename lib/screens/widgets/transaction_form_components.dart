@@ -24,8 +24,9 @@ class TypeToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final double textScale = MediaQuery.textScalerOf(context).scale(1.0);
     return Container(
-      height: 34,
+      height: 34 * textScale,
       decoration: BoxDecoration(
         color: TallyTapTheme.obsidianCard,
         borderRadius: BorderRadius.circular(20),
@@ -33,6 +34,7 @@ class TypeToggle extends StatelessWidget {
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _pill('Expense', !isIncome, TallyTapTheme.primaryMint,
               () => onChanged(false)),

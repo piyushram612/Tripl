@@ -39,10 +39,12 @@ class _ManageProfileSheetState extends ConsumerState<ManageProfileSheet> {
         top: 24,
         bottom: MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).padding.bottom + 24,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
+      child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -123,6 +125,7 @@ class _ManageProfileSheetState extends ConsumerState<ManageProfileSheet> {
             ),
           ),
         ],
+        ),
       ),
     );
   }

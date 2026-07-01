@@ -696,7 +696,7 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
       contents: [
         TargetContent(
           align: ContentAlign.bottom,
-          builder: (context, controller) => _buildTutorialContent(controller, "Dashboard Widgets", "View your summaries and categories below. Long-press any card to enter Edit Mode, where you can drag and reorder them."),
+          builder: (context, controller) => _buildTutorialContent(controller, "Dashboard Widgets", "View your summaries and categories below. You can customize the layout or hide cards under the Toolkit tab."),
         ),
       ],
     ));

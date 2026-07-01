@@ -260,15 +260,18 @@ class _ManageBudgetsSheetState extends ConsumerState<ManageBudgetsSheet> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        'CATEGORY BUDGETS (OPTIONAL)',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.5,
-                          color: TallyTapTheme.textGray,
+                      const Expanded(
+                        child: Text(
+                          'CATEGORY BUDGETS (OPTIONAL)',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.5,
+                            color: TallyTapTheme.textGray,
+                          ),
                         ),
                       ),
+                      const SizedBox(width: 8),
                       TextButton.icon(
                         icon: const Icon(Icons.clear_all_rounded, size: 14, color: TallyTapTheme.primaryMint),
                         label: const Text(
@@ -338,21 +341,30 @@ class _ManageBudgetsSheetState extends ConsumerState<ManageBudgetsSheet> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(
-                                  isOverallocated ? '⚠️ OVERALLOCATED' : 'ALLOCATION TRACKER',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 1.5,
-                                    color: isOverallocated ? const Color(0xFFEF4444) : TallyTapTheme.primaryMint,
+                                Expanded(
+                                  child: Text(
+                                    isOverallocated ? '⚠️ OVERALLOCATED' : 'ALLOCATION TRACKER',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 1.5,
+                                      color: isOverallocated ? const Color(0xFFEF4444) : TallyTapTheme.primaryMint,
+                                    ),
                                   ),
                                 ),
-                                Text(
-                                  '$currency${totalAllocated.toStringAsFixed(0)} / $currency${globalLimit.toStringAsFixed(0)}',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w900,
-                                    color: isOverallocated ? const Color(0xFFEF4444) : TallyTapTheme.primaryMint,
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    '$currency${totalAllocated.toStringAsFixed(0)} / $currency${globalLimit.toStringAsFixed(0)}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w900,
+                                      color: isOverallocated ? const Color(0xFFEF4444) : TallyTapTheme.primaryMint,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -478,6 +490,8 @@ class _ManageBudgetsSheetState extends ConsumerState<ManageBudgetsSheet> {
                                       children: [
                                         Text(
                                           cat,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
                                           style: const TextStyle(
                                             fontSize: 14,
                                             fontWeight: FontWeight.bold,
@@ -689,7 +703,7 @@ class _ManageBudgetsSheetState extends ConsumerState<ManageBudgetsSheet> {
     tutorialCoachMark?.show(context: context);
   }
 
-  Widget _buildTutorialContent(TutorialCoachMarkController controller, String title, String description) {
+  Widget _buildTutorialContent(TutorialCoachMarkController controller, String title, String description, {String nextText = "Next"}) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -707,7 +721,7 @@ class _ManageBudgetsSheetState extends ConsumerState<ManageBudgetsSheet> {
               foregroundColor: TallyTapTheme.obsidianBg,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
-            child: const Text("Next"),
+            child: Text(nextText),
           ),
         ),
       ],
@@ -740,7 +754,7 @@ class _ManageBudgetsSheetState extends ConsumerState<ManageBudgetsSheet> {
       contents: [
         TargetContent(
           align: ContentAlign.top,
-          builder: (context, controller) => _buildTutorialContent(controller, "Category Limits", "Long-press and drag horizontally on any category card to quickly adjust its individual budget limit."),
+          builder: (context, controller) => _buildTutorialContent(controller, "Category Limits", "Long-press and drag horizontally on any category card to quickly adjust its individual budget limit.", nextText: "Finish"),
         ),
       ],
     ));

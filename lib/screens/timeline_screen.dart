@@ -465,9 +465,13 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
             children: [
               Icon(icon, color: color, size: 12),
               const SizedBox(width: 4),
-              Text(
-                label.toUpperCase(),
-                style: const TextStyle(fontSize: 8, fontWeight: FontWeight.w800, color: TallyTapTheme.textGray, letterSpacing: 0.8),
+              Flexible(
+                child: Text(
+                  label.toUpperCase(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 8, fontWeight: FontWeight.w800, color: TallyTapTheme.textGray, letterSpacing: 0.8),
+                ),
               ),
             ],
           ),

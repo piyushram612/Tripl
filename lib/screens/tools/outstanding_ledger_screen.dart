@@ -1051,12 +1051,19 @@ class _OutstandingLedgerScreenState extends ConsumerState<OutstandingLedgerScree
                               color: isLent ? TallyTapTheme.primaryMint : Colors.transparent,
                               borderRadius: BorderRadius.circular(10),
                             ),
-                            child: Text(
-                              'THEY OWE ME (LENT)',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: isLent ? TallyTapTheme.obsidianBg : TallyTapTheme.textGray,
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                                child: Text(
+                                  'THEY OWE ME (LENT)',
+                                  maxLines: 1,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: isLent ? TallyTapTheme.obsidianBg : TallyTapTheme.textGray,
+                                  ),
+                                ),
                               ),
                             ),
                           ),
@@ -1076,12 +1083,19 @@ class _OutstandingLedgerScreenState extends ConsumerState<OutstandingLedgerScree
                               color: !isLent ? const Color(0xFFF59E0B) : Colors.transparent,
                               borderRadius: BorderRadius.circular(10),
                             ),
-                            child: Text(
-                              'I OWE THEM (BORROWED)',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: !isLent ? TallyTapTheme.obsidianBg : TallyTapTheme.textGray,
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                                child: Text(
+                                  'I OWE THEM (BORROWED)',
+                                  maxLines: 1,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: !isLent ? TallyTapTheme.obsidianBg : TallyTapTheme.textGray,
+                                  ),
+                                ),
                               ),
                             ),
                           ),
@@ -1372,7 +1386,7 @@ class _OutstandingLedgerScreenState extends ConsumerState<OutstandingLedgerScree
     tutorialCoachMark?.show(context: context);
   }
 
-  Widget _buildTutorialContent(TutorialCoachMarkController controller, String title, String description) {
+  Widget _buildTutorialContent(TutorialCoachMarkController controller, String title, String description, {String nextText = "Next"}) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1390,7 +1404,7 @@ class _OutstandingLedgerScreenState extends ConsumerState<OutstandingLedgerScree
               foregroundColor: TallyTapTheme.obsidianBg,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
-            child: const Text("Next"),
+            child: Text(nextText),
           ),
         ),
       ],
@@ -1423,7 +1437,7 @@ class _OutstandingLedgerScreenState extends ConsumerState<OutstandingLedgerScree
       contents: [
         TargetContent(
           align: ContentAlign.bottom,
-          builder: (context, controller) => _buildTutorialContent(controller, "Your Debts", "This shows money you owe. Tap the (+) button below to manually log new IOUs, or tap an existing person's name to settle up balances."),
+          builder: (context, controller) => _buildTutorialContent(controller, "Your Debts", "This shows money you owe. Tap the (+) button below to manually log new IOUs, or tap an existing person's name to settle up balances.", nextText: "Finish"),
         ),
       ],
     ));

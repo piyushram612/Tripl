@@ -353,19 +353,6 @@ class _TimelineFilterSheetState extends ConsumerState<TimelineFilterSheet> {
           firstDate: DateTime(2000),
           lastDate: DateTime.now().add(const Duration(days: 365)),
           initialDateRange: hasDate ? DateTimeRange(start: _criteria.startDate!, end: _criteria.endDate!) : null,
-          builder: (context, child) {
-            return Theme(
-              data: Theme.of(context).copyWith(
-                colorScheme: const ColorScheme.dark(
-                  primary: TallyTapTheme.primaryMint,
-                  onPrimary: TallyTapTheme.obsidianBg,
-                  surface: TallyTapTheme.obsidianCard,
-                  onSurface: TallyTapTheme.textLight,
-                ),
-              ),
-              child: child!,
-            );
-          },
         );
         if (picked != null) {
           setState(() {

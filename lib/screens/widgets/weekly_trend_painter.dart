@@ -66,6 +66,9 @@ class _WeeklyTrendGraphState extends ConsumerState<WeeklyTrendGraph> with Single
       _targetValues = List.from(widget.values);
       _controller.forward(from: 0.0);
     }
+    if (!widget.showTooltips && _draggedIndex != null) {
+      _draggedIndex = null;
+    }
   }
 
   bool _areListsEqual(List<double> a, List<double> b) {
@@ -135,8 +138,22 @@ class _WeeklyTrendGraphState extends ConsumerState<WeeklyTrendGraph> with Single
     }
 
     final double graphWidth = width - rightPadding;
-    final double stepX = graphWidth / (widget.values.length - 1 == 0 ? 1 : widget.values.length - 1);
-    final int index = (localPosition.dx / stepX).round().clamp(0, widget.values.length - 1);
+    
+    final double leftInset;
+    final double rightInset;
+    if (widget.styleType == 'bar') {
+      final double estStepX = graphWidth / (widget.values.length - 1 == 0 ? 1 : widget.values.length - 1);
+      final double estBarWidth = (estStepX * 0.55).clamp(4.0, 30.0);
+      leftInset = estBarWidth / 2 + 4.0;
+      rightInset = estBarWidth / 2 + 4.0;
+    } else {
+      leftInset = 8.0;
+      rightInset = 8.0;
+    }
+
+    final double graphWidthForPoints = graphWidth - leftInset - rightInset;
+    final double stepX = graphWidthForPoints / (widget.values.length - 1 == 0 ? 1 : widget.values.length - 1);
+    final int index = ((localPosition.dx - leftInset) / stepX).round().clamp(0, widget.values.length - 1);
     
     setState(() {
       if (isTap && _draggedIndex == index) {
@@ -157,10 +174,19 @@ class _WeeklyTrendGraphState extends ConsumerState<WeeklyTrendGraph> with Single
 
   @override
   Widget build(BuildContext context) {
-    // Replay entrance animation when switching back to the Home tab
+    // Clear tooltip if tooltips are disabled or if another screen/route is pushed on top
+    final isCurrentRoute = ModalRoute.of(context)?.isCurrent ?? true;
+    if ((!widget.showTooltips || !isCurrentRoute) && _draggedIndex != null) {
+      _draggedIndex = null;
+    }
+
+    // Replay entrance animation when switching back to the Home tab,
+    // and clear touch tooltips when navigating to a different tab.
     ref.listen<int>(activeTabProvider, (previous, next) {
       if (next == 0) {
         _controller.forward(from: 0.0);
+      } else {
+        _clearTouch();
       }
     });
 
@@ -285,6 +311,21 @@ class _WeeklyTrendPainter extends CustomPainter {
     }
     final double graphWidth = width - rightPadding;
 
+    final double leftInset;
+    final double rightInset;
+    if (styleType == 'bar') {
+      final double estStepX = graphWidth / (values.length - 1 == 0 ? 1 : values.length - 1);
+      final double estBarWidth = (estStepX * 0.55).clamp(4.0, 30.0);
+      leftInset = estBarWidth / 2 + 4.0;
+      rightInset = estBarWidth / 2 + 4.0;
+    } else {
+      leftInset = 8.0;
+      rightInset = 8.0;
+    }
+
+    final double firstX = leftInset;
+    final double lastX = graphWidth - rightInset;
+
     // Grid paint for horizontal helper guidelines
     if (showGrid) {
       final gridPaint = Paint()
@@ -292,10 +333,10 @@ class _WeeklyTrendPainter extends CustomPainter {
         ..strokeWidth = 0.8
         ..style = PaintingStyle.stroke;
       
-      // Draw horizontal grid lines up to graphWidth
-      canvas.drawLine(Offset(0, getYForValue(maxVal)), Offset(graphWidth, getYForValue(maxVal)), gridPaint);
-      canvas.drawLine(Offset(0, getYForValue((maxVal + minVal) / 2)), Offset(graphWidth, getYForValue((maxVal + minVal) / 2)), gridPaint);
-      canvas.drawLine(Offset(0, getYForValue(minVal)), Offset(graphWidth, getYForValue(minVal)), gridPaint);
+      // Draw horizontal grid lines between firstX and lastX
+      canvas.drawLine(Offset(firstX, getYForValue(maxVal)), Offset(lastX, getYForValue(maxVal)), gridPaint);
+      canvas.drawLine(Offset(firstX, getYForValue((maxVal + minVal) / 2)), Offset(lastX, getYForValue((maxVal + minVal) / 2)), gridPaint);
+      canvas.drawLine(Offset(firstX, getYForValue(minVal)), Offset(lastX, getYForValue(minVal)), gridPaint);
     }
 
     // Draw Y Axis Labels if toggled
@@ -325,7 +366,8 @@ class _WeeklyTrendPainter extends CustomPainter {
       drawYLabel(minVal, getYForValue(minVal));
     }
 
-    final double stepX = graphWidth / (values.length - 1 == 0 ? 1 : values.length - 1);
+    final double graphWidthForPoints = graphWidth - leftInset - rightInset;
+    final double stepX = graphWidthForPoints / (values.length - 1 == 0 ? 1 : values.length - 1);
     final points = <Offset>[];
 
     final textPainter = TextPainter(
@@ -334,7 +376,7 @@ class _WeeklyTrendPainter extends CustomPainter {
 
     for (int i = 0; i < values.length; i++) {
       final double y = getYForValue(values[i]);
-      final double x = i * stepX;
+      final double x = leftInset + i * stepX;
       points.add(Offset(x, y));
 
       // Draw day labels if not empty
@@ -363,7 +405,7 @@ class _WeeklyTrendPainter extends CustomPainter {
       final double barWidth = (stepX * 0.55).clamp(4.0, 30.0);
       final barPaint = Paint()..style = PaintingStyle.fill;
 
-      for (int i = 1; i < points.length; i++) {
+      for (int i = 0; i < points.length; i++) {
         final pt = points[i];
         final double x = pt.dx;
         final double y = pt.dy;
@@ -394,7 +436,7 @@ class _WeeklyTrendPainter extends CustomPainter {
       linePath.moveTo(points.first.dx, points.first.dy);
 
       final fillPath = Path();
-      fillPath.moveTo(0, graphHeight);
+      fillPath.moveTo(points.first.dx, graphHeight);
       fillPath.lineTo(points.first.dx, points.first.dy);
 
       for (int i = 0; i < points.length - 1; i++) {
@@ -416,7 +458,7 @@ class _WeeklyTrendPainter extends CustomPainter {
         }
       }
 
-      fillPath.lineTo(graphWidth, graphHeight);
+      fillPath.lineTo(points.last.dx, graphHeight);
       fillPath.close();
 
       // 1. Draw Gradient Fill beneath the curve
@@ -429,7 +471,7 @@ class _WeeklyTrendPainter extends CustomPainter {
             ],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-          ).createShader(Rect.fromLTWH(0, 0, graphWidth, graphHeight))
+          ).createShader(Rect.fromLTWH(points.first.dx, 0, points.last.dx - points.first.dx, graphHeight))
           ..style = PaintingStyle.fill;
 
         canvas.drawPath(fillPath, fillPaint);

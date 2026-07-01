@@ -268,6 +268,7 @@ class _CreateTransactionScreenState
   // ── build ─────────────────────────────────────────────────────────────────
 
   Widget build(BuildContext context) {
+    final double textScale = MediaQuery.textScalerOf(context).scale(1.0);
     final currency = ref.watch(currencyProvider);
     final visibilities = ref.watch(categoryVisibilityProvider);
     final categories = ref.watch(categoriesListProvider)
@@ -451,7 +452,7 @@ class _CreateTransactionScreenState
                         ),
                         const SizedBox(height: 12),
                         SizedBox(
-                          height: 84,
+                          height: 84 * textScale,
                           child: ListView.separated(
                             scrollDirection: Axis.horizontal,
                             physics: const BouncingScrollPhysics(),
@@ -538,7 +539,7 @@ class _CreateTransactionScreenState
                       SectionLabel(label: 'Payment Source'),
                       const SizedBox(height: 12),
                       SizedBox(
-                        height: 110,
+                        height: 110 * textScale,
                         child: ListView.separated(
                           scrollDirection: Axis.horizontal,
                           physics: const BouncingScrollPhysics(),
@@ -1031,7 +1032,7 @@ class _CreateTransactionScreenState
     tutorialCoachMark?.show(context: context);
   }
 
-  Widget _buildTutorialContent(TutorialCoachMarkController controller, String title, String description) {
+  Widget _buildTutorialContent(TutorialCoachMarkController controller, String title, String description, {String nextText = "Next"}) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1049,7 +1050,7 @@ class _CreateTransactionScreenState
               foregroundColor: TallyTapTheme.obsidianBg,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
-            child: const Text("Next"),
+            child: Text(nextText),
           ),
         ),
       ],
@@ -1110,7 +1111,7 @@ class _CreateTransactionScreenState
       contents: [
         TargetContent(
           align: ContentAlign.top,
-          builder: (context, controller) => _buildTutorialContent(controller, "Save Transaction", "Tap here to save."),
+          builder: (context, controller) => _buildTutorialContent(controller, "Save Transaction", "Tap here to save.", nextText: "Finish"),
         ),
       ],
     ));

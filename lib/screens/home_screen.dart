@@ -338,8 +338,8 @@ class HomeScreen extends ConsumerWidget {
         }
         return val;
       });
-      graphValues = [0.0, ...dailyValues];
-      graphLabels = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      graphValues = dailyValues;
+      graphLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     } else {
       final totalDays = DateTime(adjustedNow.year, adjustedNow.month + 1, 0).day;
       final List<double> dailyValues = List.generate(totalDays, (index) {
@@ -382,7 +382,7 @@ class HomeScreen extends ConsumerWidget {
         }
         return val;
       });
-      graphValues = [0.0, ...dailyValues];
+      graphValues = dailyValues;
       
       final List<String> dailyLabels = List.generate(totalDays, (index) {
         final day = index + 1;
@@ -391,7 +391,7 @@ class HomeScreen extends ConsumerWidget {
         }
         return '';
       });
-      graphLabels = ['', ...dailyLabels];
+      graphLabels = dailyLabels;
     }
 
     final dateRangeString = summaryPeriod == 'weekly' 
@@ -637,23 +637,28 @@ class HomeScreen extends ConsumerWidget {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              Text(
-                                () {
-                                  if (summaryMetric == 'income') {
-                                    return summaryPeriod == 'weekly' ? 'WEEKLY INCOME' : 'MONTHLY INCOME';
-                                  } else if (summaryMetric == 'net') {
-                                    return summaryPeriod == 'weekly' ? 'WEEKLY NET BALANCE' : 'MONTHLY NET BALANCE';
-                                  } else {
-                                    return summaryPeriod == 'weekly' ? 'WEEKLY SUMMARY' : 'MONTHLY SUMMARY';
-                                  }
-                                }(),
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 1.5,
-                                  color: TallyTapTheme.textGray,
+                              Expanded(
+                                child: Text(
+                                  () {
+                                    if (summaryMetric == 'income') {
+                                      return summaryPeriod == 'weekly' ? 'WEEKLY INCOME' : 'MONTHLY INCOME';
+                                    } else if (summaryMetric == 'net') {
+                                      return summaryPeriod == 'weekly' ? 'WEEKLY NET BALANCE' : 'MONTHLY NET BALANCE';
+                                    } else {
+                                      return summaryPeriod == 'weekly' ? 'WEEKLY SUMMARY' : 'MONTHLY SUMMARY';
+                                    }
+                                  }(),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 1.5,
+                                    color: TallyTapTheme.textGray,
+                                  ),
                                 ),
                               ),
+                              const SizedBox(width: 8),
                               Row(
                                 children: [
                                   _buildMiniPeriodToggle(
@@ -664,9 +669,8 @@ class HomeScreen extends ConsumerWidget {
                                     },
                                   ),
                                   const SizedBox(width: 8),
-                                  IconButton(
-                                    icon: const Icon(Icons.more_horiz, color: TallyTapTheme.textGray, size: 20),
-                                    onPressed: () {
+                                  GestureDetector(
+                                    onTap: () {
                                       showModalBottomSheet(
                                         context: context,
                                         isScrollControlled: true,
@@ -674,8 +678,11 @@ class HomeScreen extends ConsumerWidget {
                                         builder: (context) => const SummaryGraphSettingsSheet(),
                                       );
                                     },
-                                    constraints: const BoxConstraints(),
-                                    padding: EdgeInsets.zero,
+                                    behavior: HitTestBehavior.opaque,
+                                    child: const Padding(
+                                      padding: EdgeInsets.symmetric(horizontal: 4.0, vertical: 6.0),
+                                      child: Icon(Icons.more_horiz, color: TallyTapTheme.textGray, size: 20),
+                                    ),
                                   ),
                                 ],
                               ),

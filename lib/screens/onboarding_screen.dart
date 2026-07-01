@@ -57,91 +57,94 @@ class OnboardingScreen extends StatelessWidget {
               // 2. High-Fidelity Phone Back Graphic (Custom Styled Layout)
               Expanded(
                 child: Center(
-                  child: Container(
-                    width: 190,
-                    height: 340,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(36),
-                      border: Border.all(
-                        color: const Color(0xFF1D2F28),
-                        width: 2.0,
+                  child: FittedBox(
+                    fit: BoxFit.contain,
+                    child: Container(
+                      width: 190,
+                      height: 340,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(36),
+                        border: Border.all(
+                          color: const Color(0xFF1D2F28),
+                          width: 2.0,
+                        ),
                       ),
-                    ),
-                    padding: const EdgeInsets.all(16),
-                    child: Stack(
-                      children: [
-                        // Dual lens camera module (Top Left)
-                        Positioned(
-                          top: 10,
-                          left: 10,
-                          child: Container(
-                            width: 36,
-                            height: 64,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: const Color(0xFF1D2F28),
-                                width: 1.5,
+                      padding: const EdgeInsets.all(16),
+                      child: Stack(
+                        children: [
+                          // Dual lens camera module (Top Left)
+                          Positioned(
+                            top: 10,
+                            left: 10,
+                            child: Container(
+                              width: 36,
+                              height: 64,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: const Color(0xFF1D2F28),
+                                  width: 1.5,
+                                ),
                               ),
-                            ),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: [
-                                Container(
-                                  width: 14,
-                                  height: 14,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: const Color(0xFF1D2F28),
-                                      width: 1.5,
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                children: [
+                                  Container(
+                                    width: 14,
+                                    height: 14,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: const Color(0xFF1D2F28),
+                                        width: 1.5,
+                                      ),
                                     ),
                                   ),
-                                ),
-                                Container(
-                                  width: 14,
-                                  height: 14,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: const Color(0xFF1D2F28),
-                                      width: 1.5,
+                                  Container(
+                                    width: 14,
+                                    height: 14,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: const Color(0xFF1D2F28),
+                                        width: 1.5,
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        // Glowing Tap Indicator (Center)
-                        Center(
-                          child: Container(
-                            width: 50,
-                            height: 50,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: TallyTapTheme.primaryMint.withOpacity(0.04),
-                              border: Border.all(
-                                color: TallyTapTheme.primaryMint.withOpacity(0.4),
-                                width: 1.5,
+                                ],
                               ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: TallyTapTheme.primaryMint.withOpacity(0.08),
-                                  blurRadius: 10,
-                                  spreadRadius: 2,
-                                ),
-                              ],
-                            ),
-                            alignment: Alignment.center,
-                            child: const Icon(
-                              Icons.touch_app_outlined,
-                              color: TallyTapTheme.primaryMint,
-                              size: 24,
                             ),
                           ),
-                        ),
-                      ],
+                          // Glowing Tap Indicator (Center)
+                          Center(
+                            child: Container(
+                              width: 50,
+                              height: 50,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: TallyTapTheme.primaryMint.withOpacity(0.04),
+                                border: Border.all(
+                                  color: TallyTapTheme.primaryMint.withOpacity(0.4),
+                                  width: 1.5,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: TallyTapTheme.primaryMint.withOpacity(0.08),
+                                    blurRadius: 10,
+                                    spreadRadius: 2,
+                                  ),
+                                ],
+                              ),
+                              alignment: Alignment.center,
+                              child: const Icon(
+                                Icons.touch_app_outlined,
+                                color: TallyTapTheme.primaryMint,
+                                size: 24,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),

@@ -78,11 +78,13 @@ class _SnoozeDurationSheetState extends ConsumerState<SnoozeDurationSheet> {
         top: 24,
         bottom: MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).padding.bottom + 24,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
+      child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
             children: [
               Container(
                 padding: const EdgeInsets.all(8),
@@ -136,6 +138,7 @@ class _SnoozeDurationSheetState extends ConsumerState<SnoozeDurationSheet> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }

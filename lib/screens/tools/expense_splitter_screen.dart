@@ -445,14 +445,13 @@ class _ExpenseSplitterScreenState extends ConsumerState<ExpenseSplitterScreen> {
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
                     child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text(
                           'Description',
                           style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: TallyTapTheme.textLight),
                         ),
-                        SizedBox(
-                          width: 180,
+                        const SizedBox(width: 16),
+                        Expanded(
                           child: TextField(
                             controller: _descController,
                             textAlign: TextAlign.end,
@@ -480,14 +479,13 @@ class _ExpenseSplitterScreenState extends ConsumerState<ExpenseSplitterScreen> {
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
                     child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text(
                           'You Paid Total',
                           style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: TallyTapTheme.textLight),
                         ),
-                        SizedBox(
-                          width: 150,
+                        const SizedBox(width: 16),
+                        Expanded(
                           child: TextField(
                             controller: _amountController,
                             keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -521,11 +519,12 @@ class _ExpenseSplitterScreenState extends ConsumerState<ExpenseSplitterScreen> {
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
                     child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          'Total People',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: TallyTapTheme.textLight),
+                        const Expanded(
+                          child: Text(
+                            'Total People',
+                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: TallyTapTheme.textLight),
+                          ),
                         ),
                         Row(
                           children: [
@@ -1347,7 +1346,7 @@ class _ExpenseSplitterScreenState extends ConsumerState<ExpenseSplitterScreen> {
     );
   }
 
-  Widget _buildTutorialContent(TutorialCoachMarkController controller, String title, String description) {
+  Widget _buildTutorialContent(TutorialCoachMarkController controller, String title, String description, {String nextText = "Next"}) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1365,7 +1364,7 @@ class _ExpenseSplitterScreenState extends ConsumerState<ExpenseSplitterScreen> {
               foregroundColor: TallyTapTheme.obsidianBg,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
-            child: const Text("Next"),
+            child: Text(nextText),
           ),
         ),
       ],
@@ -1416,7 +1415,7 @@ class _ExpenseSplitterScreenState extends ConsumerState<ExpenseSplitterScreen> {
       contents: [
         TargetContent(
           align: ContentAlign.bottom,
-          builder: (context, controller) => _buildTutorialContent(controller, "Split Results", "See exactly how much each person owes you. When logged, it creates grouped transactions for easy tracking."),
+          builder: (context, controller) => _buildTutorialContent(controller, "Split Results", "See exactly how much each person owes you. When logged, it creates grouped transactions for easy tracking.", nextText: "Finish"),
         ),
       ],
     ));

@@ -32,6 +32,35 @@ class TallyTapTheme {
         outline: borderGreen,
       ),
       scaffoldBackgroundColor: obsidianBg,
+      datePickerTheme: DatePickerThemeData(
+        backgroundColor: obsidianBg,
+        headerBackgroundColor: obsidianBg,
+        headerForegroundColor: primaryMint,
+        surfaceTintColor: Colors.transparent,
+        dividerColor: borderGreen,
+        rangeSelectionBackgroundColor: primaryMint.withOpacity(0.15),
+        dayForegroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return obsidianBg;
+          }
+          if (states.contains(WidgetState.disabled)) {
+            return textGray.withOpacity(0.3);
+          }
+          return textLight;
+        }),
+        dayBackgroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return primaryMint;
+          }
+          return null;
+        }),
+        todayForegroundColor: WidgetStateProperty.all(primaryMint),
+        todayBorder: const BorderSide(color: primaryMint, width: 1.0),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+          side: const BorderSide(color: borderGreen, width: 1.0),
+        ),
+      ),
       cardTheme: CardThemeData(
         color: obsidianCard,
         shape: RoundedRectangleBorder(

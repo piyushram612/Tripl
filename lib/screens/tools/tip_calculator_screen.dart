@@ -186,29 +186,36 @@ class _TipCalculatorScreenState extends ConsumerState<TipCalculatorScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          'Bill Amount',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: TallyTapTheme.textLight),
+                        const Expanded(
+                          child: Text(
+                            'Bill Amount',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: TallyTapTheme.textLight),
+                          ),
                         ),
-                        SizedBox(
-                          width: 150,
-                          child: TextField(
-                            controller: _billController,
-                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                            textAlign: TextAlign.end,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w900,
-                              color: TallyTapTheme.primaryMint,
+                        const SizedBox(width: 12),
+                        Flexible(
+                          child: SizedBox(
+                            width: 130,
+                            child: TextField(
+                              controller: _billController,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              textAlign: TextAlign.end,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w900,
+                                color: TallyTapTheme.primaryMint,
+                              ),
+                              decoration: const InputDecoration(
+                                prefixText: '₹ ',
+                                prefixStyle: TextStyle(color: TallyTapTheme.primaryMint, fontWeight: FontWeight.bold),
+                                border: InputBorder.none,
+                              ),
+                              onChanged: (val) {
+                                setState(() {});
+                              },
                             ),
-                            decoration: const InputDecoration(
-                              prefixText: '₹ ',
-                              prefixStyle: TextStyle(color: TallyTapTheme.primaryMint, fontWeight: FontWeight.bold),
-                              border: InputBorder.none,
-                            ),
-                            onChanged: (val) {
-                              setState(() {});
-                            },
                           ),
                         ),
                       ],
@@ -235,10 +242,10 @@ class _TipCalculatorScreenState extends ConsumerState<TipCalculatorScreen> {
                             Text(
                               '${_tipPercentage.toStringAsFixed(0)}%',
                               style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w900,
-                                color: TallyTapTheme.primaryMint,
-                              ),
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w900,
+                                  color: TallyTapTheme.primaryMint,
+                                ),
                             ),
                           ],
                         ),
@@ -263,8 +270,9 @@ class _TipCalculatorScreenState extends ConsumerState<TipCalculatorScreen> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        Wrap(
+                          spacing: 10,
+                          runSpacing: 10,
                           children: [
                             _buildTipChip(10),
                             _buildTipChip(15),
@@ -286,44 +294,52 @@ class _TipCalculatorScreenState extends ConsumerState<TipCalculatorScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          'Split Between',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: TallyTapTheme.textLight),
+                        const Expanded(
+                          child: Text(
+                            'Split Between',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: TallyTapTheme.textLight),
+                          ),
                         ),
-                        Row(
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.remove_circle_outline_rounded, color: TallyTapTheme.textGray),
-                              onPressed: _peopleCount <= 1
-                                  ? null
-                                  : () {
-                                      HapticFeedback.lightImpact();
-                                      setState(() {
-                                        _peopleCount--;
-                                      });
-                                    },
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
-                              child: Text(
-                                '$_peopleCount',
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w900,
-                                  color: TallyTapTheme.textLight,
+                        const SizedBox(width: 8),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Row(
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.remove_circle_outline_rounded, color: TallyTapTheme.textGray),
+                                onPressed: _peopleCount <= 1
+                                    ? null
+                                    : () {
+                                        HapticFeedback.lightImpact();
+                                        setState(() {
+                                          _peopleCount--;
+                                        });
+                                      },
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                child: Text(
+                                  '$_peopleCount',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w900,
+                                    color: TallyTapTheme.textLight,
+                                  ),
                                 ),
                               ),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.add_circle_outline_rounded, color: TallyTapTheme.primaryMint),
-                              onPressed: () {
-                                HapticFeedback.lightImpact();
-                                setState(() {
-                                  _peopleCount++;
-                                });
-                              },
-                            ),
-                          ],
+                              IconButton(
+                                icon: const Icon(Icons.add_circle_outline_rounded, color: TallyTapTheme.primaryMint),
+                                onPressed: () {
+                                  HapticFeedback.lightImpact();
+                                  setState(() {
+                                    _peopleCount++;
+                                  });
+                                },
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -422,7 +438,7 @@ class _TipCalculatorScreenState extends ConsumerState<TipCalculatorScreen> {
     tutorialCoachMark?.show(context: context);
   }
 
-  Widget _buildTutorialContent(TutorialCoachMarkController controller, String title, String description) {
+  Widget _buildTutorialContent(TutorialCoachMarkController controller, String title, String description, {String nextText = "Next"}) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -440,7 +456,7 @@ class _TipCalculatorScreenState extends ConsumerState<TipCalculatorScreen> {
               foregroundColor: TallyTapTheme.obsidianBg,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
-            child: const Text("Next"),
+            child: Text(nextText),
           ),
         ),
       ],
@@ -487,7 +503,7 @@ class _TipCalculatorScreenState extends ConsumerState<TipCalculatorScreen> {
       contents: [
         TargetContent(
           align: ContentAlign.top,
-          builder: (context, controller) => _buildTutorialContent(controller, "Split Bill", "If sharing the bill, increase the people count to split the cost evenly."),
+          builder: (context, controller) => _buildTutorialContent(controller, "Split Bill", "If sharing the bill, increase the people count to split the cost evenly.", nextText: "Finish"),
         ),
       ],
     ));

@@ -215,12 +215,14 @@ class _CurrencySettingsDialogState extends State<CurrencySettingsDialog> {
         borderRadius: BorderRadius.circular(20),
         side: const BorderSide(color: TallyTapTheme.borderGreen, width: 1.5),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+      child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
             Text(
               'Change Currency to ${widget.currency['symbol']}',
               style: const TextStyle(
@@ -325,8 +327,9 @@ class _CurrencySettingsDialogState extends State<CurrencySettingsDialog> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildSelectionCard({
     required String title,
