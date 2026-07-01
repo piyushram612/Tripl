@@ -465,9 +465,13 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
             children: [
               Icon(icon, color: color, size: 12),
               const SizedBox(width: 4),
-              Text(
-                label.toUpperCase(),
-                style: const TextStyle(fontSize: 8, fontWeight: FontWeight.w800, color: TallyTapTheme.textGray, letterSpacing: 0.8),
+              Flexible(
+                child: Text(
+                  label.toUpperCase(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 8, fontWeight: FontWeight.w800, color: TallyTapTheme.textGray, letterSpacing: 0.8),
+                ),
               ),
             ],
           ),
@@ -545,6 +549,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
     double monthlyExpense = 0.0;
 
     for (final tx in monthlyTransactions) {
+      if (tx.category.toLowerCase() == 'transfer') continue;
       final isIncome = tx.isIncome;
       final absAmount = tx.amount.abs();
       if (isIncome) {
@@ -582,11 +587,11 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
         }
 
         if (_activeFilter == "Income") {
-          matchesTab = netVal > 0;
+          matchesTab = netVal > 0 && item.groupTransactions!.any((tx) => tx.category.toLowerCase() != 'transfer');
         } else if (_activeFilter == "Expenses") {
-          matchesTab = netVal <= 0;
+          matchesTab = netVal <= 0 && item.groupTransactions!.any((tx) => tx.category.toLowerCase() != 'transfer');
         } else if (_activeFilter == "Transfers") {
-          matchesTab = false;
+          matchesTab = item.groupTransactions!.any((tx) => tx.category.toLowerCase() == 'transfer');
         }
 
         bool matchesFilter = true;
@@ -617,11 +622,11 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
 
         bool matchesTab = true;
         if (_activeFilter == "Income") {
-          matchesTab = tx.isIncome;
+          matchesTab = tx.isIncome && tx.category.toLowerCase() != 'transfer';
         } else if (_activeFilter == "Expenses") {
-          matchesTab = !tx.isIncome;
+          matchesTab = !tx.isIncome && tx.category.toLowerCase() != 'transfer';
         } else if (_activeFilter == "Transfers") {
-          matchesTab = false;
+          matchesTab = tx.category.toLowerCase() == 'transfer';
         }
 
         bool matchesFilter = true;

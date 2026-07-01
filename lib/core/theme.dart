@@ -32,6 +32,35 @@ class TallyTapTheme {
         outline: borderGreen,
       ),
       scaffoldBackgroundColor: obsidianBg,
+      datePickerTheme: DatePickerThemeData(
+        backgroundColor: obsidianBg,
+        headerBackgroundColor: obsidianBg,
+        headerForegroundColor: primaryMint,
+        surfaceTintColor: Colors.transparent,
+        dividerColor: borderGreen,
+        rangeSelectionBackgroundColor: primaryMint.withOpacity(0.15),
+        dayForegroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return obsidianBg;
+          }
+          if (states.contains(WidgetState.disabled)) {
+            return textGray.withOpacity(0.3);
+          }
+          return textLight;
+        }),
+        dayBackgroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return primaryMint;
+          }
+          return null;
+        }),
+        todayForegroundColor: WidgetStateProperty.all(primaryMint),
+        todayBorder: const BorderSide(color: primaryMint, width: 1.0),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+          side: const BorderSide(color: borderGreen, width: 1.0),
+        ),
+      ),
       cardTheme: CardThemeData(
         color: obsidianCard,
         shape: RoundedRectangleBorder(
@@ -99,6 +128,9 @@ class TallyTapTheme {
 
   static Color getColorForCategory(String cat, [int index = 0]) {
     final trimmed = cat.trim();
+    if (trimmed.toLowerCase() == 'transfer') {
+      return const Color(0xFF94A3B8); // Slate color for transfer
+    }
     if (customCategoryColors.containsKey(trimmed)) {
       return customCategoryColors[trimmed]!;
     }
@@ -114,6 +146,9 @@ class TallyTapTheme {
       return customCategoryIcons[trimmed]!;
     }
     final clean = trimmed.toLowerCase();
+    if (clean == 'transfer') {
+      return Icons.swap_horiz_rounded;
+    }
     if (clean.contains('dining') || clean.contains('food') || clean.contains('dinner') || clean.contains('restaurant')) {
       return Icons.local_cafe_outlined;
     } else if (clean.contains('commute') || clean.contains('transport') || clean.contains('car') || clean.contains('cab')) {
@@ -141,6 +176,9 @@ class TallyTapTheme {
       return customCategoryColors[trimmed]!.withOpacity(0.15);
     }
     final clean = trimmed.toLowerCase();
+    if (clean == 'transfer') {
+      return const Color(0xFF1E293B); // Dark slate bg
+    }
     if (clean.contains('dining') || clean.contains('food') || clean.contains('dinner') || clean.contains('restaurant')) {
       return const Color(0xFF261D4C);
     } else if (clean.contains('commute') || clean.contains('transport') || clean.contains('car') || clean.contains('cab')) {

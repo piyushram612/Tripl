@@ -101,12 +101,19 @@ class _CreateTransactionScreenState
   IconData _categoryIcon(String cat) =>
       TallyTapTheme.getIconForCategory(cat, _isIncome);
 
-  /// Sum transactions for a given source to show a rough balance.
   double _balanceForSource(List<ExpenseTransaction> txs, String src, double startingBalance) {
     double b = startingBalance;
     for (final t in txs) {
-      if (t.paymentMethod == src) {
-        b += t.isIncome ? t.amount.abs() : -t.amount.abs();
+      if (t.category.toLowerCase() == 'transfer') {
+        if (t.paymentMethod == src) {
+          b -= t.amount.abs();
+        } else if (t.paidTo == src) {
+          b += t.amount.abs();
+        }
+      } else {
+        if (t.paymentMethod == src) {
+          b += t.isIncome ? t.amount.abs() : -t.amount.abs();
+        }
       }
     }
     return b;
@@ -261,6 +268,7 @@ class _CreateTransactionScreenState
   // ── build ─────────────────────────────────────────────────────────────────
 
   Widget build(BuildContext context) {
+    final double textScale = MediaQuery.textScalerOf(context).scale(1.0);
     final currency = ref.watch(currencyProvider);
     final visibilities = ref.watch(categoryVisibilityProvider);
     final categories = ref.watch(categoriesListProvider)
@@ -348,7 +356,7 @@ class _CreateTransactionScreenState
                       const SizedBox(height: 24),
 
                       // ── MERCHANT FIELD ───────────────────────────────────
-                      SectionLabel(label: 'Merchant / Title'),
+                      SectionLabel(label: 'Title / Purpose'),
                       const SizedBox(height: 10),
                       TextFormField(
                         controller: _merchantController,
@@ -382,7 +390,7 @@ class _CreateTransactionScreenState
 
                       // ── PAID TO / PAID BY FIELD ──────────────────────────
                       const SizedBox(height: 24),
-                      SectionLabel(label: _isIncome ? 'Paid By (optional)' : 'Paid To (optional)'),
+                      SectionLabel(label: _isIncome ? 'Paid By (optional)' : 'Paid To / Merchant (optional)'),
                       const SizedBox(height: 10),
                       TextFormField(
                         controller: _paidToController,
@@ -444,7 +452,7 @@ class _CreateTransactionScreenState
                         ),
                         const SizedBox(height: 12),
                         SizedBox(
-                          height: 84,
+                          height: 84 * textScale,
                           child: ListView.separated(
                             scrollDirection: Axis.horizontal,
                             physics: const BouncingScrollPhysics(),
@@ -531,7 +539,7 @@ class _CreateTransactionScreenState
                       SectionLabel(label: 'Payment Source'),
                       const SizedBox(height: 12),
                       SizedBox(
-                        height: 110,
+                        height: 110 * textScale,
                         child: ListView.separated(
                           scrollDirection: Axis.horizontal,
                           physics: const BouncingScrollPhysics(),
@@ -1024,7 +1032,7 @@ class _CreateTransactionScreenState
     tutorialCoachMark?.show(context: context);
   }
 
-  Widget _buildTutorialContent(TutorialCoachMarkController controller, String title, String description) {
+  Widget _buildTutorialContent(TutorialCoachMarkController controller, String title, String description, {String nextText = "Next"}) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1042,7 +1050,7 @@ class _CreateTransactionScreenState
               foregroundColor: TallyTapTheme.obsidianBg,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
-            child: const Text("Next"),
+            child: Text(nextText),
           ),
         ),
       ],
@@ -1103,7 +1111,7 @@ class _CreateTransactionScreenState
       contents: [
         TargetContent(
           align: ContentAlign.top,
-          builder: (context, controller) => _buildTutorialContent(controller, "Save Transaction", "Tap here to save."),
+          builder: (context, controller) => _buildTutorialContent(controller, "Save Transaction", "Tap here to save.", nextText: "Finish"),
         ),
       ],
     ));

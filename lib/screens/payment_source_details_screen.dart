@@ -344,21 +344,17 @@ class _PaymentSourceDetailsScreenState extends ConsumerState<PaymentSourceDetail
     final listNotifier = ref.read(transactionListProvider.notifier);
     final transactions = ref.read(transactionListProvider);
 
-    // 1. Move all transactions
-    final sourceTxs = transactions.where((tx) => tx.paymentMethod == widget.sourceName).toList();
+    // 1. Move all transactions (including transfers where this account is source or destination)
+    final sourceTxs = transactions.where((tx) =>
+        tx.paymentMethod == widget.sourceName ||
+        (tx.category.toLowerCase() == 'transfer' && tx.paidTo == widget.sourceName)).toList();
     for (final tx in sourceTxs) {
-      final updatedTx = ExpenseTransaction(
-        id: tx.id,
-        amount: tx.amount,
-        merchant: tx.merchant,
-        date: tx.date,
-        paymentMethod: selectedTarget,
-        category: tx.category,
-        notes: tx.notes,
-        paidTo: tx.paidTo,
-        needsVerification: tx.needsVerification,
-        reminderDate: tx.reminderDate,
-        groupId: tx.groupId,
+      final updatedTx = tx.copyWith(
+        paymentMethod: tx.paymentMethod == widget.sourceName ? selectedTarget : tx.paymentMethod,
+        paidTo: tx.paidTo == widget.sourceName ? selectedTarget : tx.paidTo,
+        merchant: tx.category.toLowerCase() == 'transfer'
+            ? 'Transfer from ${tx.paymentMethod == widget.sourceName ? selectedTarget : tx.paymentMethod} to ${tx.paidTo == widget.sourceName ? selectedTarget : tx.paidTo}'
+            : tx.merchant,
       );
       await listNotifier.updateTransaction(updatedTx);
     }
@@ -396,8 +392,13 @@ class _PaymentSourceDetailsScreenState extends ConsumerState<PaymentSourceDetail
 
 
 
-    // Filter transactions belonging strictly to this source
-    final sourceTxs = transactions.where((tx) => tx.paymentMethod == widget.sourceName).toList();
+    // Filter transactions belonging strictly to this source (including transfers where this account is source or destination)
+    final sourceTxs = transactions.where((tx) {
+      if (tx.category.toLowerCase() == 'transfer') {
+        return tx.paymentMethod == widget.sourceName || tx.paidTo == widget.sourceName;
+      }
+      return tx.paymentMethod == widget.sourceName;
+    }).toList();
 
     // Sort chronologically (oldest first) for cumulative graph calculations
     final sortedChronological = List<ExpenseTransaction>.from(sourceTxs)
@@ -408,11 +409,19 @@ class _PaymentSourceDetailsScreenState extends ConsumerState<PaymentSourceDetail
     double totalExpense = 0.0;
 
     for (final tx in sourceTxs) {
-      final isInc = tx.isIncome;
-      if (isInc) {
-        totalIncome += tx.amount.abs();
+      if (tx.category.toLowerCase() == 'transfer') {
+        if (tx.paidTo == widget.sourceName) {
+          totalIncome += tx.amount.abs();
+        } else {
+          totalExpense += tx.amount.abs();
+        }
       } else {
-        totalExpense += tx.amount.abs();
+        final isInc = tx.isIncome;
+        if (isInc) {
+          totalIncome += tx.amount.abs();
+        } else {
+          totalExpense += tx.amount.abs();
+        }
       }
     }
 
@@ -452,7 +461,10 @@ class _PaymentSourceDetailsScreenState extends ConsumerState<PaymentSourceDetail
       daysRemaining = dueDate.difference(DateTime(today.year, today.month, today.day)).inDays;
 
       for (final tx in sourceTxs) {
-        if (!tx.isIncome) {
+        final bool isOutflow = tx.category.toLowerCase() == 'transfer'
+            ? tx.paymentMethod == widget.sourceName
+            : !tx.isIncome;
+        if (isOutflow) {
           // Check if transaction falls inside current billing cycle
           if (tx.date.isAfter(statementStart.subtract(const Duration(seconds: 1))) &&
               tx.date.isBefore(statementEnd.add(const Duration(days: 1)))) {
@@ -484,8 +496,10 @@ class _PaymentSourceDetailsScreenState extends ConsumerState<PaymentSourceDetail
 
     for (int i = 0; i < sortedChronological.length; i++) {
       final tx = sortedChronological[i];
-      final isInc = tx.isIncome;
-      runningBalance += isInc ? tx.amount : -tx.amount;
+      final bool isInc = tx.category.toLowerCase() == 'transfer'
+          ? tx.paidTo == widget.sourceName
+          : tx.isIncome;
+      runningBalance += isInc ? tx.amount.abs() : -tx.amount.abs();
       graphValues.add(runningBalance);
 
       // Label showing date for start/middle/end points
@@ -506,11 +520,13 @@ class _PaymentSourceDetailsScreenState extends ConsumerState<PaymentSourceDetail
     final Map<String, double> incomeSum = {};
 
     for (final tx in sourceTxs) {
-      final isInc = tx.isIncome;
+      final bool isInc = tx.category.toLowerCase() == 'transfer'
+          ? tx.paidTo == widget.sourceName
+          : tx.isIncome;
       if (isInc) {
-        incomeSum[tx.category] = (incomeSum[tx.category] ?? 0.0) + tx.amount;
+        incomeSum[tx.category] = (incomeSum[tx.category] ?? 0.0) + tx.amount.abs();
       } else {
-        expenseSum[tx.category] = (expenseSum[tx.category] ?? 0.0) + tx.amount;
+        expenseSum[tx.category] = (expenseSum[tx.category] ?? 0.0) + tx.amount.abs();
       }
     }
 

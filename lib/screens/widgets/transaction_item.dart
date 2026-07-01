@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme.dart';
 import '../../models/transaction_model.dart';
 import '../transaction_details_screen.dart';
+import '../tools/transfer_details_screen.dart';
 
 class TransactionItem extends StatelessWidget {
   final ExpenseTransaction transaction;
@@ -11,6 +12,7 @@ class TransactionItem extends StatelessWidget {
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
   final bool isSelected;
+  final bool? isIncomeOverride;
 
   const TransactionItem({
     super.key,
@@ -21,12 +23,16 @@ class TransactionItem extends StatelessWidget {
     this.onTap,
     this.onLongPress,
     this.isSelected = false,
+    this.isIncomeOverride,
   });
 
   @override
   Widget build(BuildContext context) {
-    final isIncome = transaction.isIncome;
-    final activeColor = isIncome ? const Color(0xFF10B981) : TallyTapTheme.textLight;
+    final isIncome = isIncomeOverride ?? transaction.isIncome;
+    final isTransfer = transaction.category.toLowerCase() == 'transfer';
+    final activeColor = isTransfer
+        ? const Color(0xFF94A3B8)
+        : (isIncome ? const Color(0xFF10B981) : TallyTapTheme.textLight);
     
     final icon = isSelected
         ? Icons.check_circle_rounded
@@ -36,16 +42,27 @@ class TransactionItem extends StatelessWidget {
         : TallyTapTheme.getIconBgForCategory(transaction.category, isIncome);
     final iconColor = isSelected
         ? TallyTapTheme.primaryMint
-        : (isIncome ? const Color(0xFF10B981) : TallyTapTheme.textLight);
+        : (isTransfer
+            ? const Color(0xFF94A3B8)
+            : (isIncome ? const Color(0xFF10B981) : TallyTapTheme.textLight));
 
     return InkWell(
       onTap: onTap ?? () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => TransactionDetailsScreen(transaction: transaction),
-          ),
-        );
+        if (isTransfer) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => TransferDetailsScreen(transactionId: transaction.id),
+            ),
+          );
+        } else {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => TransactionDetailsScreen(transaction: transaction),
+            ),
+          );
+        }
       },
       onLongPress: onLongPress,
       borderRadius: BorderRadius.circular(16),
@@ -107,50 +124,70 @@ class TransactionItem extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    '${isIncome ? '+' : '-'} $currency${transaction.amount.abs().toStringAsFixed(2)}',
+                    '${isTransfer ? '' : (isIncome ? '+ ' : '- ')}$currency${transaction.amount.abs().toStringAsFixed(2)}',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w800,
                       color: activeColor,
                     ),
                   ),
-                  if (isIncome) ...[
+                  if (isTransfer) ...[
                     const SizedBox(height: 4),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF0F2B20),
+                        color: const Color(0xFF1E293B),
                         borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: const Color(0xFF144D37), width: 0.5),
+                        border: Border.all(color: const Color(0xFF334155), width: 0.5),
                       ),
                       child: const Text(
-                        'Income',
+                        'Transfer',
                         style: TextStyle(
                           fontSize: 9,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF10B981),
+                          color: Color(0xFF94A3B8),
                         ),
                       ),
                     ),
-                  ],
-                  if (transaction.needsVerification) ...[
-                    const SizedBox(height: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF3B2314),
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: const Color(0xFF7A3E14), width: 0.5),
-                      ),
-                      child: const Text(
-                        'Pending',
-                        style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFFF59E0B),
+                  ] else ...[
+                    if (isIncome) ...[
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0F2B20),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: const Color(0xFF144D37), width: 0.5),
+                        ),
+                        child: const Text(
+                          'Income',
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF10B981),
+                          ),
                         ),
                       ),
-                    ),
+                    ],
+                    if (transaction.needsVerification) ...[
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF3B2314),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: const Color(0xFF7A3E14), width: 0.5),
+                        ),
+                        child: const Text(
+                          'Pending',
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFFF59E0B),
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ],
               ),

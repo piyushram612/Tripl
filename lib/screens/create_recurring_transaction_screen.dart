@@ -1026,7 +1026,7 @@ class _CreateRecurringTransactionScreenState extends ConsumerState<CreateRecurri
     tutorialCoachMark?.show(context: context);
   }
 
-  Widget _buildTutorialContent(TutorialCoachMarkController controller, String title, String description) {
+  Widget _buildTutorialContent(TutorialCoachMarkController controller, String title, String description, {String nextText = "Next"}) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1044,7 +1044,7 @@ class _CreateRecurringTransactionScreenState extends ConsumerState<CreateRecurri
               foregroundColor: TallyTapTheme.obsidianBg,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
-            child: const Text("Next"),
+            child: Text(nextText),
           ),
         ),
       ],
@@ -1121,7 +1121,7 @@ class _CreateRecurringTransactionScreenState extends ConsumerState<CreateRecurri
       contents: [
         TargetContent(
           align: ContentAlign.top,
-          builder: (context, controller) => _buildTutorialContent(controller, "Save", "Tap here to save your recurring transaction."),
+          builder: (context, controller) => _buildTutorialContent(controller, "Save", "Tap here to save your recurring transaction.", nextText: "Finish"),
         ),
       ],
     ));

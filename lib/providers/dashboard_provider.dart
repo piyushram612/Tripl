@@ -58,6 +58,7 @@ final dashboardProvider = Provider<DashboardState>((ref) {
   }
 
   for (var tx in transactions) {
+    if (tx.category.toLowerCase() == 'transfer') continue;
     if (!tx.isIncome) {
       if (globalBudget.period == 'weekly') {
         if (!isDateInCurrentWeek(tx.date)) continue;
@@ -77,6 +78,7 @@ final dashboardProvider = Provider<DashboardState>((ref) {
     double balance = 0.0;
     
     for (var tx in transactions) {
+      if (tx.category.toLowerCase() == 'transfer') continue;
       final txDateOnly = DateTime(tx.date.year, tx.date.month, tx.date.day);
       final targetDateOnly = DateTime(targetDate.year, targetDate.month, targetDate.day);
       

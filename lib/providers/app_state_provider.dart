@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/platform_service.dart';
@@ -169,7 +170,58 @@ class HomeLayoutNotifier extends StateNotifier<List<String>> {
   }
 }
 
-// Empty
+final homeCardVisibilityProvider = StateNotifierProvider<HomeCardVisibilityNotifier, Map<String, bool>>((ref) {
+  return HomeCardVisibilityNotifier();
+});
+
+class HomeCardVisibilityNotifier extends StateNotifier<Map<String, bool>> {
+  static const _key = 'home_card_visibilities';
+  
+  HomeCardVisibilityNotifier() : super({
+    'accounts': true,
+    'summary': true,
+    'breakdown': true,
+    'recent': true,
+  }) {
+    _init();
+  }
+
+  Future<void> _init() async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonStr = prefs.getString(_key);
+    if (jsonStr != null) {
+      try {
+        final Map<String, dynamic> decoded = json.decode(jsonStr);
+        final Map<String, bool> loaded = Map.from(state);
+        decoded.forEach((k, v) {
+          if (v is bool) {
+            loaded[k] = v;
+          }
+        });
+        state = loaded;
+      } catch (_) {}
+    }
+  }
+
+  Future<void> setVisible(String cardKey, bool visible) async {
+    final updated = Map<String, bool>.from(state)..[cardKey] = visible;
+    state = updated;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_key, json.encode(updated));
+  }
+
+  Future<void> resetVisibility() async {
+    final defaults = {
+      'accounts': true,
+      'summary': true,
+      'breakdown': true,
+      'recent': true,
+    };
+    state = defaults;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_key);
+  }
+}
 
 // ─── Generic SharedPreferences Notifier ───────────────────────────────────────
 
@@ -212,6 +264,16 @@ final homeRecentTypeProvider = StateNotifierProvider<PrefNotifier<String>, Strin
 final homeRecentSortProvider = StateNotifierProvider<PrefNotifier<String>, String>((ref) => PrefNotifier<String>('recent_ref_sort', 'newest'));
 final homeRecentDensityProvider = StateNotifierProvider<PrefNotifier<String>, String>((ref) => PrefNotifier<String>('recent_ref_density', 'comfortable'));
 final homeRecentTimeframeProvider = StateNotifierProvider<PrefNotifier<String>, String>((ref) => PrefNotifier<String>('recent_ref_time', 'all'));
+
+// ─── Summary Graph Settings Providers ──────────────────────────────────────────
+
+final homeSummaryMetricProvider = StateNotifierProvider<PrefNotifier<String>, String>((ref) => PrefNotifier<String>('summary_metric_mode', 'spent'));
+final homeSummaryStyleProvider = StateNotifierProvider<PrefNotifier<String>, String>((ref) => PrefNotifier<String>('summary_graph_style', 'bezier'));
+final homeSummaryGridVisibleProvider = StateNotifierProvider<PrefNotifier<bool>, bool>((ref) => PrefNotifier<bool>('summary_grid_visible', true));
+final homeSummaryLabelsVisibleProvider = StateNotifierProvider<PrefNotifier<bool>, bool>((ref) => PrefNotifier<bool>('summary_labels_visible', true));
+final homeSummaryGradientVisibleProvider = StateNotifierProvider<PrefNotifier<bool>, bool>((ref) => PrefNotifier<bool>('summary_gradient_visible', true));
+final homeSummaryGlowVisibleProvider = StateNotifierProvider<PrefNotifier<bool>, bool>((ref) => PrefNotifier<bool>('summary_glow_visible', true));
+final homeSummaryTooltipsVisibleProvider = StateNotifierProvider<PrefNotifier<bool>, bool>((ref) => PrefNotifier<bool>('summary_tooltips_visible', true));
 
 // ─── Back Tap Custom Threshold Providers ─────────────────────────────────────
 

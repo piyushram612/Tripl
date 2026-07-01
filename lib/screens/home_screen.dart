@@ -17,6 +17,7 @@ import 'widgets/transaction_item.dart';
 import 'payment_source_details_screen.dart';
 import '../services/tutorial_service.dart';
 import 'sheets/recent_transactions_settings_sheet.dart';
+import 'sheets/summary_graph_settings_sheet.dart';
 
 final homeSummaryPeriodProvider = StateProvider<String>((ref) => 'weekly');
 final homeSummaryOffsetProvider = StateProvider<int>((ref) => 0);
@@ -111,52 +112,6 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-
-  Widget _wrapForEditMode(Widget child, String key, bool isEditMode, WidgetRef ref, int index) {
-    if (!isEditMode) {
-      return GestureDetector(
-        onLongPress: () => ref.read(homeEditModeProvider.notifier).state = true,
-        child: child,
-      );
-    }
-    return Container(
-      key: ValueKey(key),
-      margin: const EdgeInsets.only(bottom: 24.0),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: TallyTapTheme.primaryMint.withValues(alpha: 0.5), width: 2),
-      ),
-      child: Stack(
-        children: [
-          ReorderableDelayedDragStartListener(
-            index: index,
-            child: AbsorbPointer(
-              child: Opacity(
-                opacity: 0.8,
-                child: child,
-              ),
-            ),
-          ),
-          Positioned(
-            top: 10,
-            right: 10,
-            child: ReorderableDragStartListener(
-              index: index,
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: const BoxDecoration(
-                  color: TallyTapTheme.obsidianCard,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.drag_handle, color: TallyTapTheme.primaryMint, size: 20),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final double textScale = MediaQuery.textScalerOf(context).scale(1.0);
@@ -169,14 +124,21 @@ class HomeScreen extends ConsumerWidget {
     final currency = ref.watch(currencyProvider);
     final username = ref.watch(usernameProvider);
     final summaryPeriod = ref.watch(homeSummaryPeriodProvider);
+    final summaryMetric = ref.watch(homeSummaryMetricProvider);
+    final summaryStyle = ref.watch(homeSummaryStyleProvider);
+    final summaryGridVisible = ref.watch(homeSummaryGridVisibleProvider);
+    final summaryLabelsVisible = ref.watch(homeSummaryLabelsVisibleProvider);
+    final summaryGradientVisible = ref.watch(homeSummaryGradientVisibleProvider);
+    final summaryGlowVisible = ref.watch(homeSummaryGlowVisibleProvider);
+    final summaryTooltipsVisible = ref.watch(homeSummaryTooltipsVisibleProvider);
     final breakdownPeriod = ref.watch(homeBreakdownPeriodProvider);
     final breakdownOffset = ref.watch(homeBreakdownOffsetProvider);
     final breakdownType = ref.watch(homeBreakdownTypeProvider);
     final sources = ref.watch(sourcesListProvider);
     final startingBalances = ref.watch(sourceStartingBalancesProvider);
     final now = DateTime.now();
-    final isEditMode = ref.watch(homeEditModeProvider);
     final homeLayout = ref.watch(homeLayoutProvider);
+    final cardVisibilities = ref.watch(homeCardVisibilityProvider);
 
     // Filter and sort for Recent Reflections
     final recentCount = ref.watch(homeRecentCountProvider);
@@ -213,6 +175,7 @@ class HomeScreen extends ConsumerWidget {
     // 1. Dynamic overall spent (for header greeting only, based on active global budget period)
     double totalSpent = 0.0;
     for (var tx in transactions) {
+      if (tx.category.toLowerCase() == 'transfer') continue;
       if (!tx.isIncome) {
         if (globalBudget.period == 'weekly') {
           if (_isDateInCurrentWeek(tx.date)) {
@@ -234,53 +197,100 @@ class HomeScreen extends ConsumerWidget {
       adjustedNow = DateTime(now.year, now.month + summaryOffset, 15);
     }
 
-    // 2. Summary Card metrics (Line Graph, based on summaryPeriod & summaryOffset)
+    // 2. Summary Card metrics (Line Graph, based on summaryPeriod & summaryOffset & summaryMetric)
     double summaryTotalSpent = 0.0;
-    for (var tx in transactions) {
-      if (!tx.isIncome) {
+    double summaryPrevSpent = 0.0;
+    final DateTime priorReferenceDate;
+
+    if (summaryPeriod == 'weekly') {
+      priorReferenceDate = adjustedNow.subtract(const Duration(days: 7));
+    } else {
+      priorReferenceDate = DateTime(adjustedNow.year, adjustedNow.month - 1, 15);
+    }
+
+    if (summaryMetric == 'spent' || summaryMetric == 'daily') {
+      // Expenses only
+      for (var tx in transactions) {
+        if (tx.category.toLowerCase() == 'transfer') continue;
+        if (!tx.isIncome) {
+          if (summaryPeriod == 'weekly') {
+            if (_isDateInWeek(tx.date, adjustedNow)) {
+              summaryTotalSpent += tx.amount.abs();
+            }
+            if (_isDateInWeek(tx.date, priorReferenceDate)) {
+              summaryPrevSpent += tx.amount.abs();
+            }
+          } else {
+            if (_isDateInMonth(tx.date, adjustedNow)) {
+              summaryTotalSpent += tx.amount.abs();
+            }
+            if (_isDateInMonth(tx.date, priorReferenceDate)) {
+              summaryPrevSpent += tx.amount.abs();
+            }
+          }
+        }
+      }
+    } else if (summaryMetric == 'income') {
+      // Income only
+      for (var tx in transactions) {
+        if (tx.category.toLowerCase() == 'transfer') continue;
+        if (tx.isIncome) {
+          if (summaryPeriod == 'weekly') {
+            if (_isDateInWeek(tx.date, adjustedNow)) {
+              summaryTotalSpent += tx.amount.abs();
+            }
+            if (_isDateInWeek(tx.date, priorReferenceDate)) {
+              summaryPrevSpent += tx.amount.abs();
+            }
+          } else {
+            if (_isDateInMonth(tx.date, adjustedNow)) {
+              summaryTotalSpent += tx.amount.abs();
+            }
+            if (_isDateInMonth(tx.date, priorReferenceDate)) {
+              summaryPrevSpent += tx.amount.abs();
+            }
+          }
+        }
+      }
+    } else {
+      // Net Balance: income - expense
+      for (var tx in transactions) {
+        if (tx.category.toLowerCase() == 'transfer') continue;
+        final double factor = tx.isIncome ? 1.0 : -1.0;
+        final double amt = tx.amount.abs() * factor;
         if (summaryPeriod == 'weekly') {
           if (_isDateInWeek(tx.date, adjustedNow)) {
-            summaryTotalSpent += tx.amount.abs();
+            summaryTotalSpent += amt;
+          }
+          if (_isDateInWeek(tx.date, priorReferenceDate)) {
+            summaryPrevSpent += amt;
           }
         } else {
           if (_isDateInMonth(tx.date, adjustedNow)) {
-            summaryTotalSpent += tx.amount.abs();
+            summaryTotalSpent += amt;
+          }
+          if (_isDateInMonth(tx.date, priorReferenceDate)) {
+            summaryPrevSpent += amt;
           }
         }
       }
     }
 
-    double summaryPrevSpent = 0.0;
-    final DateTime priorReferenceDate;
-    if (summaryPeriod == 'weekly') {
-      priorReferenceDate = adjustedNow.subtract(const Duration(days: 7));
-      for (var tx in transactions) {
-        if (!tx.isIncome) {
-          if (_isDateInWeek(tx.date, priorReferenceDate)) {
-            summaryPrevSpent += tx.amount.abs();
-          }
-        }
-      }
+    final bool isOverspending;
+    if (summaryMetric == 'spent' || summaryMetric == 'daily') {
+      isOverspending = summaryTotalSpent > summaryPrevSpent;
     } else {
-      priorReferenceDate = DateTime(adjustedNow.year, adjustedNow.month - 1, 15);
-      for (var tx in transactions) {
-        if (!tx.isIncome) {
-          if (_isDateInMonth(tx.date, priorReferenceDate)) {
-            summaryPrevSpent += tx.amount.abs();
-          }
-        }
-      }
+      isOverspending = summaryTotalSpent < summaryPrevSpent;
     }
-    
-    final bool isOverspending = summaryTotalSpent > summaryPrevSpent;
-    
+
     double percentChange = 0.0;
-    if (summaryPrevSpent > 0) {
-      percentChange = ((summaryTotalSpent - summaryPrevSpent) / summaryPrevSpent) * 100;
-    } else if (summaryTotalSpent > 0) {
+    final double denom = summaryPrevSpent.abs();
+    if (denom > 0) {
+      percentChange = ((summaryTotalSpent - summaryPrevSpent) / denom) * 100;
+    } else if (summaryTotalSpent.abs() > 0) {
       percentChange = 100.0;
     }
-    
+
     final String percentText = (percentChange >= 0 ? '+' : '') + percentChange.toStringAsFixed(0) + '%';
 
     final List<double> graphValues;
@@ -288,45 +298,91 @@ class HomeScreen extends ConsumerWidget {
 
     if (summaryPeriod == 'weekly') {
       final startOfWeek = adjustedNow.subtract(Duration(days: adjustedNow.weekday - 1));
-      final List<double> dailyBalances = List.generate(7, (index) {
+      final List<double> dailyValues = List.generate(7, (index) {
         final targetDate = startOfWeek.add(Duration(days: index));
-        double balance = 0.0;
-        for (var tx in transactions) {
-          if (!_isDateInWeek(tx.date, adjustedNow)) continue;
-          final txDateOnly = DateTime(tx.date.year, tx.date.month, tx.date.day);
-          final targetDateOnly = DateTime(targetDate.year, targetDate.month, targetDate.day);
-          if (txDateOnly.isBefore(targetDateOnly) || txDateOnly.isAtSameMomentAs(targetDateOnly)) {
-            if (tx.isIncome) {
-              balance += tx.amount.abs();
-            } else {
-              balance -= tx.amount.abs();
+        double val = 0.0;
+
+        if (summaryMetric == 'daily') {
+          // Non-cumulative daily spending spikes
+          for (var tx in transactions) {
+            if (tx.category.toLowerCase() == 'transfer') continue;
+            if (tx.isIncome) continue;
+            if (!_isDateInWeek(tx.date, adjustedNow)) continue;
+            final txDateOnly = DateTime(tx.date.year, tx.date.month, tx.date.day);
+            final targetDateOnly = DateTime(targetDate.year, targetDate.month, targetDate.day);
+            if (txDateOnly.year == targetDateOnly.year && txDateOnly.month == targetDateOnly.month && txDateOnly.day == targetDateOnly.day) {
+              val += tx.amount.abs();
+            }
+          }
+        } else {
+          // Cumulative metrics
+          for (var tx in transactions) {
+            if (tx.category.toLowerCase() == 'transfer') continue;
+            if (!_isDateInWeek(tx.date, adjustedNow)) continue;
+            final txDateOnly = DateTime(tx.date.year, tx.date.month, tx.date.day);
+            final targetDateOnly = DateTime(targetDate.year, targetDate.month, targetDate.day);
+            if (txDateOnly.isBefore(targetDateOnly) || txDateOnly.isAtSameMomentAs(targetDateOnly)) {
+              if (summaryMetric == 'spent') {
+                if (!tx.isIncome) val += tx.amount.abs();
+              } else if (summaryMetric == 'income') {
+                if (tx.isIncome) val += tx.amount.abs();
+              } else { // net
+                if (tx.isIncome) {
+                  val += tx.amount.abs();
+                } else {
+                  val -= tx.amount.abs();
+                }
+              }
             }
           }
         }
-        return balance;
+        return val;
       });
-      graphValues = [0.0, ...dailyBalances];
-      graphLabels = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      graphValues = dailyValues;
+      graphLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     } else {
       final totalDays = DateTime(adjustedNow.year, adjustedNow.month + 1, 0).day;
-      final List<double> dailyBalances = List.generate(totalDays, (index) {
+      final List<double> dailyValues = List.generate(totalDays, (index) {
         final targetDate = DateTime(adjustedNow.year, adjustedNow.month, index + 1);
-        double balance = 0.0;
-        for (var tx in transactions) {
-          if (!_isDateInMonth(tx.date, adjustedNow)) continue;
-          final txDateOnly = DateTime(tx.date.year, tx.date.month, tx.date.day);
-          final targetDateOnly = DateTime(targetDate.year, targetDate.month, targetDate.day);
-          if (txDateOnly.isBefore(targetDateOnly) || txDateOnly.isAtSameMomentAs(targetDateOnly)) {
-            if (tx.isIncome) {
-              balance += tx.amount.abs();
-            } else {
-              balance -= tx.amount.abs();
+        double val = 0.0;
+
+        if (summaryMetric == 'daily') {
+          // Non-cumulative daily spending spikes
+          for (var tx in transactions) {
+            if (tx.category.toLowerCase() == 'transfer') continue;
+            if (tx.isIncome) continue;
+            if (!_isDateInMonth(tx.date, adjustedNow)) continue;
+            final txDateOnly = DateTime(tx.date.year, tx.date.month, tx.date.day);
+            final targetDateOnly = DateTime(targetDate.year, targetDate.month, targetDate.day);
+            if (txDateOnly.year == targetDateOnly.year && txDateOnly.month == targetDateOnly.month && txDateOnly.day == targetDateOnly.day) {
+              val += tx.amount.abs();
+            }
+          }
+        } else {
+          // Cumulative metrics
+          for (var tx in transactions) {
+            if (tx.category.toLowerCase() == 'transfer') continue;
+            if (!_isDateInMonth(tx.date, adjustedNow)) continue;
+            final txDateOnly = DateTime(tx.date.year, tx.date.month, tx.date.day);
+            final targetDateOnly = DateTime(targetDate.year, targetDate.month, targetDate.day);
+            if (txDateOnly.isBefore(targetDateOnly) || txDateOnly.isAtSameMomentAs(targetDateOnly)) {
+              if (summaryMetric == 'spent') {
+                if (!tx.isIncome) val += tx.amount.abs();
+              } else if (summaryMetric == 'income') {
+                if (tx.isIncome) val += tx.amount.abs();
+              } else { // net
+                if (tx.isIncome) {
+                  val += tx.amount.abs();
+                } else {
+                  val -= tx.amount.abs();
+                }
+              }
             }
           }
         }
-        return balance;
+        return val;
       });
-      graphValues = [0.0, ...dailyBalances];
+      graphValues = dailyValues;
       
       final List<String> dailyLabels = List.generate(totalDays, (index) {
         final day = index + 1;
@@ -335,7 +391,7 @@ class HomeScreen extends ConsumerWidget {
         }
         return '';
       });
-      graphLabels = ['', ...dailyLabels];
+      graphLabels = dailyLabels;
     }
 
     final dateRangeString = summaryPeriod == 'weekly' 
@@ -369,6 +425,7 @@ class HomeScreen extends ConsumerWidget {
     // Group actual categories dynamically based strictly on user transactions in the current period
     final Map<String, double> catSum = {};
     for (var tx in transactions) {
+      if (tx.category.toLowerCase() == 'transfer') continue;
       final matchesType = breakdownType == 'income' ? tx.isIncome : !tx.isIncome;
       if (matchesType) {
         if (breakdownPeriod == 'weekly') {
@@ -434,14 +491,27 @@ class HomeScreen extends ConsumerWidget {
                         final srcIcon = TallyTapTheme.getIconForSource(src);
 
                         // Calculate balance and transaction count
-                        final srcTxs = transactions.where((tx) => tx.paymentMethod == src).toList();
                         double inflows = 0.0;
                         double outflows = 0.0;
-                        for (final tx in srcTxs) {
-                          if (tx.isIncome) {
-                            inflows += tx.amount.abs();
+                        int txCount = 0;
+                        for (final tx in transactions) {
+                          if (tx.category.toLowerCase() == 'transfer') {
+                            if (tx.paymentMethod == src) {
+                              outflows += tx.amount.abs();
+                              txCount++;
+                            } else if (tx.paidTo == src) {
+                              inflows += tx.amount.abs();
+                              txCount++;
+                            }
                           } else {
-                            outflows += tx.amount.abs();
+                            if (tx.paymentMethod == src) {
+                              txCount++;
+                              if (tx.isIncome) {
+                                inflows += tx.amount.abs();
+                              } else {
+                                outflows += tx.amount.abs();
+                              }
+                            }
                           }
                         }
                         final double startBal = startingBalances[src] ?? 0.0;
@@ -521,7 +591,7 @@ class HomeScreen extends ConsumerWidget {
                                         ),
                                         const SizedBox(height: 2),
                                         Text(
-                                          '${srcTxs.length} txs',
+                                          '$txCount txs',
                                           style: const TextStyle(
                                             fontSize: 9,
                                             color: TallyTapTheme.textGray,
@@ -567,21 +637,54 @@ class HomeScreen extends ConsumerWidget {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              Text(
-                                summaryPeriod == 'weekly' ? 'WEEKLY SUMMARY' : 'MONTHLY SUMMARY',
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 1.5,
-                                  color: TallyTapTheme.textGray,
+                              Expanded(
+                                child: Text(
+                                  () {
+                                    if (summaryMetric == 'income') {
+                                      return summaryPeriod == 'weekly' ? 'WEEKLY INCOME' : 'MONTHLY INCOME';
+                                    } else if (summaryMetric == 'net') {
+                                      return summaryPeriod == 'weekly' ? 'WEEKLY NET BALANCE' : 'MONTHLY NET BALANCE';
+                                    } else {
+                                      return summaryPeriod == 'weekly' ? 'WEEKLY SUMMARY' : 'MONTHLY SUMMARY';
+                                    }
+                                  }(),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 1.5,
+                                    color: TallyTapTheme.textGray,
+                                  ),
                                 ),
                               ),
-                              _buildMiniPeriodToggle(
-                                activePeriod: summaryPeriod,
-                                onChanged: (val) {
-                                  ref.read(homeSummaryPeriodProvider.notifier).state = val;
-                                  ref.read(homeSummaryOffsetProvider.notifier).state = 0; // Reset offset!
-                                },
+                              const SizedBox(width: 8),
+                              Row(
+                                children: [
+                                  _buildMiniPeriodToggle(
+                                    activePeriod: summaryPeriod,
+                                    onChanged: (val) {
+                                      ref.read(homeSummaryPeriodProvider.notifier).state = val;
+                                      ref.read(homeSummaryOffsetProvider.notifier).state = 0; // Reset offset!
+                                    },
+                                  ),
+                                  const SizedBox(width: 8),
+                                  GestureDetector(
+                                    onTap: () {
+                                      showModalBottomSheet(
+                                        context: context,
+                                        isScrollControlled: true,
+                                        backgroundColor: Colors.transparent,
+                                        builder: (context) => const SummaryGraphSettingsSheet(),
+                                      );
+                                    },
+                                    behavior: HitTestBehavior.opaque,
+                                    child: const Padding(
+                                      padding: EdgeInsets.symmetric(horizontal: 4.0, vertical: 6.0),
+                                      child: Icon(Icons.more_horiz, color: TallyTapTheme.textGray, size: 20),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
@@ -654,7 +757,7 @@ class HomeScreen extends ConsumerWidget {
                                 textBaseline: TextBaseline.alphabetic,
                                 children: [
                                   Text(
-                                    '$currency${summaryTotalSpent.toStringAsFixed(0).replaceAllMapped(RegExp(r"(\d{1,3})(?=(\d{3})+(?!\d))"), (Match m) => "${m[1]},")}',
+                                    '${summaryTotalSpent < 0 ? '-' : ''}$currency${summaryTotalSpent.abs().toStringAsFixed(0).replaceAllMapped(RegExp(r"(\d{1,3})(?=(\d{3})+(?!\d))"), (Match m) => "${m[1]},")}',
                                     style: const TextStyle(
                                       fontSize: 34,
                                       fontWeight: FontWeight.w900,
@@ -703,7 +806,19 @@ class HomeScreen extends ConsumerWidget {
                             ],
                           ),
                           const SizedBox(height: 16),
-                          WeeklyTrendGraph(values: graphValues, labels: graphLabels, isOverspending: isOverspending),
+                          WeeklyTrendGraph(
+                            values: graphValues, 
+                            labels: graphLabels, 
+                            isOverspending: isOverspending,
+                            styleType: summaryStyle,
+                            metricMode: summaryMetric,
+                            showGrid: summaryGridVisible,
+                            showLabels: summaryLabelsVisible,
+                            showGradient: summaryGradientVisible,
+                            showGlow: summaryGlowVisible,
+                            showTooltips: summaryTooltipsVisible,
+                            currency: currency,
+                          ),
                         ],
                       ),
                     ),
@@ -1082,179 +1197,69 @@ class HomeScreen extends ConsumerWidget {
       'breakdown': widgetBreakdown,
       'recent': widgetRecent,
     };
-    return Stack(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 12),
-              // Top Header removed
-
-              // 3. Scrollable Dashboard Cards
-              Expanded(
-                child: isEditMode
-                    ? ReorderableListView(
-                        buildDefaultDragHandles: false,
-                        padding: EdgeInsets.only(bottom: bottomPadding),
-                        physics: const BouncingScrollPhysics(),
-                        header: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Builder(
-                              builder: (context) {
-                                final int hour = now.hour;
-                                String greetingWord = 'Good morning';
-                                if (hour >= 12 && hour < 17) {
-                                  greetingWord = 'Good afternoon';
-                                } else if (hour >= 17 && hour < 22) {
-                                  greetingWord = 'Good evening';
-                                } else if (hour >= 22 || hour < 5) {
-                                  greetingWord = 'Good night';
-                                }
-
-                                return Text(
-                                  '$greetingWord, $username',
-                                  style: const TextStyle(
-                                    fontSize: 26,
-                                    fontWeight: FontWeight.w900,
-                                    color: TallyTapTheme.primaryMint,
-                                    letterSpacing: -0.8,
-                                  ),
-                                );
-                              },
-                            ),
-                            const SizedBox(height: 6),
-                            RichText(
-                              text: TextSpan(
-                                style: const TextStyle(fontSize: 14, color: TallyTapTheme.textGray, height: 1.4),
-                                children: [
-                                  const TextSpan(text: "You've spent "),
-                                  TextSpan(
-                                    text: '$currency${totalSpent.toStringAsFixed(0)}',
-                                    style: const TextStyle(color: TallyTapTheme.primaryMint, fontWeight: FontWeight.bold),
-                                  ),
-                                  TextSpan(
-                                    text: ' recently.\nYou\'re on track to stay within your $currency${globalBudget.amount.toStringAsFixed(0)} ${globalBudget.period} budget.',
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                          ],
-                        ),
-                        onReorder: (oldIndex, newIndex) {
-                          if (oldIndex < newIndex) {
-                            newIndex -= 1;
-                          }
-                          final layout = List<String>.from(homeLayout);
-                          final item = layout.removeAt(oldIndex);
-                          layout.insert(newIndex, item);
-                          ref.read(homeLayoutProvider.notifier).updateLayout(layout);
-                        },
-                        children: [
-                          for (int i = 0; i < homeLayout.length; i++)
-                            if (widgetsMap.containsKey(homeLayout[i]))
-                              _wrapForEditMode(widgetsMap[homeLayout[i]]!, homeLayout[i], isEditMode, ref, i),
-                        ],
-                      )
-                    : SingleChildScrollView(
-                        physics: const BouncingScrollPhysics(),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Builder(
-                              builder: (context) {
-                                final int hour = now.hour;
-                                String greetingWord = 'Good morning';
-                                if (hour >= 12 && hour < 17) {
-                                  greetingWord = 'Good afternoon';
-                                } else if (hour >= 17 && hour < 22) {
-                                  greetingWord = 'Good evening';
-                                } else if (hour >= 22 || hour < 5) {
-                                  greetingWord = 'Good night';
-                                }
-
-                                return Text(
-                                  '$greetingWord, $username',
-                                  style: const TextStyle(
-                                    fontSize: 26,
-                                    fontWeight: FontWeight.w900,
-                                    color: TallyTapTheme.primaryMint,
-                                    letterSpacing: -0.8,
-                                  ),
-                                );
-                              },
-                            ),
-                            const SizedBox(height: 6),
-                            RichText(
-                              text: TextSpan(
-                                style: const TextStyle(fontSize: 14, color: TallyTapTheme.textGray, height: 1.4),
-                                children: [
-                                  const TextSpan(text: "You've spent "),
-                                  TextSpan(
-                                    text: '$currency${totalSpent.toStringAsFixed(0)}',
-                                    style: const TextStyle(color: TallyTapTheme.primaryMint, fontWeight: FontWeight.bold),
-                                  ),
-                                  TextSpan(
-                                    text: ' recently.\nYou\'re on track to stay within your $currency${globalBudget.amount.toStringAsFixed(0)} ${globalBudget.period} budget.',
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            for (int i = 0; i < homeLayout.length; i++)
-                              if (widgetsMap.containsKey(homeLayout[i]))
-                                _wrapForEditMode(widgetsMap[homeLayout[i]]!, homeLayout[i], isEditMode, ref, i),
-                            SizedBox(height: bottomPadding),
-                          ],
-                        ),
-                      ),
-              ),
-            ],
-          ),
-        ),
-        if (isEditMode)
-          Positioned(
-            bottom: bottomPadding,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SizedBox(height: 12),
+          // Scrollable Dashboard Cards
+          Expanded(
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  FloatingActionButton(
-                    heroTag: 'resetLayoutBtn',
-                    onPressed: () {
-                      ref.read(homeLayoutProvider.notifier).resetLayout();
+                  Builder(
+                    builder: (context) {
+                      final int hour = now.hour;
+                      String greetingWord = 'Good morning';
+                      if (hour >= 12 && hour < 17) {
+                        greetingWord = 'Good afternoon';
+                      } else if (hour >= 17 && hour < 22) {
+                        greetingWord = 'Good evening';
+                      } else if (hour >= 22 || hour < 5) {
+                        greetingWord = 'Good night';
+                      }
+
+                      return Text(
+                        '$greetingWord, $username',
+                        style: const TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.w900,
+                          color: TallyTapTheme.primaryMint,
+                          letterSpacing: -0.8,
+                        ),
+                      );
                     },
-                    backgroundColor: TallyTapTheme.obsidianCard,
-                    foregroundColor: TallyTapTheme.textGray,
-                    elevation: 8,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      side: const BorderSide(color: TallyTapTheme.borderGreen, width: 1.5),
+                  ),
+                  const SizedBox(height: 6),
+                  RichText(
+                    text: TextSpan(
+                      style: const TextStyle(fontSize: 14, color: TallyTapTheme.textGray, height: 1.4),
+                      children: [
+                        const TextSpan(text: "You've spent "),
+                        TextSpan(
+                          text: '$currency${totalSpent.toStringAsFixed(0)}',
+                          style: const TextStyle(color: TallyTapTheme.primaryMint, fontWeight: FontWeight.bold),
+                        ),
+                        TextSpan(
+                          text: ' recently.\nYou\'re on track to stay within your $currency${globalBudget.amount.toStringAsFixed(0)} ${globalBudget.period} budget.',
+                        ),
+                      ],
                     ),
-                    child: const Icon(Icons.refresh),
                   ),
-                  const SizedBox(width: 12),
-                  FloatingActionButton.extended(
-                    heroTag: 'saveLayoutBtn',
-                    onPressed: () {
-                      ref.read(homeEditModeProvider.notifier).state = false;
-                    },
-                    backgroundColor: TallyTapTheme.primaryMint,
-                    foregroundColor: TallyTapTheme.obsidianBg,
-                    elevation: 8,
-                    icon: const Icon(Icons.check),
-                    label: const Text('Save Layout', style: TextStyle(fontWeight: FontWeight.bold)),
-                  ),
+                  const SizedBox(height: 24),
+                  for (int i = 0; i < homeLayout.length; i++)
+                    if (widgetsMap.containsKey(homeLayout[i]) && (cardVisibilities[homeLayout[i]] ?? true))
+                      widgetsMap[homeLayout[i]]!,
+                  SizedBox(height: bottomPadding),
                 ],
               ),
             ),
           ),
-      ],
+        ],
+      ),
     );
 
   }

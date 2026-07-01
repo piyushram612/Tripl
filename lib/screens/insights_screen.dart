@@ -523,56 +523,66 @@ class _BudgetSplitCardState extends ConsumerState<_BudgetSplitCard> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1A1040),
-                        borderRadius: BorderRadius.circular(8),
+                Expanded(
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1A1040),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.pie_chart_outline_rounded, color: Color(0xFF8B5CF6), size: 16),
                       ),
-                      child: const Icon(Icons.pie_chart_outline_rounded, color: Color(0xFF8B5CF6), size: 16),
-                    ),
-                    const SizedBox(width: 10),
-                    const Text(
-                      'BUDGET SPLIT',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.5,
-                        color: Color(0xFF8B5CF6),
+                      const SizedBox(width: 10),
+                      const Expanded(
+                        child: Text(
+                          'BUDGET SPLIT',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.5,
+                            color: Color(0xFF8B5CF6),
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-                GestureDetector(
-                  onTap: () {
-                    HapticFeedback.lightImpact();
-                    if (_isEditing) {
-                      _saveTargets();
-                    } else {
-                      setState(() {
-                        _resetLocal();
-                        _isEditing = true;
-                      });
-                    }
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: _isEditing ? const Color(0xFF8B5CF6) : TallyTapTheme.obsidianCard,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: _isEditing ? const Color(0xFF8B5CF6) : TallyTapTheme.borderGreen,
+                const SizedBox(width: 8),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: GestureDetector(
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      if (_isEditing) {
+                        _saveTargets();
+                      } else {
+                        setState(() {
+                          _resetLocal();
+                          _isEditing = true;
+                        });
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: _isEditing ? const Color(0xFF8B5CF6) : TallyTapTheme.obsidianCard,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: _isEditing ? const Color(0xFF8B5CF6) : TallyTapTheme.borderGreen,
+                        ),
                       ),
-                    ),
-                    child: Text(
-                      _isEditing ? 'SAVE' : 'EDIT TARGETS',
-                      style: TextStyle(
-                        fontSize: 9,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 1.0,
-                        color: _isEditing ? Colors.white : TallyTapTheme.textGray,
+                      child: Text(
+                        _isEditing ? 'SAVE' : 'EDIT TARGETS',
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1.0,
+                          color: _isEditing ? Colors.white : TallyTapTheme.textGray,
+                        ),
                       ),
                     ),
                   ),
@@ -684,44 +694,60 @@ class _BudgetSplitCardState extends ConsumerState<_BudgetSplitCard> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label, style: const TextStyle(fontSize: 13, color: TallyTapTheme.textLight, fontWeight: FontWeight.w700)),
-                Text(subtitle, style: const TextStyle(fontSize: 11, color: TallyTapTheme.textGray)),
-              ],
-            ),
-            Row(
-              children: [
-                Text(
-                  '${actual.toStringAsFixed(0)}%',
-                  style: TextStyle(fontSize: 15, color: actualColor, fontWeight: FontWeight.w900),
-                ),
-                const SizedBox(width: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: overTarget
-                        ? const Color(0xFFFFB5B5).withOpacity(0.15)
-                        : underTarget
-                            ? const Color(0xFFF59E0B).withOpacity(0.12)
-                            : TallyTapTheme.primaryMint.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(6),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 13, color: TallyTapTheme.textLight, fontWeight: FontWeight.w700),
                   ),
-                  child: Text(
-                    'target ${target.toStringAsFixed(0)}%',
-                    style: TextStyle(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w800,
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 11, color: TallyTapTheme.textGray),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                children: [
+                  Text(
+                    '${actual.toStringAsFixed(0)}%',
+                    style: TextStyle(fontSize: 15, color: actualColor, fontWeight: FontWeight.w900),
+                  ),
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
                       color: overTarget
-                          ? const Color(0xFFFFB5B5)
+                          ? const Color(0xFFFFB5B5).withOpacity(0.15)
                           : underTarget
-                              ? const Color(0xFFF59E0B)
-                              : TallyTapTheme.primaryMint,
+                              ? const Color(0xFFF59E0B).withOpacity(0.12)
+                              : TallyTapTheme.primaryMint.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      'target ${target.toStringAsFixed(0)}%',
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w800,
+                        color: overTarget
+                            ? const Color(0xFFFFB5B5)
+                            : underTarget
+                                ? const Color(0xFFF59E0B)
+                                : TallyTapTheme.primaryMint,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ),
@@ -921,20 +947,6 @@ class _PeriodSelectorSheet extends ConsumerWidget {
                 firstDate: DateTime(2020),
                 lastDate: DateTime.now().add(const Duration(days: 365)),
                 initialDateRange: initialRange,
-                builder: (context, child) {
-                  return Theme(
-                    data: Theme.of(context).copyWith(
-                      colorScheme: const ColorScheme.dark(
-                        primary: TallyTapTheme.primaryMint,
-                        onPrimary: TallyTapTheme.obsidianBg,
-                        surface: TallyTapTheme.obsidianCard,
-                        onSurface: TallyTapTheme.textLight,
-                      ),
-                      dialogBackgroundColor: TallyTapTheme.obsidianBg,
-                    ),
-                    child: child!,
-                  );
-                },
               );
               if (pickedRange != null) {
                 notifier.setCustomRange(pickedRange.start, pickedRange.end);
