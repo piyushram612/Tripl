@@ -123,6 +123,7 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
     });
 
     final currentIndex = ref.watch(activeTabProvider);
+    final isDark = ref.watch(themeProvider).brightness == Brightness.dark;
 
     return Scaffold(
       extendBody: true,
@@ -131,7 +132,13 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
         backgroundColor: Colors.transparent,
         elevation: 0,
         toolbarHeight: 0,
-        systemOverlayStyle: SystemUiOverlayStyle.light,
+        systemOverlayStyle: SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+          systemNavigationBarColor: Colors.transparent,
+          systemNavigationBarDividerColor: Colors.transparent,
+          systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+        ),
       ),
       body: SafeArea(
         bottom: false,

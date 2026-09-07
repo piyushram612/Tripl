@@ -36,9 +36,9 @@ class BackTapDetector(private val onTripleTapTriggered: (recommendedForce: Float
     private val tapWindowMinMs = 70L // Elastic minimum interval (supports rapid double/triple tap bursts)
 
     /**
-     * Motion Mode state flag.
-     * Toggled dynamically via Android Activity Recognition API (IN_VEHICLE, WALKING, RUNNING).
-     * Tightens force ratio and gyro stillness thresholds without blocking tap capture during transit.
+     * Autonomous Motion Mode state flag.
+     * Evaluated dynamically from real-time accelerometer and gyroscope motion metrics.
+     * Tightens force ratio and gyro stillness thresholds during transit/walking without blocking tap capture.
      */
     var isMotionMode: Boolean = false
         set(value) {
@@ -47,6 +47,12 @@ class BackTapDetector(private val onTripleTapTriggered: (recommendedForce: Float
                 Log.d("BackTapDetector", "Motion Mode changed: isMotionMode=$field")
             }
         }
+
+    // Autonomous Motion Mode tracking with hysteresis
+    private var motionStillStartTime = 0L
+    private val MOTION_ENTER_THRESHOLD = 0.75f  // runningNoise floor to trigger Motion Mode
+    private val MOTION_EXIT_THRESHOLD = 0.45f   // runningNoise floor to transition back to Still Mode
+    private val MOTION_EXIT_DELAY_MS = 1500L    // sustained calm duration before exiting Motion Mode
 
     // Gyroscope tracking state
     private var gyroX = 0f
@@ -214,6 +220,26 @@ class BackTapDetector(private val onTripleTapTriggered: (recommendedForce: Float
         val noiseInput = totalLinearMotion.coerceAtMost(3.0f)
         val noiseDecay = 0.98f
         runningNoise = noiseDecay * runningNoise + (1 - noiseDecay) * noiseInput
+
+        // Autonomous Motion Mode evaluation with hysteresis
+        if (runningNoise >= MOTION_ENTER_THRESHOLD) {
+            motionStillStartTime = 0L
+            if (!isMotionMode) {
+                isMotionMode = true
+            }
+        } else if (runningNoise <= MOTION_EXIT_THRESHOLD) {
+            if (isMotionMode) {
+                if (motionStillStartTime == 0L) {
+                    motionStillStartTime = currentTime
+                } else if (currentTime - motionStillStartTime >= MOTION_EXIT_DELAY_MS) {
+                    isMotionMode = false
+                    motionStillStartTime = 0L
+                }
+            }
+        } else {
+            // Deadband between 0.45f and 0.75f: reset calm timer so inter-step pauses don't prematurely exit
+            motionStillStartTime = 0L
+        }
 
         val baseNoiseFloor = if (isMotionMode) 1.2f else 1.5f
         val noiseMultiplier = if (runningNoise > baseNoiseFloor) {
@@ -474,6 +500,7 @@ class BackTapDetector(private val onTripleTapTriggered: (recommendedForce: Float
         lastNegativeSpikeTime = 0L
         spikeHistory.clear()
         runningNoise = 0f
+        motionStillStartTime = 0L
         freeFallStartTime = 0L
         lastFreeFallTime = 0L
         Log.d("BackTapDetector", "Detector state reset successfully.")

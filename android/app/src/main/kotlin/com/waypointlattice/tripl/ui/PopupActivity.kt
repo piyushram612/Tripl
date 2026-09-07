@@ -1,9 +1,11 @@
 package com.waypointlattice.tripl.ui
 
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.core.view.WindowCompat
 import com.waypointlattice.tripl.ui.components.PopupCard
 import com.waypointlattice.tripl.ui.theme.TriplTheme
@@ -30,23 +32,20 @@ class PopupActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         Log.d(TAG, "onCreate: Registering active popup instance")
         activeInstance = this
         
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-        window.statusBarColor = android.graphics.Color.TRANSPARENT
-        window.navigationBarColor = android.graphics.Color.TRANSPARENT
-        
         // Remove transitions so the card appears instantly on top of the translucent window dim
-        overridePendingTransition(0, 0)
+        disableActivityTransitions()
 
         setContent {
             TriplTheme {
                 PopupCard(
                     onClose = {
                         finish()
-                        overridePendingTransition(0, 0)
+                        disableActivityTransitions()
                     }
                 )
             }
@@ -59,7 +58,17 @@ class PopupActivity : ComponentActivity() {
         }
         super.finish()
         // Ensure no entrance/exit flashing during native dismiss
-        overridePendingTransition(0, 0)
+        disableActivityTransitions()
+    }
+
+    private fun disableActivityTransitions() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            overrideActivityTransition(OVERRIDE_TRANSITION_OPEN, 0, 0)
+            overrideActivityTransition(OVERRIDE_TRANSITION_CLOSE, 0, 0)
+        } else {
+            @Suppress("DEPRECATION")
+            overridePendingTransition(0, 0)
+        }
     }
 
     override fun onDestroy() {

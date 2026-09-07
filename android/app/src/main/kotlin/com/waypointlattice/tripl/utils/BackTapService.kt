@@ -23,12 +23,6 @@ import com.waypointlattice.tripl.MainActivity
 import io.flutter.plugin.common.MethodChannel
 import android.content.ComponentName
 import android.service.quicksettings.TileService
-import com.google.android.gms.location.ActivityRecognition
-import com.google.android.gms.location.ActivityTransition
-import com.google.android.gms.location.ActivityTransitionRequest
-import com.google.android.gms.location.ActivityTransitionResult
-import com.google.android.gms.location.DetectedActivity
-
 class BackTapService : Service(), SensorEventListener {
     private var sensorManager: SensorManager? = null
     private var motionSensor: Sensor? = null
@@ -39,47 +33,16 @@ class BackTapService : Service(), SensorEventListener {
     private var isGyroRegistered = false
     private var hapticsEnabled = true
 
-    private val ACTION_ACTIVITY_TRANSITION = "com.waypointlattice.tripl.ACTION_ACTIVITY_TRANSITION"
-    private var transitionPendingIntent: PendingIntent? = null
-
     private val screenStateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             when (intent?.action) {
                 Intent.ACTION_SCREEN_OFF -> {
                     Log.d(TAG, "Screen went off, pausing sensors to save battery")
-                    unregisterSensor()
-                    unregisterGyroSensor()
+                    unregisterSensors()
                 }
                 Intent.ACTION_USER_PRESENT, Intent.ACTION_SCREEN_ON -> {
-                    Log.d(TAG, "Screen turned on/unlocked, resuming motion sensor")
-                    registerSensor()
-                }
-            }
-        }
-    }
-
-    private val activityTransitionReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == ACTION_ACTIVITY_TRANSITION && ActivityTransitionResult.hasResult(intent)) {
-                val result = ActivityTransitionResult.extractResult(intent) ?: return
-                for (event in result.transitionEvents) {
-                    Log.d(TAG, "ActivityTransition Event: type=${event.activityType}, transition=${event.transitionType}")
-                    when (event.activityType) {
-                        DetectedActivity.IN_VEHICLE, DetectedActivity.WALKING, DetectedActivity.RUNNING -> {
-                            if (event.transitionType == ActivityTransition.ACTIVITY_TRANSITION_ENTER) {
-                                Log.d(TAG, "Entered motion state -> enabling High-Precision Motion Mode & Gyroscope")
-                                registerGyroSensor()
-                                detector?.isMotionMode = true
-                            }
-                        }
-                        DetectedActivity.STILL -> {
-                            if (event.transitionType == ActivityTransition.ACTIVITY_TRANSITION_ENTER) {
-                                Log.d(TAG, "Entered STILL state -> switching to Standard Calibrated Mode & unregistering Gyroscope")
-                                unregisterGyroSensor()
-                                detector?.isMotionMode = false
-                            }
-                        }
-                    }
+                    Log.d(TAG, "Screen turned on/unlocked, resuming sensors")
+                    registerSensors()
                 }
             }
         }
@@ -242,8 +205,7 @@ class BackTapService : Service(), SensorEventListener {
             registerReceiver(screenStateReceiver, filter)
         }
         
-        registerSensor()
-        setupActivityTransitions()
+        registerSensors()
 
         // Notify Flutter of state change
         android.os.Handler(android.os.Looper.getMainLooper()).post {
@@ -266,49 +228,6 @@ class BackTapService : Service(), SensorEventListener {
         }
     }
 
-    private fun setupActivityTransitions() {
-        try {
-            val transitions = mutableListOf<ActivityTransition>()
-            val activities = listOf(
-                DetectedActivity.IN_VEHICLE,
-                DetectedActivity.WALKING,
-                DetectedActivity.RUNNING,
-                DetectedActivity.STILL
-            )
-            for (act in activities) {
-                transitions.add(ActivityTransition.Builder()
-                    .setActivityType(act)
-                    .setActivityTransition(ActivityTransition.ACTIVITY_TRANSITION_ENTER)
-                    .build())
-                transitions.add(ActivityTransition.Builder()
-                    .setActivityType(act)
-                    .setActivityTransition(ActivityTransition.ACTIVITY_TRANSITION_EXIT)
-                    .build())
-            }
-
-            val request = ActivityTransitionRequest(transitions)
-            val intent = Intent(ACTION_ACTIVITY_TRANSITION)
-            val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
-            } else {
-                PendingIntent.FLAG_UPDATE_CURRENT
-            }
-            transitionPendingIntent = PendingIntent.getBroadcast(this, 0, intent, flags)
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                registerReceiver(activityTransitionReceiver, IntentFilter(ACTION_ACTIVITY_TRANSITION), Context.RECEIVER_NOT_EXPORTED)
-            } else {
-                registerReceiver(activityTransitionReceiver, IntentFilter(ACTION_ACTIVITY_TRANSITION))
-            }
-
-            ActivityRecognition.getClient(this)
-                .requestActivityTransitionUpdates(request, transitionPendingIntent!!)
-                .addOnSuccessListener { Log.d(TAG, "Activity Transition updates registered successfully") }
-                .addOnFailureListener { e -> Log.w(TAG, "Activity Transition registration failed: ${e.message}") }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to setup ActivityTransitions: ${e.message}")
-        }
-    }
 
     private fun triggerVibration() {
         if (!hapticsEnabled) return
@@ -332,37 +251,31 @@ class BackTapService : Service(), SensorEventListener {
         }
     }
 
-    private fun registerSensor() {
+    private fun registerSensors() {
         if (!isSensorRegistered) {
             motionSensor?.let {
                 isSensorRegistered = sensorManager?.registerListener(this, it, SensorManager.SENSOR_DELAY_GAME) ?: false
-                Log.d(TAG, "registerSensor: Accelerometer registered successfully: $isSensorRegistered")
+                Log.d(TAG, "registerSensors: Accelerometer registered successfully: $isSensorRegistered")
             }
         }
-    }
-
-    private fun registerGyroSensor() {
         if (!isGyroRegistered) {
             gyroSensor?.let {
                 isGyroRegistered = sensorManager?.registerListener(this, it, SensorManager.SENSOR_DELAY_GAME) ?: false
-                Log.d(TAG, "registerGyroSensor: Gyroscope sensor registered: $isGyroRegistered")
+                Log.d(TAG, "registerSensors: Gyroscope sensor registered: $isGyroRegistered")
             }
         }
     }
     
-    private fun unregisterSensor() {
+    private fun unregisterSensors() {
         if (isSensorRegistered) {
             sensorManager?.unregisterListener(this, motionSensor)
             isSensorRegistered = false
-            Log.d(TAG, "unregisterSensor: Accelerometer unregistered")
+            Log.d(TAG, "unregisterSensors: Accelerometer unregistered")
         }
-    }
-
-    private fun unregisterGyroSensor() {
         if (isGyroRegistered && !MainActivity.calibrationMode) {
             sensorManager?.unregisterListener(this, gyroSensor)
             isGyroRegistered = false
-            Log.d(TAG, "unregisterGyroSensor: Gyroscope unregistered")
+            Log.d(TAG, "unregisterSensors: Gyroscope unregistered")
         }
     }
 
@@ -376,15 +289,10 @@ class BackTapService : Service(), SensorEventListener {
         instance = null
         try {
             unregisterReceiver(screenStateReceiver)
-            unregisterReceiver(activityTransitionReceiver)
-            transitionPendingIntent?.let {
-                ActivityRecognition.getClient(this).removeActivityTransitionUpdates(it)
-            }
         } catch (e: Exception) {
-            Log.e(TAG, "Error cleaning up receivers: ${e.message}")
+            Log.e(TAG, "Error cleaning up screenStateReceiver: ${e.message}")
         }
-        unregisterSensor()
-        unregisterGyroSensor()
+        unregisterSensors()
 
         android.os.Handler(android.os.Looper.getMainLooper()).post {
             MainActivity.flutterEngineInstance?.let { engine ->

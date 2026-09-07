@@ -13,6 +13,7 @@ import io.flutter.plugin.common.MethodChannel
 import android.provider.Settings
 import android.net.Uri
 import android.widget.Toast
+import androidx.activity.enableEdgeToEdge
 import com.waypointlattice.tripl.ui.PopupActivity
 import com.waypointlattice.tripl.utils.BackTapService
 
@@ -47,6 +48,7 @@ class MainActivity : FlutterFragmentActivity() {
     }
 
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         handleIntent(intent)
     }
