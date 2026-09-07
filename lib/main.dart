@@ -214,7 +214,8 @@ class _ThemeAppScopeState extends ConsumerState<ThemeAppScope> {
           SystemUiOverlayStyle(
             statusBarColor: Colors.transparent,
             statusBarIconBrightness: next.brightness == Brightness.dark ? Brightness.light : Brightness.dark,
-            systemNavigationBarColor: next.bgBase,
+            systemNavigationBarColor: Colors.transparent,
+            systemNavigationBarDividerColor: Colors.transparent,
             systemNavigationBarIconBrightness: next.brightness == Brightness.dark ? Brightness.light : Brightness.dark,
           ),
         );
