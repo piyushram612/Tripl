@@ -59,25 +59,6 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> with SingleTick
     });
   }
 
-  List<MonthYear> _getAvailableMonths(List<ExpenseTransaction> transactions) {
-    if (transactions.isEmpty) {
-      final now = DateTime.now();
-      return [MonthYear(now.year, now.month)];
-    }
-    final Set<MonthYear> months = {};
-    for (final tx in transactions) {
-      months.add(MonthYear(tx.date.year, tx.date.month));
-    }
-    final list = months.toList();
-    list.sort((a, b) {
-      if (a.year != b.year) {
-        return b.year.compareTo(a.year);
-      }
-      return b.month.compareTo(a.month);
-    });
-    return list;
-  }
-
   String _getDayOfWeekName(int weekday) {
     const weekDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     if (weekday >= 1 && weekday <= 7) {
@@ -530,11 +511,11 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> with SingleTick
   Widget build(BuildContext context) {
     final double bottomPadding = 72.0 + MediaQuery.of(context).padding.bottom + (MediaQuery.of(context).padding.bottom > 0 ? 10.0 : 20.0) + 24.0;
 
-    final transactions = ref.watch(transactionListProvider);
     final currency = ref.watch(currencyProvider);
     final calendarFocusedMonth = ref.watch(calendarFocusedMonthProvider);
 
-    final availableMonths = _getAvailableMonths(transactions);
+    final availableMonthsAsync = ref.watch(availableMonthsProvider);
+    final availableMonths = availableMonthsAsync.value ?? [MonthYear(DateTime.now().year, DateTime.now().month)];
     final latestMonth = availableMonths.isNotEmpty ? availableMonths.first : null;
 
     if (_selectedMonth == null || !availableMonths.contains(_selectedMonth)) {
@@ -552,13 +533,13 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> with SingleTick
       }
     }
 
-    // Filter transactions for the selected month
-    final monthlyTransactions = transactions.where((tx) =>
-        tx.date.year == _selectedMonth!.year && tx.date.month == _selectedMonth!.month).toList();
+    final effectiveMonth = _selectedMonth ?? MonthYear(DateTime.now().year, DateTime.now().month);
+    final monthlyTxsAsync = ref.watch(monthlyTransactionsProvider(effectiveMonth));
+    final monthlyTransactions = monthlyTxsAsync.value ?? [];
 
     double maxAmount = 100.0;
-    if (transactions.isNotEmpty) {
-      double rawMax = transactions.map((t) => t.amount).reduce((a, b) => a > b ? a : b);
+    if (monthlyTransactions.isNotEmpty) {
+      double rawMax = monthlyTransactions.map((t) => t.amount).reduce((a, b) => a > b ? a : b);
       maxAmount = ((rawMax / 100).ceil() * 100).toDouble();
       if (maxAmount < 100) maxAmount = 100;
     }
@@ -1482,37 +1463,5 @@ class _GroupTransactionCardState extends State<GroupTransactionCard> {
         ],
       ),
     );
-  }
-}
-
-class MonthYear {
-  final int year;
-  final int month;
-
-  MonthYear(this.year, this.month);
-
-  bool isAfter(MonthYear other) {
-    if (year != other.year) {
-      return year > other.year;
-    }
-    return month > other.month;
-  }
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is MonthYear && runtimeType == other.runtimeType && year == other.year && month == other.month;
-
-  @override
-  int get hashCode => year.hashCode ^ month.hashCode;
-
-  String get displayName {
-    final months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-    return '${months[month - 1]} $year';
-  }
-  
-  String get shortName {
-    final shortMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return '${shortMonths[month - 1]} $year';
   }
 }

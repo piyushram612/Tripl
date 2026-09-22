@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:uuid/uuid.dart';
+import '../core/type_parsers.dart';
 
 enum TransactionType { expense, income }
 enum RecurrenceFrequency { daily, weekly, monthly, yearly, custom }
@@ -234,32 +235,45 @@ class RecurringTransaction {
   }
 
   factory RecurringTransaction.fromMap(Map<String, dynamic> map) {
+
+    List<int>? parsedWeeklyDays;
+    if (map['weeklyDays'] is List) {
+      parsedWeeklyDays = (map['weeklyDays'] as List).map((e) => (e as num).toInt()).toList();
+    } else if (map['weeklyDays'] is String && (map['weeklyDays'] as String).isNotEmpty) {
+      try {
+        final decoded = json.decode(map['weeklyDays']);
+        if (decoded is List) {
+          parsedWeeklyDays = decoded.map((e) => (e as num).toInt()).toList();
+        }
+      } catch (_) {}
+    }
+
     return RecurringTransaction(
-      id: map['id'],
+      id: map['id']?.toString(),
       type: TransactionType.values.byName(map['type'] ?? 'expense'),
       amount: (map['amount'] as num).toDouble(),
-      title: map['title'] ?? '',
-      category: map['category'] ?? 'Other',
-      notes: map['notes'],
+      title: map['title']?.toString() ?? '',
+      category: map['category']?.toString() ?? 'Other',
+      notes: map['notes']?.toString(),
       frequency: RecurrenceFrequency.values.byName(map['frequency'] ?? 'monthly'),
-      frequencyInterval: map['frequencyInterval'] ?? 1,
-      weeklyDays: (map['weeklyDays'] as List<dynamic>?)?.map((e) => e as int).toList(),
+      frequencyInterval: (map['frequencyInterval'] as num?)?.toInt() ?? 1,
+      weeklyDays: parsedWeeklyDays,
       monthlyType: map['monthlyType'] != null ? MonthlyRecurrenceType.values.byName(map['monthlyType']) : null,
       startDate: DateTime.parse(map['startDate']),
       endCondition: EndConditionType.values.byName(map['endCondition'] ?? 'never'),
       endDate: map['endDate'] != null ? DateTime.parse(map['endDate']) : null,
-      endOccurrences: map['endOccurrences'],
-      occurrencesCompleted: map['occurrencesCompleted'] ?? 0,
-      reminderEnabled: map['reminderEnabled'] ?? true,
+      endOccurrences: (map['endOccurrences'] as num?)?.toInt(),
+      occurrencesCompleted: (map['occurrencesCompleted'] as num?)?.toInt() ?? 0,
+      reminderEnabled: parseBool(map['reminderEnabled'], true),
       reminderTiming: map['reminderTiming'] != null ? ReminderTiming.values.byName(map['reminderTiming']) : null,
-      autoCreate: map['autoCreate'] ?? false,
-      logAsPending: map['logAsPending'] ?? false,
-      merchant: map['merchant'],
-      paymentMethod: map['paymentMethod'] ?? 'Cash',
-      isVariableAmount: map['isVariableAmount'] ?? false,
+      autoCreate: parseBool(map['autoCreate'], false),
+      logAsPending: parseBool(map['logAsPending'], false),
+      merchant: map['merchant']?.toString(),
+      paymentMethod: map['paymentMethod']?.toString() ?? 'Cash',
+      isVariableAmount: parseBool(map['isVariableAmount'], false),
       expectedAmount: map['expectedAmount'] != null ? (map['expectedAmount'] as num).toDouble() : null,
       businessDayHandling: BusinessDayHandling.values.byName(map['businessDayHandling'] ?? 'doNothing'),
-      rememberCategory: map['rememberCategory'] ?? false,
+      rememberCategory: parseBool(map['rememberCategory'], false),
       status: RecurringStatus.values.byName(map['status'] ?? 'active'),
       nextDueDate: DateTime.parse(map['nextDueDate']),
       lastProcessedDate: map['lastProcessedDate'] != null ? DateTime.parse(map['lastProcessedDate']) : null,

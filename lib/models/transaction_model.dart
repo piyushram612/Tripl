@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../core/type_parsers.dart';
 
 class ExpenseTransaction {
   final String id;
@@ -87,6 +88,7 @@ class ExpenseTransaction {
   }
 
   factory ExpenseTransaction.fromMap(Map<String, dynamic> map) {
+
     final cat = (map['category'] ?? 'Other').toString();
     final lowerCat = cat.toLowerCase();
     final bool resolvedIsIncome;
@@ -96,23 +98,28 @@ class ExpenseTransaction {
         lowerCat == 'dividends') {
       resolvedIsIncome = true;
     } else {
-      resolvedIsIncome = map['isIncome'] ?? false;
+      resolvedIsIncome = parseBool(map['isIncome'], false);
     }
 
+    final bool isVerification = parseBool(map['needsVerification'], false);
+    final bool finishLater = map['wasFinishLater'] != null 
+        ? parseBool(map['wasFinishLater'], false) 
+        : isVerification;
+
     return ExpenseTransaction(
-      id: map['id'] ?? '',
+      id: map['id']?.toString() ?? '',
       amount: (map['amount'] as num).toDouble(),
-      merchant: map['merchant'] ?? '',
+      merchant: map['merchant']?.toString() ?? '',
       date: DateTime.parse(map['date']).toLocal(),
-      paymentMethod: map['paymentMethod'] ?? '',
+      paymentMethod: map['paymentMethod']?.toString() ?? '',
       category: cat,
-      notes: map['notes'] ?? '',
-      paidTo: map['paidTo'] ?? '',
-      needsVerification: map['needsVerification'] ?? false,
+      notes: map['notes']?.toString() ?? '',
+      paidTo: map['paidTo']?.toString() ?? '',
+      needsVerification: isVerification,
       reminderDate: map['reminderDate'] != null ? DateTime.parse(map['reminderDate']).toLocal() : null,
-      wasFinishLater: map['wasFinishLater'] ?? (map['needsVerification'] ?? false), // Backwards compat: if needsVerification was true, it wasFinishLater.
-      hideFromLedger: map['hideFromLedger'] ?? false,
-      groupId: map['groupId'],
+      wasFinishLater: finishLater,
+      hideFromLedger: parseBool(map['hideFromLedger'], false),
+      groupId: map['groupId']?.toString(),
       isIncome: resolvedIsIncome,
     );
   }

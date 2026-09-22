@@ -14,6 +14,7 @@ import 'dart:isolate';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/transaction_service.dart';
 import '../providers/recurring_transaction_provider.dart';
+import 'database_service.dart';
 @pragma('vm:entry-point')
 void notificationTapBackground(NotificationResponse notificationResponse) async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -81,127 +82,108 @@ class NotificationService {
       
       final prefs = await SharedPreferences.getInstance();
 
+      final dbService = DatabaseService.instance;
+
       if (type == 'transaction') {
-        final jsonStr = prefs.getString('transactions_json');
-        if (jsonStr != null) {
-          final List<dynamic> decoded = json.decode(jsonStr);
-          final txs = decoded.map((e) => ExpenseTransaction.fromMap(e)).toList();
-          final idx = txs.indexWhere((t) => t.id == id);
-          if (idx != -1) {
-            if (action == 'mark_verified') {
-              txs[idx] = txs[idx].copyWith(needsVerification: false);
-              await prefs.setString('transactions_json', json.encode(txs.map((e) => e.toMap()).toList()));
-              if (notificationId != null) {
-                await cancelNotificationById(notificationId);
-              }
-            } else if (action == 'remind_later') {
-              final mins = prefs.getInt('tripl_snooze_duration_mins') ?? 240;
-              txs[idx] = txs[idx].copyWith(reminderDate: DateTime.now().add(Duration(minutes: mins)));
-              await prefs.setString('transactions_json', json.encode(txs.map((e) => e.toMap()).toList()));
-              await _initTimezonesForBackground();
-              await scheduleTransactionReminder(txs[idx]);
-            }
+        if (action == 'mark_verified') {
+          await dbService.updateVerificationStatus(id, needsVerification: false);
+          if (notificationId != null) {
+            await cancelNotificationById(notificationId);
+          }
+        } else if (action == 'remind_later') {
+          final mins = prefs.getInt('tripl_snooze_duration_mins') ?? 240;
+          final newReminder = DateTime.now().add(Duration(minutes: mins));
+          await dbService.updateReminderDate(id, newReminder);
+          await _initTimezonesForBackground();
+          // Fetch the updated transaction to reschedule
+          final allTxs = await dbService.getAllTransactions();
+          final matching = allTxs.where((t) => t.id == id).toList();
+          if (matching.isNotEmpty) {
+            await scheduleTransactionReminder(matching.first);
           }
         }
       } else if (type == 'recurring') {
-        final data = prefs.getString('tripl_recurring_transactions');
-        if (data != null) {
-          final List<dynamic> decoded = json.decode(data);
-          final rTxs = decoded.map((e) => RecurringTransaction.fromMap(e)).toList();
-          final idx = rTxs.indexWhere((t) => t.id == id);
-          if (idx != -1) {
-            var rTx = rTxs[idx];
-            if (action == 'mark_verified') {
-              final jsonStr = prefs.getString('transactions_json');
-              if (jsonStr != null) {
-                final List<dynamic> tDecoded = json.decode(jsonStr);
-                final txs = tDecoded.map((e) => ExpenseTransaction.fromMap(e)).toList();
-                final tIdx = txs.indexWhere((t) => t.needsVerification && t.amount == rTx.amount && t.merchant == (rTx.merchant ?? rTx.title));
-                if (tIdx != -1) {
-                  txs[tIdx] = txs[tIdx].copyWith(needsVerification: false);
-                  await prefs.setString('transactions_json', json.encode(txs.map((e) => e.toMap()).toList()));
-                  if (notificationId != null) await cancelNotificationById(notificationId);
-                } else {
-                  final newExpense = ExpenseTransaction(
-                    id: const Uuid().v4(),
-                    amount: rTx.amount,
-                    merchant: rTx.merchant ?? rTx.title,
-                    date: rTx.nextDueDate,
-                    paymentMethod: rTx.paymentMethod,
-                    category: rTx.category,
-                    needsVerification: false,
-                    wasFinishLater: true,
-                    isIncome: rTx.type == TransactionType.income,
-                  );
-                  txs.add(newExpense);
-                  await prefs.setString('transactions_json', json.encode(txs.map((e) => e.toMap()).toList()));
-                  rTxs[idx] = rTx.advance();
-                  await prefs.setString('tripl_recurring_transactions', json.encode(rTxs.map((e) => e.toMap()).toList()));
-                  await _initTimezonesForBackground();
-                  await scheduleRecurringNotification(rTxs[idx]);
-                }
-              }
-            } else if (action == 'remind_later') {
-              await _initTimezonesForBackground();
-              final mins = prefs.getInt('tripl_snooze_duration_mins') ?? 240;
-              final snoozeTime = DateTime.now().add(Duration(minutes: mins));
-              await _notificationsPlugin.zonedSchedule(
-                id: rTx.id.hashCode,
-                title: rTx.autoCreate ? 'Action Required: Auto-Created Log' : 'Payment Due',
-                body: rTx.autoCreate 
-                  ? 'Auto-logged ${rTx.title} (₹${rTx.amount.toStringAsFixed(0)}). Please verify.' 
-                  : '${rTx.title} is due for ₹${rTx.amount.toStringAsFixed(0)}.',
-                scheduledDate: tz.TZDateTime.from(snoozeTime, tz.local),
-                notificationDetails: NotificationDetails(
-                  android: AndroidNotificationDetails(
-                    'tripl_recurring_v2',
-                    'Recurring Transactions',
-                    channelDescription: 'Reminders for recurring transactions',
-                    importance: Importance.max,
-                    priority: Priority.high,
-                    actions: rTx.autoCreate 
-                      ? const [
-                          AndroidNotificationAction('mark_verified', 'Mark as Verified', showsUserInterface: false, cancelNotification: true),
-                          AndroidNotificationAction('remind_later', 'Remind Later', showsUserInterface: false, cancelNotification: true),
-                        ]
-                      : const [
-                          AndroidNotificationAction('log_paid', 'Log as Paid', showsUserInterface: false, cancelNotification: true),
-                          AndroidNotificationAction('skip', 'Skip', showsUserInterface: false, cancelNotification: true),
-                          AndroidNotificationAction('remind_later', 'Remind Later', showsUserInterface: false, cancelNotification: true),
-                        ],
-                  ),
-                ),
-                payload: payloadStr,
-                androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-              );
-            } else if (action == 'log_paid') {
-              final jsonStr = prefs.getString('transactions_json');
-              List<ExpenseTransaction> txs = [];
-              if (jsonStr != null) {
-                 final List<dynamic> tDecoded = json.decode(jsonStr);
-                 txs = tDecoded.map((e) => ExpenseTransaction.fromMap(e)).toList();
-              }
+        final rTxs = await dbService.getAllRecurringTransactions();
+        final idx = rTxs.indexWhere((t) => t.id == id);
+        if (idx != -1) {
+          var rTx = rTxs[idx];
+          if (action == 'mark_verified') {
+            final allTxs = await dbService.getAllTransactions();
+            final tIdx = allTxs.indexWhere((t) => t.needsVerification && t.amount == rTx.amount && t.merchant == (rTx.merchant ?? rTx.title));
+            if (tIdx != -1) {
+              await dbService.updateVerificationStatus(allTxs[tIdx].id, needsVerification: false);
+              if (notificationId != null) await cancelNotificationById(notificationId);
+            } else {
               final newExpense = ExpenseTransaction(
                 id: const Uuid().v4(),
                 amount: rTx.amount,
                 merchant: rTx.merchant ?? rTx.title,
-                date: DateTime.now(),
+                date: rTx.nextDueDate,
                 paymentMethod: rTx.paymentMethod,
                 category: rTx.category,
+                needsVerification: false,
+                wasFinishLater: true,
                 isIncome: rTx.type == TransactionType.income,
               );
-              txs.add(newExpense);
-              await prefs.setString('transactions_json', json.encode(txs.map((e) => e.toMap()).toList()));
-              rTxs[idx] = rTx.advance();
-              await prefs.setString('tripl_recurring_transactions', json.encode(rTxs.map((e) => e.toMap()).toList()));
+              await dbService.insertTransaction(newExpense);
+              final advanced = rTx.advance();
+              await dbService.updateRecurringTransaction(advanced);
               await _initTimezonesForBackground();
-              await scheduleRecurringNotification(rTxs[idx]);
-            } else if (action == 'skip') {
-              rTxs[idx] = rTx.advance(skip: true);
-              await prefs.setString('tripl_recurring_transactions', json.encode(rTxs.map((e) => e.toMap()).toList()));
-              await _initTimezonesForBackground();
-              await scheduleRecurringNotification(rTxs[idx]);
+              await scheduleRecurringNotification(advanced);
             }
+          } else if (action == 'remind_later') {
+            await _initTimezonesForBackground();
+            final mins = prefs.getInt('tripl_snooze_duration_mins') ?? 240;
+            final snoozeTime = DateTime.now().add(Duration(minutes: mins));
+            await _notificationsPlugin.zonedSchedule(
+              id: rTx.id.hashCode,
+              title: rTx.autoCreate ? 'Action Required: Auto-Created Log' : 'Payment Due',
+              body: rTx.autoCreate 
+                ? 'Auto-logged ${rTx.title} (₹${rTx.amount.toStringAsFixed(0)}). Please verify.' 
+                : '${rTx.title} is due for ₹${rTx.amount.toStringAsFixed(0)}.',
+              scheduledDate: tz.TZDateTime.from(snoozeTime, tz.local),
+              notificationDetails: NotificationDetails(
+                android: AndroidNotificationDetails(
+                  'tripl_recurring_v2',
+                  'Recurring Transactions',
+                  channelDescription: 'Reminders for recurring transactions',
+                  importance: Importance.max,
+                  priority: Priority.high,
+                  actions: rTx.autoCreate 
+                    ? const [
+                        AndroidNotificationAction('mark_verified', 'Mark as Verified', showsUserInterface: false, cancelNotification: true),
+                        AndroidNotificationAction('remind_later', 'Remind Later', showsUserInterface: false, cancelNotification: true),
+                      ]
+                    : const [
+                        AndroidNotificationAction('log_paid', 'Log as Paid', showsUserInterface: false, cancelNotification: true),
+                        AndroidNotificationAction('skip', 'Skip', showsUserInterface: false, cancelNotification: true),
+                        AndroidNotificationAction('remind_later', 'Remind Later', showsUserInterface: false, cancelNotification: true),
+                      ],
+                ),
+              ),
+              payload: payloadStr,
+              androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+            );
+          } else if (action == 'log_paid') {
+            final newExpense = ExpenseTransaction(
+              id: const Uuid().v4(),
+              amount: rTx.amount,
+              merchant: rTx.merchant ?? rTx.title,
+              date: DateTime.now(),
+              paymentMethod: rTx.paymentMethod,
+              category: rTx.category,
+              isIncome: rTx.type == TransactionType.income,
+            );
+            await dbService.insertTransaction(newExpense);
+            final advanced = rTx.advance();
+            await dbService.updateRecurringTransaction(advanced);
+            await _initTimezonesForBackground();
+            await scheduleRecurringNotification(advanced);
+          } else if (action == 'skip') {
+            final advanced = rTx.advance(skip: true);
+            await dbService.updateRecurringTransaction(advanced);
+            await _initTimezonesForBackground();
+            await scheduleRecurringNotification(advanced);
           }
         }
       }

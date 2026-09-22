@@ -3,14 +3,17 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
-import '../models/transaction_model.dart';
+
+import '../services/database_service.dart';
+import '../services/transaction_service.dart';
 
 final currencyProvider = StateNotifierProvider<CurrencyNotifier, String>((ref) {
-  return CurrencyNotifier();
+  return CurrencyNotifier(ref);
 });
 
 class CurrencyNotifier extends StateNotifier<String> {
-  CurrencyNotifier() : super('₹') {
+  final Ref? _ref;
+  CurrencyNotifier([this._ref]) : super('₹') {
     loadCurrency();
   }
 
@@ -136,28 +139,13 @@ class CurrencyNotifier extends StateNotifier<String> {
 
     // Update transactions if requested and rate is not 1.0 (or even if rate is 1.0 but convertValues is false, we don't scale)
     if (applyToExisting && rate != 1.0) {
-      final txJsonStr = prefs.getString('transactions_json');
-      if (txJsonStr != null && txJsonStr != '[]') {
-        try {
-          final List<dynamic> decoded = json.decode(txJsonStr);
-          final updated = decoded.map((item) {
-            final tx = ExpenseTransaction.fromMap(item);
-            return ExpenseTransaction(
-              id: tx.id,
-              amount: tx.amount * rate,
-              merchant: tx.merchant,
-              date: tx.date,
-              paymentMethod: tx.paymentMethod,
-              category: tx.category,
-              notes: tx.notes,
-              paidTo: tx.paidTo,
-              needsVerification: tx.needsVerification,
-              reminderDate: tx.reminderDate,
-              groupId: tx.groupId,
-            ).toMap();
-          }).toList();
-          await prefs.setString('transactions_json', json.encode(updated));
-        } catch (_) {}
+      final dbService = DatabaseService.instance;
+      final txs = await dbService.getAllTransactions();
+      if (txs.isNotEmpty) {
+        final updated = txs.map((tx) => tx.copyWith(amount: tx.amount * rate)).toList();
+        await dbService.clearAllTransactions();
+        await dbService.insertTransactions(updated);
+        _ref?.read(transactionListProvider.notifier).loadTransactions();
       }
     }
 

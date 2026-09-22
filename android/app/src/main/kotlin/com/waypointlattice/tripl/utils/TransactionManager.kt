@@ -25,35 +25,34 @@ object TransactionManager {
         isIncome: Boolean = false
     ) {
         try {
-            val prefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-            val transactionsJson = prefs.getString("flutter.transactions_json", "[]") ?: "[]"
-            val jsonArray = JSONArray(transactionsJson)
+            val txDateStr = dateString ?: run {
+                val df = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS", Locale.US)
+                df.format(Date())
+            }
+            val txId = UUID.randomUUID().toString()
+            val amountVal = amountText.toDoubleOrNull() ?: 0.0
 
-            val newTx = JSONObject().apply {
-                put("id", UUID.randomUUID().toString())
-                put("amount", amountText.toDoubleOrNull() ?: 0.0)
+            // Insert into shared SQLite database (primary storage)
+            val dbHelper = TriplDatabaseHelper.getInstance(context)
+            val values = android.content.ContentValues().apply {
+                put("id", txId)
+                put("amount", amountVal)
                 put("merchant", titleText)
                 put("paidTo", paidTo)
-                put("needsVerification", needsVerification)
-                put("isIncome", isIncome)
-                if (reminderDate != null) {
-                    put("reminderDate", reminderDate)
-                }
-
-                val txDateStr = dateString ?: run {
-                    val df = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS", Locale.US)
-                    df.format(Date())
-                }
+                put("needsVerification", if (needsVerification) 1 else 0)
+                put("wasFinishLater", if (needsVerification) 1 else 0)
+                put("hideFromLedger", 0)
+                put("isIncome", if (isIncome) 1 else 0)
+                put("reminderDate", reminderDate)
                 put("date", txDateStr)
                 put("paymentMethod", source)
                 put("category", category)
+                put("notes", "")
             }
-
-            jsonArray.put(newTx)
-            prefs.edit().putString("flutter.transactions_json", jsonArray.toString()).apply()
-            Log.d("TransactionManager", "Transaction saved successfully: $newTx")
+            val rowId = dbHelper.insertTransaction(values)
+            Log.d("TransactionManager", "Transaction saved to SQLite: id=$txId, rowId=$rowId")
         } catch (e: Exception) {
-            Log.e("TransactionManager", "Failed to save transaction: ${e.message}", e)
+            Log.e("TransactionManager", "Failed to save transaction to SQLite: ${e.message}", e)
         }
     }
 

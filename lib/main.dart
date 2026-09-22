@@ -18,12 +18,13 @@ import 'screens/splash_screen.dart';
 import 'providers/biometric_provider.dart';
 import 'providers/theme_provider.dart';
 import 'screens/lock_screen.dart';
-
+import 'services/migration_service.dart';
 
 final ProviderContainer appContainer = ProviderContainer();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await MigrationService.runMigrationIfNeeded();
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../core/type_parsers.dart';
 
 class OutstandingRecord {
   final String id;
@@ -62,16 +63,17 @@ class OutstandingRecord {
   }
 
   factory OutstandingRecord.fromMap(Map<String, dynamic> map) {
+
     return OutstandingRecord(
-      id: map['id'] ?? '',
-      personName: map['personName'] ?? '',
+      id: map['id']?.toString() ?? '',
+      personName: map['personName']?.toString() ?? '',
       amount: (map['amount'] as num).toDouble(),
-      notes: map['notes'] ?? '',
-      date: DateTime.parse(map['date']),
-      isLent: map['isLent'] ?? true,
-      isSettled: map['isSettled'] ?? false,
-      settledDate: map['settledDate'] != null ? DateTime.parse(map['settledDate']) : null,
-      linkedTransactionId: map['linkedTransactionId'],
+      notes: map['notes']?.toString() ?? '',
+      date: DateTime.parse(map['date']).toLocal(),
+      isLent: parseBool(map['isLent'], true),
+      isSettled: parseBool(map['isSettled'], false),
+      settledDate: map['settledDate'] != null ? DateTime.parse(map['settledDate']).toLocal() : null,
+      linkedTransactionId: map['linkedTransactionId']?.toString(),
     );
   }
 

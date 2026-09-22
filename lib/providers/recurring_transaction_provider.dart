@@ -1,10 +1,10 @@
-import 'dart:convert';
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../models/recurring_transaction_model.dart';
 import '../models/transaction_model.dart';
+import '../services/database_service.dart';
 import '../services/notification_service.dart';
 import '../services/transaction_service.dart';
 
@@ -13,14 +13,17 @@ final recurringTransactionsProvider = StateNotifierProvider<RecurringTransaction
 });
 
 class RecurringTransactionsNotifier extends StateNotifier<List<RecurringTransaction>> {
-  static const _storageKey = 'tripl_recurring_transactions';
   final Ref _ref;
+  final DatabaseService _dbService = DatabaseService.instance;
   Timer? _timer;
+  final Completer<void> _initCompleter = Completer<void>();
 
   RecurringTransactionsNotifier(this._ref) : super([]) {
     _loadTransactions();
     _startTimer();
   }
+
+  Future<void> ensureLoaded() => _initCompleter.future;
 
   void _startTimer() {
     _timer = Timer.periodic(const Duration(seconds: 60), (_) {
@@ -35,16 +38,23 @@ class RecurringTransactionsNotifier extends StateNotifier<List<RecurringTransact
   }
 
   Future<void> _loadTransactions() async {
-    final prefs = await SharedPreferences.getInstance();
-    final String? data = prefs.getString(_storageKey);
-    if (data != null) {
-      final List<dynamic> decoded = json.decode(data);
-      state = decoded.map((item) => RecurringTransaction.fromMap(item)).toList();
+    try {
+      final list = await _dbService.getAllRecurringTransactions();
+      state = list;
+    } catch (e) {
+      debugPrint('⚠️ [RecurringTransactionsNotifier] Error loading: $e');
+    } finally {
+      if (!_initCompleter.isCompleted) {
+        _initCompleter.complete();
+      }
     }
+    await _ref.read(transactionListProvider.notifier).ensureLoaded();
     await _processDueTransactions();
   }
 
   Future<void> _processDueTransactions() async {
+    await ensureLoaded();
+    await _ref.read(transactionListProvider.notifier).ensureLoaded();
     bool stateChanged = false;
     final List<RecurringTransaction> updatedState = List.from(state);
 
@@ -82,12 +92,12 @@ class RecurringTransactionsNotifier extends StateNotifier<List<RecurringTransact
       if (txChanged) {
         updatedState[i] = tx;
         stateChanged = true;
+        await _dbService.updateRecurringTransaction(tx);
       }
     }
 
     if (stateChanged) {
       state = updatedState;
-      await _saveTransactions(updatedState);
       for (var tx in updatedState) {
         if (tx.status == RecurringStatus.active && tx.reminderEnabled) {
           await NotificationService.scheduleRecurringNotification(tx);
@@ -97,19 +107,16 @@ class RecurringTransactionsNotifier extends StateNotifier<List<RecurringTransact
   }
 
   Future<void> checkDueTransactions() async {
+    await ensureLoaded();
+    await _ref.read(transactionListProvider.notifier).ensureLoaded();
     await _processDueTransactions();
   }
 
-  Future<void> _saveTransactions(List<RecurringTransaction> transactions) async {
-    final prefs = await SharedPreferences.getInstance();
-    final String encoded = json.encode(transactions.map((tx) => tx.toMap()).toList());
-    await prefs.setString(_storageKey, encoded);
-  }
-
   Future<void> addTransaction(RecurringTransaction transaction) async {
+    await ensureLoaded();
+    await _dbService.insertRecurringTransaction(transaction);
     final newState = [...state, transaction];
     state = newState;
-    await _saveTransactions(newState);
     
     if (transaction.reminderEnabled) {
       await NotificationService.scheduleRecurringNotification(transaction);
@@ -119,12 +126,13 @@ class RecurringTransactionsNotifier extends StateNotifier<List<RecurringTransact
   }
 
   Future<void> updateTransaction(RecurringTransaction transaction) async {
+    await ensureLoaded();
+    await _dbService.updateRecurringTransaction(transaction);
     final newState = [
       for (final tx in state)
         if (tx.id == transaction.id) transaction else tx,
     ];
     state = newState;
-    await _saveTransactions(newState);
     
     if (transaction.reminderEnabled) {
       await NotificationService.scheduleRecurringNotification(transaction);
@@ -136,13 +144,15 @@ class RecurringTransactionsNotifier extends StateNotifier<List<RecurringTransact
   }
 
   Future<void> deleteTransaction(String id) async {
+    await ensureLoaded();
+    await _dbService.deleteRecurringTransaction(id);
     final newState = state.where((tx) => tx.id != id).toList();
     state = newState;
-    await _saveTransactions(newState);
     await NotificationService.cancelNotification(id);
   }
 
   Future<void> togglePause(String id) async {
+    await ensureLoaded();
     final tx = state.firstWhere((element) => element.id == id);
     final newStatus = tx.status == RecurringStatus.active ? RecurringStatus.paused : RecurringStatus.active;
     final updated = tx.copyWith(status: newStatus);
@@ -150,6 +160,7 @@ class RecurringTransactionsNotifier extends StateNotifier<List<RecurringTransact
   }
 
   Future<void> markAsPaid(String id) async {
+    await ensureLoaded();
     final index = state.indexWhere((tx) => tx.id == id);
     if (index == -1) return;
     
@@ -160,7 +171,7 @@ class RecurringTransactionsNotifier extends StateNotifier<List<RecurringTransact
       id: const Uuid().v4(),
       amount: tx.amount,
       merchant: tx.merchant ?? tx.title,
-      date: DateTime.now(), // Create transaction with current time
+      date: DateTime.now(),
       paymentMethod: tx.paymentMethod,
       category: tx.category,
       isIncome: tx.type == TransactionType.income,
@@ -172,6 +183,7 @@ class RecurringTransactionsNotifier extends StateNotifier<List<RecurringTransact
   }
 
   Future<void> skip(String id) async {
+    await ensureLoaded();
     final index = state.indexWhere((tx) => tx.id == id);
     if (index == -1) return;
     
