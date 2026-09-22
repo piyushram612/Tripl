@@ -178,6 +178,7 @@ fun PopupCard(
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .statusBarsPadding()
             .imePadding()
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
@@ -193,7 +194,8 @@ fun PopupCard(
         ) {
             Card(
                 modifier = Modifier
-                    .padding(top = 56.dp)
+                    .padding(top = 16.dp, start = 16.dp, end = 16.dp)
+                    .widthIn(max = 560.dp)
                     .then(if (isExpanded) Modifier.fillMaxWidth() else Modifier.fillMaxWidth(0.96f))
                     .wrapContentHeight()
                     .animateContentSize()
