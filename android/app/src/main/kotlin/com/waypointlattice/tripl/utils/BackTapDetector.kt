@@ -50,8 +50,8 @@ class BackTapDetector(private val onTripleTapTriggered: (recommendedForce: Float
 
     // Autonomous Motion Mode tracking with hysteresis
     private var motionStillStartTime = 0L
-    private val MOTION_ENTER_THRESHOLD = 0.75f  // runningNoise floor to trigger Motion Mode
-    private val MOTION_EXIT_THRESHOLD = 0.45f   // runningNoise floor to transition back to Still Mode
+    private val MOTION_ENTER_THRESHOLD = 1.20f  // runningNoise floor to trigger Motion Mode (raised to prevent taps from triggering it)
+    private val MOTION_EXIT_THRESHOLD = 0.65f   // runningNoise floor to transition back to Still Mode
     private val MOTION_EXIT_DELAY_MS = 1500L    // sustained calm duration before exiting Motion Mode
 
     // Gyroscope tracking state
@@ -59,6 +59,7 @@ class BackTapDetector(private val onTripleTapTriggered: (recommendedForce: Float
     private var gyroY = 0f
     private var gyroZ = 0f
     private var gyroMag = 0f
+    private var gyroBaseline = 0f
     private var lastGyroTimestamp = 0L
 
     // Free-fall weightlessness detection state (filters soft couch/bed drops)
@@ -78,14 +79,27 @@ class BackTapDetector(private val onTripleTapTriggered: (recommendedForce: Float
 
     /**
      * Ingests 3-axis gyroscope Angular Velocity (rad/s).
-     * Used in Step 7 to enforce rotational stillness before accepting a tap candidate.
+     * Computes raw magnitude and maintains a time-invariant low-pass baseline (tau = 150ms).
+     * This separates sustained rotational motion (walking, turning, arm swinging) from 
+     * the transient 15-25ms rotational recoil produced by the physical tap impact.
      */
     fun processGyroEvent(gx: Float, gy: Float, gz: Float) {
+        val currentTime = System.currentTimeMillis()
         gyroX = gx
         gyroY = gy
         gyroZ = gz
         gyroMag = Math.sqrt((gx * gx + gy * gy + gz * gz).toDouble()).toFloat()
-        lastGyroTimestamp = System.currentTimeMillis()
+
+        if (lastGyroTimestamp == 0L) {
+            gyroBaseline = gyroMag
+        } else {
+            val dtGyro = Math.max(0.001f, (currentTime - lastGyroTimestamp) / 1000f)
+            // Time constant tau = 0.15s (150ms): absorbs 15-25ms tap recoil shocks while tracking sustained motion
+            val tau = 0.15f
+            val alpha = (tau / (tau + dtGyro)).coerceIn(0.70f, 0.98f)
+            gyroBaseline = alpha * gyroBaseline + (1f - alpha) * gyroMag
+        }
+        lastGyroTimestamp = currentTime
     }
 
     /**
@@ -216,29 +230,34 @@ class BackTapDetector(private val onTripleTapTriggered: (recommendedForce: Float
         // Threshold: Base Noise Floor = 1.2 m/s^2 (Motion Mode) / 1.5 m/s^2 (Standard Mode);
         //            Decay Factor = 0.98.
         // =======================================================================================
-        val totalLinearMotion = absX + absY + absZ
-        val noiseInput = totalLinearMotion.coerceAtMost(3.0f)
-        val noiseDecay = 0.98f
-        runningNoise = noiseDecay * runningNoise + (1 - noiseDecay) * noiseInput
+        // Only update running ambient noise when NOT in an active tap sequence or post-tap settling window.
+        // This prevents the user's deliberate back taps from inflating runningNoise and falsely triggering Motion Mode.
+        val isInTapSequence = (tapCount > 0) || (currentTime < postTapRefractoryUntil)
+        if (!isInTapSequence) {
+            val totalLinearMotion = absX + absY + absZ
+            val noiseInput = totalLinearMotion.coerceAtMost(3.0f)
+            val noiseDecay = 0.98f
+            runningNoise = noiseDecay * runningNoise + (1 - noiseDecay) * noiseInput
 
-        // Autonomous Motion Mode evaluation with hysteresis
-        if (runningNoise >= MOTION_ENTER_THRESHOLD) {
-            motionStillStartTime = 0L
-            if (!isMotionMode) {
-                isMotionMode = true
-            }
-        } else if (runningNoise <= MOTION_EXIT_THRESHOLD) {
-            if (isMotionMode) {
-                if (motionStillStartTime == 0L) {
-                    motionStillStartTime = currentTime
-                } else if (currentTime - motionStillStartTime >= MOTION_EXIT_DELAY_MS) {
-                    isMotionMode = false
-                    motionStillStartTime = 0L
+            // Autonomous Motion Mode evaluation with hysteresis
+            if (runningNoise >= MOTION_ENTER_THRESHOLD) {
+                motionStillStartTime = 0L
+                if (!isMotionMode) {
+                    isMotionMode = true
                 }
+            } else if (runningNoise <= MOTION_EXIT_THRESHOLD) {
+                if (isMotionMode) {
+                    if (motionStillStartTime == 0L) {
+                        motionStillStartTime = currentTime
+                    } else if (currentTime - motionStillStartTime >= MOTION_EXIT_DELAY_MS) {
+                        isMotionMode = false
+                        motionStillStartTime = 0L
+                    }
+                }
+            } else {
+                // Deadband between 0.65f and 1.20f: reset calm timer so inter-step pauses don't prematurely exit
+                motionStillStartTime = 0L
             }
-        } else {
-            // Deadband between 0.45f and 0.75f: reset calm timer so inter-step pauses don't prematurely exit
-            motionStillStartTime = 0L
         }
 
         val baseNoiseFloor = if (isMotionMode) 1.2f else 1.5f
@@ -259,13 +278,13 @@ class BackTapDetector(private val onTripleTapTriggered: (recommendedForce: Float
         // STEP 3: Violent Impact Rejection (Drop & Off-Axis Shock Filter)
         // =======================================================================================
         // What it does: Evaluates Z-axis force and 3D vector impact magnitude. If force exceeds
-        //               25.0 m/s^2, triggers an immediate 800ms cooldown lockout and resets sequence.
+        //               38.0 m/s^2 (~4g), triggers an immediate 800ms cooldown lockout and resets sequence.
         // Why it exists: Hard drops on desks or off-axis corner bumps produce massive kinetic shocks.
         //                This gate mutes the pipeline to prevent post-impact structural ringing.
-        // Threshold: LinearZ >= 25.0 m/s^2 OR Total Vector Impact Magnitude >= 25.0 m/s^2.
+        // Threshold: LinearZ >= 38.0 m/s^2 OR Total Vector Impact Magnitude >= 38.0 m/s^2.
         // =======================================================================================
         val impactMag = Math.sqrt((linearX * linearX + linearY * linearY + linearZ * linearZ).toDouble()).toFloat()
-        if (linearZ >= 25.0f || impactMag >= 25.0f) {
+        if (linearZ >= 38.0f || impactMag >= 38.0f) {
             Log.d("BackTapDetector", "[Step 3] Violent impact detected (Z: ${String.format("%.2f", linearZ)}, ImpactMag: ${String.format("%.2f", impactMag)}). Activating 800ms lockout.")
             cooldownLockoutTime = currentTime + 800L
             tapCount = 0
@@ -275,8 +294,9 @@ class BackTapDetector(private val onTripleTapTriggered: (recommendedForce: Float
             return
         }
 
-        // Track negative Z excursions (device moving away from finger) for screen tap recoil check
-        if (linearZ < -2.0f) {
+        // Track strong negative Z excursions (front screen tap pushes screen away)
+        // Raised to -4.5 m/s^2 to prevent back-tap chassis rebound (-2 to -3 m/s^2) from triggering it
+        if (linearZ < -4.5f) {
             lastNegativeSpikeTime = currentTime
         }
 
@@ -284,25 +304,28 @@ class BackTapDetector(private val onTripleTapTriggered: (recommendedForce: Float
         // STEP 4: Positive Tap Polarity & Force Upper Bound Ceiling Check
         // =======================================================================================
         // What it does: Verifies linear Z is positive (inward tap against casing) and exceeds
-        //               the adaptive force floor while remaining below the 18.0 m/s^2 ceiling.
+        //               the adaptive force floor while remaining below the 26.0 m/s^2 ceiling.
         // Why it exists: Finger back-taps press the casing forward (+Z). Negative spikes (-Z)
-        //                are screen taps or releases. Knocks > 18.0 m/s^2 are non-tap shocks.
-        // Threshold: currentForceThreshold < linearZ <= 18.0 m/s^2.
+        //                are screen taps or releases. Knocks > 26.0 m/s^2 are non-tap shocks.
+        // Threshold: currentForceThreshold < linearZ <= 26.0 m/s^2.
         // =======================================================================================
-        val tapForceCeiling = 18.0f
+        val tapForceCeiling = 26.0f
         if (linearZ > currentForceThreshold && linearZ <= tapForceCeiling) {
 
             // ===================================================================================
             // STEP 5: Front Screen Tap Recoil Suppression
             // ===================================================================================
-            // What it does: Rejects positive Z spikes preceded within 70ms by a negative Z spike.
+            // What it does: Rejects weak positive Z recoils preceded within 70ms by a strong negative front-screen tap.
             // Why it exists: Tapping the front screen pushes the phone away (-Z), causing hand 
-            //                grip recoil back (+Z). This timing check discards front screen taps.
-            // Threshold: Screen Recoil Time Window < 70ms.
+            //                grip recoil back (+Z). Real back taps deliver strong positive impulse (Z >= 6.0 m/s^2)
+            //                or occur during an active sequence (tapCount > 0) where negative dips are casing rebounds.
+            // Threshold: Screen Recoil Time Window < 70ms AND linearZ < 6.0 m/s^2 AND tapCount == 0.
             // ===================================================================================
             if (currentTime - lastNegativeSpikeTime < 70L) {
-                Log.d("BackTapDetector", "[Step 5] Spike ignored: classified as front screen tap recoil.")
-                return
+                if (tapCount == 0 && linearZ < 6.0f) {
+                    Log.d("BackTapDetector", "[Step 5] Spike ignored: classified as front screen tap recoil (Z: ${String.format("%.2f", linearZ)} < 6.0).")
+                    return
+                }
             }
 
             // ===================================================================================
@@ -318,16 +341,22 @@ class BackTapDetector(private val onTripleTapTriggered: (recommendedForce: Float
             if (linearZ > lateralMag * 0.8f) {
 
                 // ===============================================================================
-                // STEP 7: Jerk Sharpness & Gyroscope Angular Velocity Gating
+                // STEP 7: Jerk Sharpness & Gyroscope Rotational Motion Gating
                 // ===============================================================================
                 // What it does: Validates rate of acceleration change (Jerk) AND verifies that 
-                //               gyroscope rotational angular velocity magnitude is calm.
-                // Why it exists: Genuine finger taps are sharp mechanical transients (high Jerk).
-                //                Vehicle vibration, walking gait, and hand movement induce high
-                //                rotational velocity (> 1.2-1.8 rad/s), while finger taps keep
-                //                the device rotationally stable.
-                // Threshold: Jerk > currentJerkThreshold; Gyro Ceiling = 1.2 rad/s (Motion Mode) /
-                //            1.8 rad/s (Standard Mode).
+                //               prior background rotational motion (gyroBaseline) was calm, 
+                //               preventing false taps during walking arm swings, wrist twists, or turns.
+                // Why it exists: Genuine finger taps are sharp mechanical transients (high Jerk) 
+                //                delivered while the phone is held relatively steady. The tap impact 
+                //                itself imparts micro-recoil torque (pitch/roll up to ~5 rad/s for 15ms), 
+                //                so we check pre-impact smoothed baseline motion rather than dropping 
+                //                taps due to their own transient recoil. Yaw (Z-rotation) is also checked 
+                //                since normal Z-axis taps produce near-zero yaw torque.
+                // Threshold: Jerk > currentJerkThreshold; 
+                //            Baseline Gyro Ceiling = 1.4 rad/s (Standard) / 0.9 rad/s (Motion Mode);
+                //            Yaw Gyro Ceiling = 2.5 rad/s (Standard) / 1.8 rad/s (Motion Mode);
+                //            Instantaneous Recoil Ceiling = 6.5 rad/s (Standard) / 4.5 rad/s (Motion Mode);
+                //            Bypassed when isCalib is active.
                 // ===============================================================================
                 val baseJerk = if (isCalib) 1.5f else jerkThreshold
                 val currentJerkThreshold = baseJerk * noiseMultiplier
@@ -336,10 +365,28 @@ class BackTapDetector(private val onTripleTapTriggered: (recommendedForce: Float
 
                     // Gyroscope Rotational Stillness Check (if gyro data is active within last 500ms)
                     val isGyroActive = (currentTime - lastGyroTimestamp < 500L)
-                    val gyroLimit = if (isMotionMode) 1.2f else 1.8f
-                    if (isGyroActive && gyroMag > gyroLimit) {
-                        Log.d("BackTapDetector", "[Step 7] Spike ignored: rotational motion active (gyroMag: ${String.format("%.2f", gyroMag)} rad/s > $gyroLimit)")
-                        return
+                    if (isGyroActive && !isCalib) {
+                        val baselineLimit = if (isMotionMode) 1.4f else 1.8f
+                        val yawLimit = if (isMotionMode) 2.0f else 2.8f
+                        val shockCeiling = if (isMotionMode) 5.5f else 7.5f
+
+                        // 1. Check sustained background motion before impact (rejects walking / active handling)
+                        if (gyroBaseline > baselineLimit) {
+                            Log.d("BackTapDetector", "[Step 7] Spike ignored: background rotational motion active (gyroBaseline: ${String.format("%.2f", gyroBaseline)} rad/s > $baselineLimit)")
+                            return
+                        }
+
+                        // 2. Check yaw twist (perpendicular back taps produce negligible Z-axis yaw torque)
+                        if (Math.abs(gyroZ) > yawLimit) {
+                            Log.d("BackTapDetector", "[Step 7] Spike ignored: excessive yaw rotation (gyroZ: ${String.format("%.2f", gyroZ)} rad/s > $yawLimit)")
+                            return
+                        }
+
+                        // 3. Check extreme instantaneous shock ceiling (violent spins, drops, or tumbles)
+                        if (gyroMag > shockCeiling) {
+                            Log.d("BackTapDetector", "[Step 7] Spike ignored: extreme rotational shock (gyroMag: ${String.format("%.2f", gyroMag)} rad/s > $shockCeiling)")
+                            return
+                        }
                     }
 
                     val timeDiff = currentTime - lastTapTime
@@ -438,7 +485,7 @@ class BackTapDetector(private val onTripleTapTriggered: (recommendedForce: Float
                                 val maxForce = maxOf(f1, maxOf(f2, f3))
                                 val minForce = minOf(f1, minOf(f2, f3))
 
-                                val maxAllowedRatio = if (isMotionMode) 3.5f else 4.5f
+                                val maxAllowedRatio = if (isMotionMode) 4.2f else 5.2f
                                 val actualRatio = maxForce / minForce
 
                                 if (maxForce <= minForce * maxAllowedRatio) {
@@ -500,6 +547,7 @@ class BackTapDetector(private val onTripleTapTriggered: (recommendedForce: Float
         lastNegativeSpikeTime = 0L
         spikeHistory.clear()
         runningNoise = 0f
+        gyroBaseline = 0f
         motionStillStartTime = 0L
         freeFallStartTime = 0L
         lastFreeFallTime = 0L
