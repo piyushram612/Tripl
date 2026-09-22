@@ -35,9 +35,10 @@ class DailySpendData {
   bool get hasActivity => totalExpense > 0 || totalIncome > 0 || scheduledRecurring.isNotEmpty;
 }
 
-/// Provider that aggregates transactions and recurring bills by date map (Key: "YYYY-MM-DD")
 final dailySpendMapProvider = Provider<Map<String, DailySpendData>>((ref) {
-  final transactions = ref.watch(transactionListProvider);
+  final focusedMonth = ref.watch(calendarFocusedMonthProvider);
+  final monthTxsAsync = ref.watch(monthlyTransactionsProvider(MonthYear(focusedMonth.year, focusedMonth.month)));
+  final transactions = monthTxsAsync.value ?? [];
   final recurringList = ref.watch(recurringTransactionsProvider);
 
   final Map<String, List<ExpenseTransaction>> txMap = {};

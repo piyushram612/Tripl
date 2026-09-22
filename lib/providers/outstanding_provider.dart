@@ -1,8 +1,9 @@
-import 'dart:convert';
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../models/outstanding_model.dart';
 import '../models/transaction_model.dart';
+import '../services/database_service.dart';
 import '../services/transaction_service.dart';
 
 final outstandingListProvider = StateNotifierProvider<OutstandingListNotifier, List<OutstandingRecord>>((ref) {
@@ -11,37 +12,26 @@ final outstandingListProvider = StateNotifierProvider<OutstandingListNotifier, L
 
 class OutstandingListNotifier extends StateNotifier<List<OutstandingRecord>> {
   final Ref _ref;
-  static const String _storageKey = 'outstanding_ledger_json';
-  Future<void>? _loadFuture;
+  final DatabaseService _dbService = DatabaseService.instance;
+  final Completer<void> _initCompleter = Completer<void>();
 
   OutstandingListNotifier(this._ref) : super([]) {
-    _loadFuture = loadRecords();
+    loadRecords();
   }
 
-  Future<void> ensureLoaded() async {
-    if (_loadFuture != null) {
-      await _loadFuture;
-    } else {
-      _loadFuture = loadRecords();
-      await _loadFuture;
-    }
-  }
+  Future<void> ensureLoaded() => _initCompleter.future;
 
   Future<void> loadRecords() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.reload();
-      final jsonStr = prefs.getString(_storageKey);
-      if (jsonStr == null || jsonStr == '[]') {
-        state = [];
-        return;
-      }
-      final List<dynamic> decoded = json.decode(jsonStr);
-      state = decoded.map((item) => OutstandingRecord.fromMap(item)).toList()
-        ..sort((a, b) => b.date.compareTo(a.date));
+      final list = await _dbService.getAllOutstandingRecords();
+      state = list..sort((a, b) => b.date.compareTo(a.date));
     } catch (e) {
-      print("Error loading outstanding records: $e");
+      debugPrint("⚠️ [OutstandingListNotifier] Error loading records: $e");
       state = [];
+    } finally {
+      if (!_initCompleter.isCompleted) {
+        _initCompleter.complete();
+      }
     }
   }
 
@@ -75,8 +65,8 @@ class OutstandingListNotifier extends StateNotifier<List<OutstandingRecord>> {
     }
 
     final newRecord = record.copyWith(linkedTransactionId: linkedTxId);
+    await _dbService.insertOutstandingRecord(newRecord);
     state = [newRecord, ...state]..sort((a, b) => b.date.compareTo(a.date));
-    await _saveToDisk();
   }
 
   Future<void> settleRecord(String id, {bool recordTimelineTx = false, String? paymentMethod}) async {
@@ -116,16 +106,15 @@ class OutstandingListNotifier extends StateNotifier<List<OutstandingRecord>> {
     final updated = record.copyWith(
       isSettled: true,
       settledDate: DateTime.now(),
-      // Track the settle transaction id if we recorded one
       linkedTransactionId: settleTxId ?? record.linkedTransactionId,
     );
+
+    await _dbService.updateOutstandingRecord(updated);
 
     state = [
       for (int i = 0; i < state.length; i++)
         if (i == index) updated else state[i]
     ];
-
-    await _saveToDisk();
   }
 
   Future<void> settleRecordPartial(
@@ -191,13 +180,14 @@ class OutstandingListNotifier extends StateNotifier<List<OutstandingRecord>> {
       linkedTransactionId: settleTxId,
     );
 
+    await _dbService.updateOutstandingRecord(remainingRecord);
+    await _dbService.insertOutstandingRecord(settledRecord);
+
     state = [
       for (int i = 0; i < state.length; i++)
         if (i == index) remainingRecord else state[i],
       settledRecord,
     ]..sort((a, b) => b.date.compareTo(a.date));
-
-    await _saveToDisk();
   }
 
   Future<void> settlePersonAmount(
@@ -226,20 +216,24 @@ class OutstandingListNotifier extends StateNotifier<List<OutstandingRecord>> {
 
       if (r.amount <= remainingToSettle + 0.0001) {
         remainingToSettle -= r.amount;
-        modifiedActive[r.id] = r.copyWith(
+        final updated = r.copyWith(
           isSettled: true,
           settledDate: DateTime.now(),
           linkedTransactionId: linkedTimelineTxId ?? r.linkedTransactionId,
         );
+        modifiedActive[r.id] = updated;
+        await _dbService.updateOutstandingRecord(updated);
       } else {
         final portion = remainingToSettle;
         remainingToSettle = 0;
 
-        modifiedActive[r.id] = r.copyWith(
+        final updated = r.copyWith(
           amount: r.amount - portion,
         );
+        modifiedActive[r.id] = updated;
+        await _dbService.updateOutstandingRecord(updated);
 
-        newSettled.add(OutstandingRecord(
+        final newRec = OutstandingRecord(
           id: '${DateTime.now().millisecondsSinceEpoch}_${newSettled.length}',
           personName: r.personName,
           amount: portion,
@@ -249,7 +243,9 @@ class OutstandingListNotifier extends StateNotifier<List<OutstandingRecord>> {
           isSettled: true,
           settledDate: DateTime.now(),
           linkedTransactionId: linkedTimelineTxId,
-        ));
+        );
+        newSettled.add(newRec);
+        await _dbService.insertOutstandingRecord(newRec);
       }
     }
 
@@ -258,29 +254,17 @@ class OutstandingListNotifier extends StateNotifier<List<OutstandingRecord>> {
         if (modifiedActive.containsKey(r.id)) modifiedActive[r.id]! else r,
       ...newSettled,
     ]..sort((a, b) => b.date.compareTo(a.date));
-
-    await _saveToDisk();
   }
 
   Future<void> deleteRecord(String id) async {
     await ensureLoaded();
+    await _dbService.deleteOutstandingRecord(id);
     state = state.where((r) => r.id != id).toList();
-    await _saveToDisk();
-  }
-
-  Future<void> _saveToDisk() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final jsonStr = json.encode(state.map((r) => r.toMap()).toList());
-      await prefs.setString(_storageKey, jsonStr);
-    } catch (e) {
-      print("Error saving outstanding records: $e");
-    }
   }
 
   Future<void> clearAll() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_storageKey);
+    final db = await _dbService.database;
+    await db.delete('outstanding_records');
     state = [];
   }
 }

@@ -1,16 +1,23 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:tripl/models/transaction_model.dart';
 import 'package:tripl/models/outstanding_model.dart';
 import 'package:tripl/providers/outstanding_provider.dart';
 import 'package:tripl/services/transaction_service.dart';
+import 'package:tripl/services/database_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  sqfliteFfiInit();
+  databaseFactory = databaseFactoryFfi;
 
-  setUp(() {
+  setUp(() async {
     SharedPreferences.setMockInitialValues({});
+    final db = await DatabaseService.instance.database;
+    await db.delete('transactions');
+    await db.delete('outstanding_records');
   });
 
   group('ExpenseTransaction.fromMap healing test', () {
