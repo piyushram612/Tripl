@@ -161,24 +161,23 @@ class CsvService {
 
   /// Pick and parse a CSV file into raw headers and rows for mapper UI
   static Future<RawCsvData> pickAndParseRawCsv() async {
-    final result = await FilePicker.pickFiles(
+    final files = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['csv'],
     );
 
-    if (result == null || result.files.isEmpty) {
+    if (files.isEmpty) {
       throw Exception('No file selected');
     }
 
-    final pickedFile = result.files.first;
+    final pickedFile = files.first;
     String content;
     if (pickedFile.path != null) {
       final file = File(pickedFile.path!);
       content = await file.readAsString();
-    } else if (pickedFile.bytes != null) {
-      content = utf8.decode(pickedFile.bytes!);
     } else {
-      throw Exception('Could not read the picked file content');
+      final bytes = await pickedFile.readAsBytes();
+      content = utf8.decode(bytes);
     }
 
     final List<List<String>> parsedRows = parseRawLines(content);
