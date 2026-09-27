@@ -189,6 +189,9 @@ class BackTapService : Service(), SensorEventListener {
         detector?.tapWindowMaxMs = savedMs
         detector?.tapThreshold = savedForce
         detector?.jerkThreshold = savedJerk
+        detector?.onDiagnosticEvent = { event, payload ->
+            MainActivity.onDiagnosticEvent(event, payload)
+        }
 
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, createNotification())

@@ -27,6 +27,14 @@ class MainActivity : FlutterFragmentActivity() {
         var backTapEventSink: EventChannel.EventSink? = null
         var flutterEngineInstance: FlutterEngine? = null
 
+        fun onDiagnosticEvent(event: String, payload: Map<String, Any>) {
+            if (calibrationMode && backTapEventSink != null) {
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    backTapEventSink?.success(payload)
+                }
+            }
+        }
+
         fun onBackTapDetected(recommendedForce: Float, recommendedJerk: Float) {
             android.util.Log.d("TriplCalib", "onBackTapDetected: calibrationMode=$calibrationMode sink=$backTapEventSink")
             if (calibrationMode) {
@@ -37,7 +45,8 @@ class MainActivity : FlutterFragmentActivity() {
                         backTapEventSink?.success(mapOf(
                             "event" to "tap",
                             "recommendedForce" to recommendedForce.toDouble(),
-                            "recommendedJerk" to recommendedJerk.toDouble()
+                            "recommendedJerk" to recommendedJerk.toDouble(),
+                            "message" to "Triple back tap confirmed!"
                         ))
                     } else {
                         android.util.Log.w("TriplCalib", "Sink is null! Flutter has not subscribed to the event channel yet.")
@@ -94,6 +103,9 @@ class MainActivity : FlutterFragmentActivity() {
                     val enabled = call.argument<Boolean>("enabled") ?: false
                     calibrationMode = enabled
                     BackTapService.instance?.detector?.resetState()
+                    BackTapService.instance?.detector?.onDiagnosticEvent = { event, payload ->
+                        onDiagnosticEvent(event, payload)
+                    }
                     if (enabled) {
                         // Always start the sensor service during calibration so the
                         // accelerometer is guaranteed to be listening, even if the

@@ -70,7 +70,7 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
           }
         }
       } else if (call.method == 'onBackTapStateChanged') {
-        final enabled = call.arguments as bool;
+        final enabled = (call.arguments as bool?) ?? false;
         ref.read(backTapEnabledProvider.notifier).updateState(enabled);
       }
     });
