@@ -11,6 +11,57 @@ import com.waypointlattice.tripl.MainActivity
  * footstep gait impacts, screen tap recoils, and off-axis shocks.
  */
 class BackTapDetector(private val onTripleTapTriggered: (recommendedForce: Float, recommendedJerk: Float) -> Unit) {
+    /**
+     * Optional diagnostic event callback for real-time coaching, sensor metrics,
+     * and live calibration feedback streams to Flutter.
+     */
+    var onDiagnosticEvent: ((event: String, payload: Map<String, Any>) -> Unit)? = null
+
+    private var lastFeedbackTime = 0L
+    private var lastFeedbackType = ""
+
+    private fun emitFeedback(type: String, title: String, message: String, extra: Map<String, Any> = emptyMap()) {
+        val now = System.currentTimeMillis()
+        if (type == lastFeedbackType && now - lastFeedbackTime < 280L) return
+        if (now - lastFeedbackTime < 100L) return
+
+        lastFeedbackTime = now
+        lastFeedbackType = type
+
+        val payload = HashMap<String, Any>(extra)
+        payload["event"] = "tap_feedback"
+        payload["type"] = type
+        payload["title"] = title
+        payload["message"] = message
+        payload["timestamp"] = now
+        onDiagnosticEvent?.invoke("tap_feedback", payload)
+    }
+
+    private fun emitProgress(count: Int, linearZ: Float, jerk: Float, gap: Long) {
+        val now = System.currentTimeMillis()
+        val payload = mapOf<String, Any>(
+            "event" to "tap_progress",
+            "tapCount" to count,
+            "force" to linearZ.toDouble(),
+            "jerk" to jerk.toDouble(),
+            "gapMs" to gap,
+            "message" to if (count == 1) "Tap 1 registered!" else "Tap $count registered! (${gap}ms gap)",
+            "timestamp" to now
+        )
+        onDiagnosticEvent?.invoke("tap_progress", payload)
+    }
+
+    private fun emitReset(reason: String, message: String) {
+        val now = System.currentTimeMillis()
+        val payload = mapOf<String, Any>(
+            "event" to "tap_reset",
+            "reason" to reason,
+            "message" to message,
+            "timestamp" to now
+        )
+        onDiagnosticEvent?.invoke("tap_reset", payload)
+    }
+
     private var lastTapTime = 0L
     private var firstTapTime = 0L
     private var tapCount = 0
@@ -167,6 +218,7 @@ class BackTapDetector(private val onTripleTapTriggered: (recommendedForce: Float
         val autoResetTimeout = Math.max(tapWindowMaxMs + 150L, 600L)
         if (tapCount > 0 && (currentTime - lastTapTime > autoResetTimeout)) {
             Log.d("BackTapDetector", "[Step 0.5] Inactivity timeout (${currentTime - lastTapTime}ms > ${autoResetTimeout}ms). Resetting tap sequence.")
+            emitReset("timeout", "Cadence timed out (${currentTime - lastTapTime}ms). Sequence reset to 0.")
             tapCount = 0
             lastTapTime = 0L
             firstTapTime = 0L
@@ -187,8 +239,13 @@ class BackTapDetector(private val onTripleTapTriggered: (recommendedForce: Float
         val isFlatOnDesk = absGravityZ >= 7.0f
         val isLandscape = Math.abs(gravity[0]) > Math.abs(gravity[1])
 
-        if (isLandscape && !isFlatOnDesk && !isCalib) {
-            return
+        if (isLandscape && !isFlatOnDesk) {
+            if (isCalib && (absX > 2.0f || absY > 2.0f || absZ > 2.0f)) {
+                emitFeedback("landscape", "Landscape Orientation", "Phone is held sideways. Hold upright in portrait, or lay flat on desk.")
+            }
+            if (!isCalib) {
+                return
+            }
         }
 
         // =======================================================================================
@@ -273,6 +330,7 @@ class BackTapDetector(private val onTripleTapTriggered: (recommendedForce: Float
         // Time-invariant Jerk calculation (rate of acceleration change, normalized to 10ms frame)
         val normalizedJerkZ = Math.abs(linearZ - lastLinearZ) * (0.01f / dt)
         lastLinearZ = linearZ
+        val lateralMag = Math.sqrt((linearX * linearX + linearY * linearY).toDouble()).toFloat()
 
         // =======================================================================================
         // STEP 3: Violent Impact Rejection (Drop & Off-Axis Shock Filter)
@@ -286,6 +344,12 @@ class BackTapDetector(private val onTripleTapTriggered: (recommendedForce: Float
         val impactMag = Math.sqrt((linearX * linearX + linearY * linearY + linearZ * linearZ).toDouble()).toFloat()
         if (linearZ >= 38.0f || impactMag >= 38.0f) {
             Log.d("BackTapDetector", "[Step 3] Violent impact detected (Z: ${String.format("%.2f", linearZ)}, ImpactMag: ${String.format("%.2f", impactMag)}). Activating 800ms lockout.")
+            emitFeedback(
+                "violent_impact",
+                "Violent Impact Detected",
+                "Phone struck too hard (${String.format("%.1f", linearZ)} m/s²). Tap gently with your fingertip.",
+                mapOf("force" to linearZ.toDouble(), "impactMag" to impactMag.toDouble())
+            )
             cooldownLockoutTime = currentTime + 800L
             tapCount = 0
             lastTapTime = 0L
@@ -324,6 +388,12 @@ class BackTapDetector(private val onTripleTapTriggered: (recommendedForce: Float
             if (currentTime - lastNegativeSpikeTime < 70L) {
                 if (tapCount == 0 && linearZ < 6.0f) {
                     Log.d("BackTapDetector", "[Step 5] Spike ignored: classified as front screen tap recoil (Z: ${String.format("%.2f", linearZ)} < 6.0).")
+                    emitFeedback(
+                        "screen_recoil",
+                        "Front Screen Recoil",
+                        "Front screen press detected. Tap firmly on the back casing instead.",
+                        mapOf("force" to linearZ.toDouble())
+                    )
                     return
                 }
             }
@@ -337,7 +407,6 @@ class BackTapDetector(private val onTripleTapTriggered: (recommendedForce: Float
             //                ratio allows valid taps even when holding the device at a 45-degree angle.
             // Threshold: linearZ > 0.8 * sqrt(linearX^2 + linearY^2).
             // ===================================================================================
-            val lateralMag = Math.sqrt((linearX * linearX + linearY * linearY).toDouble()).toFloat()
             if (linearZ > lateralMag * 0.8f) {
 
                 // ===============================================================================
@@ -356,7 +425,6 @@ class BackTapDetector(private val onTripleTapTriggered: (recommendedForce: Float
                 //            Baseline Gyro Ceiling = 1.4 rad/s (Standard) / 0.9 rad/s (Motion Mode);
                 //            Yaw Gyro Ceiling = 2.5 rad/s (Standard) / 1.8 rad/s (Motion Mode);
                 //            Instantaneous Recoil Ceiling = 6.5 rad/s (Standard) / 4.5 rad/s (Motion Mode);
-                //            Bypassed when isCalib is active.
                 // ===============================================================================
                 val baseJerk = if (isCalib) 1.5f else jerkThreshold
                 val currentJerkThreshold = baseJerk * noiseMultiplier
@@ -365,7 +433,7 @@ class BackTapDetector(private val onTripleTapTriggered: (recommendedForce: Float
 
                     // Gyroscope Rotational Stillness Check (if gyro data is active within last 500ms)
                     val isGyroActive = (currentTime - lastGyroTimestamp < 500L)
-                    if (isGyroActive && !isCalib) {
+                    if (isGyroActive) {
                         val baselineLimit = if (isMotionMode) 1.4f else 1.8f
                         val yawLimit = if (isMotionMode) 2.0f else 2.8f
                         val shockCeiling = if (isMotionMode) 5.5f else 7.5f
@@ -373,165 +441,233 @@ class BackTapDetector(private val onTripleTapTriggered: (recommendedForce: Float
                         // 1. Check sustained background motion before impact (rejects walking / active handling)
                         if (gyroBaseline > baselineLimit) {
                             Log.d("BackTapDetector", "[Step 7] Spike ignored: background rotational motion active (gyroBaseline: ${String.format("%.2f", gyroBaseline)} rad/s > $baselineLimit)")
+                            emitFeedback(
+                                "motion",
+                                "Phone in Motion",
+                                "Continuous motion (${String.format("%.1f", gyroBaseline)} rad/s). Hold phone steady while tapping.",
+                                mapOf("force" to linearZ.toDouble(), "gyroBaseline" to gyroBaseline.toDouble())
+                            )
                             return
                         }
 
                         // 2. Check yaw twist (perpendicular back taps produce negligible Z-axis yaw torque)
                         if (Math.abs(gyroZ) > yawLimit) {
                             Log.d("BackTapDetector", "[Step 7] Spike ignored: excessive yaw rotation (gyroZ: ${String.format("%.2f", gyroZ)} rad/s > $yawLimit)")
+                            emitFeedback(
+                                "twist",
+                                "Wrist Twist Detected",
+                                "Phone twisted during tap (Yaw: ${String.format("%.1f", Math.abs(gyroZ))} rad/s > $yawLimit). Keep wrist still and flat.",
+                                mapOf("force" to linearZ.toDouble(), "gyroZ" to gyroZ.toDouble())
+                            )
                             return
                         }
 
                         // 3. Check extreme instantaneous shock ceiling (violent spins, drops, or tumbles)
                         if (gyroMag > shockCeiling) {
                             Log.d("BackTapDetector", "[Step 7] Spike ignored: extreme rotational shock (gyroMag: ${String.format("%.2f", gyroMag)} rad/s > $shockCeiling)")
+                            emitFeedback(
+                                "rotational_shock",
+                                "Rotational Shock",
+                                "Sudden tilt / shake (${String.format("%.1f", gyroMag)} rad/s). Keep phone orientation steady.",
+                                mapOf("force" to linearZ.toDouble(), "gyroMag" to gyroMag.toDouble())
+                            )
                             return
                         }
                     }
-
-                    val timeDiff = currentTime - lastTapTime
 
                     // ===========================================================================
                     // STEP 8: Refractory Settling Window & Elastic Cadence Verification
                     // ===========================================================================
-                    // What it does: Mutes chassis ringing for 65ms post-tap, verifies inter-tap 
-                    //               gap is within bounds (70ms - tapWindowMaxMs), and checks
-                    //               global gesture duration cap (max 1.2s - 1.4s).
-                    // Why it exists: Structural casing resonance after Tap 1 often registers as a 
-                    //               false Tap 2 within 40ms. The 65ms refractory window eliminates 
-                    //               resonance while allowing rapid user tapping (>= 70ms).
-                    // Threshold: Refractory Window = 65ms; Min Inter-Tap Gap = 70ms; 
-                    //            Max Inter-Tap Gap = tapWindowMaxMs (default 400ms);
-                    //            Max Gesture Total Duration = min(1400ms, tapWindowMaxMs * 2.2).
-                    // ===========================================================================
-                    if (timeDiff > tapWindowMinMs) {
+                    if (tapCount == 0) {
+                        // Start of a brand new tap sequence (Tap 1)
+                        Log.d("BackTapDetector", "Valid Tap 1 Candidate Spike! Z: ${String.format("%.2f", linearZ)}, Jerk: ${String.format("%.2f", normalizedJerkZ)}")
+                        tapCount = 1
+                        firstTapTime = currentTime
+                        lastTapTime = currentTime
+                        calibForces[0] = linearZ
+                        calibJerks[0] = normalizedJerkZ
+                        postTapRefractoryUntil = currentTime + 65L
 
-                        // Mute chassis resonance ringing within 65ms of preceding tap
-                        if (currentTime < postTapRefractoryUntil) {
-                            Log.d("BackTapDetector", "[Step 8] Spike ignored: post-tap 65ms refractory window active.")
-                            return
-                        }
+                        spikeHistory.clear()
+                        spikeHistory.add(currentTime)
+                        emitProgress(1, linearZ, normalizedJerkZ, 0L)
+                        return
+                    }
 
-                        Log.d("BackTapDetector", "Valid Tap Candidate Spike! Z: ${String.format("%.2f", linearZ)}, Inter-tap Gap: ${timeDiff}ms, Jerk: ${String.format("%.2f", normalizedJerkZ)}")
+                    // Subsequent taps in sequence (Tap 2 or Tap 3)
+                    val timeDiff = (currentTime - lastTapTime).coerceAtLeast(0L)
 
-                        val isValidGap = (timeDiff in tapWindowMinMs..tapWindowMaxMs)
+                    // Mute chassis resonance ringing within 65ms of preceding tap
+                    if (currentTime < postTapRefractoryUntil) {
+                        Log.d("BackTapDetector", "[Step 8] Spike ignored: post-tap 65ms refractory window active.")
+                        return
+                    }
 
-                        if (isValidGap) {
-                            // Enforce global gesture duration cap for 3-tap sequence
-                            val maxGestureDuration = Math.min(1400L, (tapWindowMaxMs * 2.2).toLong())
-                            val currentGestureDuration = if (firstTapTime > 0L) currentTime - firstTapTime else 0L
-
-                            if (tapCount >= 2 && currentGestureDuration > maxGestureDuration) {
-                                Log.d("BackTapDetector", "[Step 8] Gesture sequence reset: overall time exceeded (${currentGestureDuration}ms > ${maxGestureDuration}ms).")
-                                tapCount = 1
-                                firstTapTime = currentTime
-                                lastTapTime = currentTime
-                                calibForces[0] = linearZ
-                                calibJerks[0] = normalizedJerkZ
-                                postTapRefractoryUntil = currentTime + 65L
-                                return
-                            }
-
-                            // Store tap metrics for ratio consistency check
-                            if (tapCount in 0..2) {
-                                calibForces[tapCount] = linearZ
-                                calibJerks[tapCount] = normalizedJerkZ
-                            }
-
-                            // ===================================================================
-                            // STEP 9: Dynamic Impulse Density Filter (Vibration Burst Suppression)
-                            // ===================================================================
-                            // What it does: Tracks spike frequency over a rolling window. If more
-                            //               than 3-4 spikes occur in rapid succession, squashes gesture.
-                            // Why it exists: Continuous vibration sources (bus engine, jackhammer,
-                            //               rough road) produce rapid repeated spikes that pass
-                            //               individual thresholds. Density tracking identifies continuous noise.
-                            // Threshold: Max Spikes = 3 (Standard) / 4 (Motion Mode) in history window.
-                            // ===================================================================
-                            val historyWindow = tapWindowMaxMs * 2 + 200L
-                            spikeHistory.removeAll { currentTime - it > historyWindow }
-                            spikeHistory.add(currentTime)
-
-                            val maxSpikeLimit = if (isMotionMode) 4 else 3
-                            if (spikeHistory.size > maxSpikeLimit) {
-                                Log.d("BackTapDetector", "[Step 9] Gesture suppressed: dense vibration activity (${spikeHistory.size} spikes in ${historyWindow}ms).")
-                                tapCount = 0
-                                lastTapTime = 0L
-                                firstTapTime = 0L
-                                spikeHistory.clear()
-                                return
-                            }
-
-                            tapCount++
-                            lastTapTime = currentTime
-                            postTapRefractoryUntil = currentTime + 65L
-
-                            // ===================================================================
-                            // STEP 10: Human Force Consistency & Triple Tap Gesture Completion
-                            // ===================================================================
-                            // What it does: Evaluates the ratio between peak and minimum forces of
-                            //               all 3 taps (maxForce / minForce). If ratio <= limit,
-                            //               fires the triple back-tap callback.
-                            // Why it exists: Human finger back-taps in a single sequence have highly
-                            //               consistent impact energy (force ratio <= 3.5 - 4.5).
-                            //               Random physical jostles vary wildly in force ratio.
-                            // Threshold: Max Force Ratio = 3.5 (Motion Mode) / 4.5 (Standard Mode).
-                            // ===================================================================
-                            if (tapCount >= 3) {
-                                val f1 = calibForces[0]
-                                val f2 = calibForces[1]
-                                val f3 = calibForces[2]
-
-                                val maxForce = maxOf(f1, maxOf(f2, f3))
-                                val minForce = minOf(f1, minOf(f2, f3))
-
-                                val maxAllowedRatio = if (isMotionMode) 4.2f else 5.2f
-                                val actualRatio = maxForce / minForce
-
-                                if (maxForce <= minForce * maxAllowedRatio) {
-                                    val avgForce = (f1 + f2 + f3) / 3f
-                                    val avgJerk = (calibJerks[0] + calibJerks[1] + calibJerks[2]) / 3f
-
-                                    val recommendedForce = (avgForce * 0.60f).coerceIn(2.2f, 4.5f)
-                                    val recommendedJerk = (avgJerk * 0.50f).coerceIn(1.5f, 2.2f)
-
-                                    Log.d("BackTapDetector", "🏆 [Step 10] TRIPLE BACK TAP TRIGGERED! Avg Force: $avgForce, Avg Jerk: $avgJerk (Force Ratio: ${String.format("%.2f", actualRatio)} <= Limit: $maxAllowedRatio)")
-                                    onTripleTapTriggered(recommendedForce, recommendedJerk)
-
-                                    // Reset sequence state after successful gesture trigger
-                                    lastTapTime = 0L
-                                    firstTapTime = 0L
-                                    tapCount = 0
-                                    spikeHistory.clear()
-                                } else {
-                                    Log.d("BackTapDetector", "[Step 10] Sequence rejected: force ratio too inconsistent (Max: ${String.format("%.2f", maxForce)}, Min: ${String.format("%.2f", minForce)}, Ratio: ${String.format("%.2f", actualRatio)} > Limit: $maxAllowedRatio)")
-                                    lastTapTime = 0L
-                                    firstTapTime = 0L
-                                    tapCount = 0
-                                    spikeHistory.clear()
-                                }
-                            }
-                        } else {
-                            // Start of a new tap sequence (Tap 1)
-                            tapCount = 1
-                            firstTapTime = currentTime
-                            lastTapTime = currentTime
-                            calibForces[0] = linearZ
-                            calibJerks[0] = normalizedJerkZ
-                            postTapRefractoryUntil = currentTime + 65L
-
-                            spikeHistory.clear()
-                            spikeHistory.add(currentTime)
-                        }
-                    } else {
+                    if (timeDiff <= tapWindowMinMs) {
                         Log.d("BackTapDetector", "Tap ignored: debounced (gap: ${timeDiff}ms <= min gap: ${tapWindowMinMs}ms)")
+                        emitFeedback(
+                            "too_fast",
+                            "Tapping Too Fast",
+                            "Gap was only ${timeDiff}ms (min required is ${tapWindowMinMs}ms). Space taps out slightly — don't flutter tap.",
+                            mapOf("gapMs" to timeDiff, "minMs" to tapWindowMinMs)
+                        )
+                        return
+                    }
+
+                    if (timeDiff > tapWindowMaxMs) {
+                        Log.d("BackTapDetector", "Tap cadence too slow (${timeDiff}ms > ${tapWindowMaxMs}ms). Restarting sequence at Tap 1.")
+                        emitFeedback(
+                            "too_slow",
+                            "Tapping Too Slow",
+                            "Gap between taps was ${timeDiff}ms (max allowed is ${tapWindowMaxMs}ms). Tap in a steady, quicker rhythm.",
+                            mapOf("gapMs" to timeDiff, "maxMs" to tapWindowMaxMs)
+                        )
+                        tapCount = 1
+                        firstTapTime = currentTime
+                        lastTapTime = currentTime
+                        calibForces[0] = linearZ
+                        calibJerks[0] = normalizedJerkZ
+                        postTapRefractoryUntil = currentTime + 65L
+
+                        spikeHistory.clear()
+                        spikeHistory.add(currentTime)
+                        emitProgress(1, linearZ, normalizedJerkZ, 0L)
+                        return
+                    }
+
+                    Log.d("BackTapDetector", "Valid Tap Candidate Spike! Z: ${String.format("%.2f", linearZ)}, Inter-tap Gap: ${timeDiff}ms, Jerk: ${String.format("%.2f", normalizedJerkZ)}")
+
+                    // Enforce global gesture duration cap for 3-tap sequence
+                    val maxGestureDuration = Math.min(1400L, (tapWindowMaxMs * 2.2).toLong())
+                    val currentGestureDuration = if (firstTapTime > 0L) currentTime - firstTapTime else 0L
+
+                    if (tapCount >= 2 && currentGestureDuration > maxGestureDuration) {
+                        Log.d("BackTapDetector", "[Step 8] Gesture sequence reset: overall time exceeded (${currentGestureDuration}ms > ${maxGestureDuration}ms).")
+                        emitReset("duration_exceeded", "Cadence too slow overall (${currentGestureDuration}ms > ${maxGestureDuration}ms). Sequence reset to Tap 1.")
+                        tapCount = 1
+                        firstTapTime = currentTime
+                        lastTapTime = currentTime
+                        calibForces[0] = linearZ
+                        calibJerks[0] = normalizedJerkZ
+                        postTapRefractoryUntil = currentTime + 65L
+                        emitProgress(1, linearZ, normalizedJerkZ, 0L)
+                        return
+                    }
+
+                    // Store tap metrics for ratio consistency check
+                    if (tapCount in 0..2) {
+                        calibForces[tapCount] = linearZ
+                        calibJerks[tapCount] = normalizedJerkZ
+                    }
+
+                    // ===================================================================
+                    // STEP 9: Dynamic Impulse Density Filter (Vibration Burst Suppression)
+                    // ===================================================================
+                    val historyWindow = tapWindowMaxMs * 2 + 200L
+                    spikeHistory.removeAll { currentTime - it > historyWindow }
+                    spikeHistory.add(currentTime)
+
+                    val maxSpikeLimit = if (isMotionMode) 4 else 3
+                    if (spikeHistory.size > maxSpikeLimit) {
+                        Log.d("BackTapDetector", "[Step 9] Gesture suppressed: dense vibration activity (${spikeHistory.size} spikes in ${historyWindow}ms).")
+                        emitFeedback(
+                            "vibration",
+                            "Continuous Vibration",
+                            "Too many rapid vibration spikes (${spikeHistory.size} in ${historyWindow}ms). Ensure steady hand.",
+                            mapOf("spikes" to spikeHistory.size)
+                        )
+                        tapCount = 0
+                        lastTapTime = 0L
+                        firstTapTime = 0L
+                        spikeHistory.clear()
+                        return
+                    }
+
+                    tapCount++
+                    lastTapTime = currentTime
+                    postTapRefractoryUntil = currentTime + 65L
+
+                    emitProgress(tapCount, linearZ, normalizedJerkZ, timeDiff)
+
+                    // ===================================================================
+                    // STEP 10: Human Force Consistency & Triple Tap Gesture Completion
+                    // ===================================================================
+                    if (tapCount >= 3) {
+                        val f1 = calibForces[0]
+                        val f2 = calibForces[1]
+                        val f3 = calibForces[2]
+
+                        val maxForce = maxOf(f1, maxOf(f2, f3))
+                        val minForce = minOf(f1, minOf(f2, f3))
+
+                        val maxAllowedRatio = if (isMotionMode) 4.2f else 5.2f
+                        val actualRatio = if (minForce > 0.001f) maxForce / minForce else 1.0f
+
+                        if (maxForce <= minForce * maxAllowedRatio) {
+                            val avgForce = (f1 + f2 + f3) / 3f
+                            val avgJerk = (calibJerks[0] + calibJerks[1] + calibJerks[2]) / 3f
+
+                            val safeAvgForce = if (avgForce.isNaN() || avgForce <= 0f) 2.5f else avgForce
+                            val safeAvgJerk = if (avgJerk.isNaN() || avgJerk <= 0f) 2.0f else avgJerk
+
+                            val recommendedForce = (safeAvgForce * 0.60f).coerceIn(2.2f, 4.5f)
+                            val recommendedJerk = (safeAvgJerk * 0.50f).coerceIn(1.5f, 2.2f)
+
+                            Log.d("BackTapDetector", "🏆 [Step 10] TRIPLE BACK TAP TRIGGERED! Avg Force: $avgForce, Avg Jerk: $avgJerk (Force Ratio: ${String.format("%.2f", actualRatio)} <= Limit: $maxAllowedRatio)")
+                            onTripleTapTriggered(recommendedForce, recommendedJerk)
+
+                            // Reset sequence state after successful gesture trigger
+                            lastTapTime = 0L
+                            firstTapTime = 0L
+                            tapCount = 0
+                            spikeHistory.clear()
+                        } else {
+                            Log.d("BackTapDetector", "[Step 10] Sequence rejected: force ratio too inconsistent (Max: ${String.format("%.2f", maxForce)}, Min: ${String.format("%.2f", minForce)}, Ratio: ${String.format("%.2f", actualRatio)} > Limit: $maxAllowedRatio)")
+                            emitFeedback(
+                                "inconsistent_force",
+                                "Uneven Tap Strength",
+                                "One tap was much harder or softer than the others (Ratio: ${String.format("%.1f", actualRatio)} > $maxAllowedRatio). Tap with equal force.",
+                                mapOf("maxForce" to maxForce.toDouble(), "minForce" to minForce.toDouble(), "ratio" to actualRatio.toDouble())
+                            )
+                            lastTapTime = 0L
+                            firstTapTime = 0L
+                            tapCount = 0
+                            spikeHistory.clear()
+                        }
                     }
                 } else {
                     Log.d("BackTapDetector", "Tap ignored: Low Jerk ($normalizedJerkZ < threshold: $currentJerkThreshold)")
+                    emitFeedback(
+                        "low_jerk",
+                        "Slow Push / Low Snap",
+                        "Tap was pushed rather than snapped (Jerk: ${String.format("%.1f", normalizedJerkZ)} < ${String.format("%.1f", currentJerkThreshold)}). Tap crisply with your fingertip pad.",
+                        mapOf("force" to linearZ.toDouble(), "jerk" to normalizedJerkZ.toDouble(), "threshold" to currentJerkThreshold.toDouble())
+                    )
                 }
             } else {
                 Log.d("BackTapDetector", "Tap ignored: Lateral axis magnitude dominant (Z:$linearZ < 0.8 * LateralMag:$lateralMag)")
+                emitFeedback(
+                    "side_angle",
+                    "Off-Angle / Side Tap",
+                    "Energy went sideways (Z: ${String.format("%.1f", linearZ)} vs Side: ${String.format("%.1f", lateralMag)}). Tap straight onto the back center.",
+                    mapOf("force" to linearZ.toDouble(), "lateral" to lateralMag.toDouble())
+                )
             }
+        } else if (linearZ > tapForceCeiling) {
+            Log.d("BackTapDetector", "[Step 4] Tap exceeded force ceiling (${String.format("%.2f", linearZ)} > $tapForceCeiling).")
+            emitFeedback(
+                "too_hard",
+                "Tap Too Hard",
+                "Impact force (${String.format("%.1f", linearZ)} m/s²) exceeded ceiling (26 m/s²). Tap more lightly.",
+                mapOf("force" to linearZ.toDouble())
+            )
+        } else if (isCalib && linearZ in 0.7f..currentForceThreshold && normalizedJerkZ > 0.6f && linearZ > lateralMag * 0.5f) {
+            emitFeedback(
+                "too_soft",
+                "Tap Too Soft",
+                "Impact (${String.format("%.1f", linearZ)} m/s²) below threshold (${String.format("%.1f", currentForceThreshold)} m/s²). Tap a bit firmer.",
+                mapOf("force" to linearZ.toDouble(), "threshold" to currentForceThreshold.toDouble(), "jerk" to normalizedJerkZ.toDouble())
+            )
         }
     }
 
