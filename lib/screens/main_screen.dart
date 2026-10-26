@@ -72,6 +72,9 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
       } else if (call.method == 'onBackTapStateChanged') {
         final enabled = (call.arguments as bool?) ?? false;
         ref.read(backTapEnabledProvider.notifier).updateState(enabled);
+      } else if (call.method == 'onCameraTapStateChanged') {
+        final enabled = (call.arguments as bool?) ?? false;
+        ref.read(cameraTapEnabledProvider.notifier).updateState(enabled);
       }
     });
 
@@ -104,6 +107,7 @@ class _MainScreenState extends ConsumerState<MainScreen> with WidgetsBindingObse
       ref.read(globalBudgetProvider.notifier).loadGlobalBudget();
       ref.read(recurringTransactionsProvider.notifier).checkDueTransactions();
       ref.read(backTapEnabledProvider.notifier).refresh();
+      ref.read(cameraTapEnabledProvider.notifier).refresh();
     }
   }
 

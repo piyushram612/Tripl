@@ -11,6 +11,8 @@ class PlatformService {
 
   // Key for preferences
   static const String _backTapKey = 'back_tap_enabled';
+  static const String _cameraTapKey = 'camera_tap_enabled';
+  static const String _cameraPositionKey = 'camera_cutout_position';
 
   /// Trigger the native transparent Compose popup activity.
   static Future<void> showPopup() async {
@@ -88,6 +90,52 @@ class PlatformService {
     } on PlatformException catch (e) {
       print("Failed to set tap thresholds: ${e.message}");
     }
+  }
+
+  /// Toggle the background Camera Cutout Triple Tap overlay service.
+  static Future<void> setCameraTapEnabled(bool enabled) async {
+    try {
+      await _channel.invokeMethod('setCameraTapEnabled', {'enabled': enabled});
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_cameraTapKey, enabled);
+    } on PlatformException catch (e) {
+      print("Failed to toggle camera tap: ${e.message}");
+    }
+  }
+
+  /// Check if the camera tap service is currently marked as enabled.
+  static Future<bool> isCameraTapEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    try {
+      await prefs.reload();
+    } catch (_) {}
+    final isEnabled = prefs.getBool(_cameraTapKey) ?? false;
+
+    try {
+      await _channel.invokeMethod('setCameraTapEnabled', {'enabled': isEnabled});
+    } catch (_) {}
+
+    return isEnabled;
+  }
+
+  /// Configure camera cutout position ('auto', 'center', 'left', 'right').
+  static Future<void> setCameraCutoutPosition(String position) async {
+    try {
+      await _channel.invokeMethod('setCameraCutoutPosition', {'position': position});
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_cameraPositionKey, position);
+    } on PlatformException catch (e) {
+      print("Failed to set camera cutout position: ${e.message}");
+    }
+  }
+
+  /// Get saved camera cutout position.
+  static Future<String> getCameraCutoutPosition() async {
+    final prefs = await SharedPreferences.getInstance();
+    try {
+      await prefs.reload();
+    } catch (_) {}
+    return prefs.getString(_cameraPositionKey) ?? 'auto';
   }
 
   /// Launch native email client to send bug report or feedback.

@@ -18,6 +18,7 @@ import 'sheets/manage_currency_sheet.dart';
 import 'sheets/manage_profile_sheet.dart';
 import 'sheets/customize_layout_sheet.dart';
 import 'sheets/manage_theme_sheet.dart';
+import 'sheets/import_sms_sheet.dart';
 import 'recurring_transactions_list_screen.dart';
 import 'tools/expense_splitter_screen.dart';
 import 'tools/tip_calculator_screen.dart';
@@ -95,6 +96,15 @@ class ToolkitScreen extends ConsumerWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) => const ManageProfileSheet(),
+    );
+  }
+
+  void _showImportSmsSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const ImportSmsSheet(),
     );
   }
 
@@ -1273,6 +1283,8 @@ class ToolkitScreen extends ConsumerWidget {
     final double bottomPadding = 72.0 + MediaQuery.of(context).padding.bottom + (MediaQuery.of(context).padding.bottom > 0 ? 10.0 : 20.0) + 24.0;
 
     final backTapEnabled = ref.watch(backTapEnabledProvider);
+    final cameraTapEnabled = ref.watch(cameraTapEnabledProvider);
+    final cameraPosition = ref.watch(cameraCutoutPositionProvider);
 
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
@@ -1359,6 +1371,99 @@ class ToolkitScreen extends ConsumerWidget {
                         ),
                       ],
                     ),
+                    Divider(color: TriplTheme.borderGreen, height: 32),
+                    // Front Camera Cutout Tap
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: TriplTheme.obsidianBg,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            Icons.camera_front_rounded,
+                            color: TriplTheme.primaryMint,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Front Camera Triple Tap',
+                                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: TriplTheme.textLight),
+                              ),
+                              SizedBox(height: 4),
+                              Text(
+                                'Triple tap around camera hole-punch',
+                                style: TextStyle(fontSize: 12, color: TriplTheme.textGray),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Switch.adaptive(
+                          value: cameraTapEnabled,
+                          activeColor: TriplTheme.primaryMint,
+                          onChanged: (val) {
+                            ref.read(cameraTapEnabledProvider.notifier).toggle(val);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  val
+                                      ? "Camera Cutout Tap Service Started!"
+                                      : "Camera Cutout Tap Service Stopped.",
+                                ),
+                                duration: const Duration(seconds: 2),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                    if (cameraTapEnabled) ...[
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Text(
+                            'Cutout Position:',
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: TriplTheme.textGray),
+                          ),
+                          const Spacer(),
+                          ...['auto', 'left', 'center', 'right'].map((pos) {
+                            final isSelected = cameraPosition.toLowerCase() == pos;
+                            return Padding(
+                              padding: const EdgeInsets.only(left: 6),
+                              child: InkWell(
+                                onTap: () => ref.read(cameraCutoutPositionProvider.notifier).setPosition(pos),
+                                borderRadius: BorderRadius.circular(8),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                  decoration: BoxDecoration(
+                                    color: isSelected ? TriplTheme.primaryMint : TriplTheme.obsidianBg,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: isSelected ? TriplTheme.primaryMint : TriplTheme.borderGreen,
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    pos[0].toUpperCase() + pos.substring(1),
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: isSelected ? TriplTheme.obsidianBg : TriplTheme.textLight,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          }),
+                        ],
+                      ),
+                    ],
                     Divider(color: TriplTheme.borderGreen, height: 32),
                     Row(
                       children: [
@@ -1598,7 +1703,14 @@ class ToolkitScreen extends ConsumerWidget {
                         );
                       },
                     ),
-                    ],
+                    Divider(color: TriplTheme.borderGreen, height: 1, indent: 20, endIndent: 20),
+                    _buildSettingsTile(
+                      icon: Icons.sms_rounded,
+                      title: 'SMS Transaction Reader',
+                      subtitle: 'Retrieve & parse bank & credit card SMS alerts',
+                      onTap: () => _showImportSmsSheet(context),
+                    ),
+                  ],
                 ),
               ),
             ),

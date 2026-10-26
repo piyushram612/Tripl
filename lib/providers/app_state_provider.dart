@@ -38,6 +38,58 @@ class BackTapNotifier extends StateNotifier<bool> {
   }
 }
 
+// State Provider for Front Camera Triple Tap Gesture toggle
+final cameraTapEnabledProvider = StateNotifierProvider<CameraTapNotifier, bool>((ref) {
+  return CameraTapNotifier();
+});
+
+class CameraTapNotifier extends StateNotifier<bool> {
+  CameraTapNotifier() : super(false) {
+    _init();
+  }
+
+  Future<void> _init() async {
+    state = await PlatformService.isCameraTapEnabled();
+  }
+
+  Future<void> refresh() async {
+    final prefs = await SharedPreferences.getInstance();
+    try {
+      await prefs.reload();
+    } catch (_) {}
+    state = prefs.getBool('camera_tap_enabled') ?? false;
+  }
+
+  void updateState(bool val) {
+    state = val;
+  }
+
+  Future<void> toggle(bool val) async {
+    state = val;
+    await PlatformService.setCameraTapEnabled(val);
+  }
+}
+
+// State Provider for Camera Cutout Position ('auto', 'center', 'left', 'right')
+final cameraCutoutPositionProvider = StateNotifierProvider<CameraCutoutPositionNotifier, String>((ref) {
+  return CameraCutoutPositionNotifier();
+});
+
+class CameraCutoutPositionNotifier extends StateNotifier<String> {
+  CameraCutoutPositionNotifier() : super('auto') {
+    _init();
+  }
+
+  Future<void> _init() async {
+    state = await PlatformService.getCameraCutoutPosition();
+  }
+
+  Future<void> setPosition(String position) async {
+    state = position;
+    await PlatformService.setCameraCutoutPosition(position);
+  }
+}
+
 // State Provider for Haptic Feedback toggle
 final hapticsEnabledProvider = StateNotifierProvider<HapticsEnabledNotifier, bool>((ref) {
   return HapticsEnabledNotifier();

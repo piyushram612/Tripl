@@ -8,6 +8,8 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <uses-permission android:name="android.permission.READ_SMS" />
+    <uses-permission android:name="android.permission.RECEIVE_SMS" />
 
     <application
         android:label="${appName}"
@@ -69,6 +71,15 @@
             android:exported="false">
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                       android:value="Accelerometer sensor tracking for hardware tap expense entry triggers." />
+        </service>
+
+        <!-- Camera cutout punch-hole triple tap overlay service -->
+        <service
+            android:name="com.waypointlattice.tripl.utils.CameraTapService"
+            android:foregroundServiceType="specialUse"
+            android:exported="false">
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                      android:value="Camera cutout overlay for hardware tap expense entry triggers." />
         </service>
 
         <!-- Quick Settings Tile Service -->

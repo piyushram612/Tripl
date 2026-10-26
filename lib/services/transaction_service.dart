@@ -56,6 +56,9 @@ class TransactionListNotifier extends StateNotifier<List<ExpenseTransaction>> {
   /// Awaits until the initial database load has completely finished.
   Future<void> ensureLoaded() => _initCompleter.future;
 
+  /// Current list of transactions
+  List<ExpenseTransaction> get transactions => state;
+
   void _notifyDbChanged() {
     _ref.read(transactionDbVersionProvider.notifier).state++;
   }

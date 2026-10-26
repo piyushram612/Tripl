@@ -189,6 +189,29 @@ class _CalibrationScreenState extends ConsumerState<CalibrationScreen>
         } catch (_) {}
       }
 
+      if (eventName == 'camera_tap') {
+        HapticFeedback.heavyImpact();
+        try {
+          _dotController.reset();
+          _dotController.forward();
+        } catch (_) {}
+
+        _safeSetState(() {
+          _tapCount = 3;
+          _status = _TapStatus.success;
+          _calibrationSucceeded = true;
+
+          _currentFeedback = CoachingFeedback(
+            tag: 'CAMERA TAP',
+            title: 'Camera Triple Tap Confirmed! 🎯',
+            message: 'Camera cutout tap detected successfully! Front camera gesture is working.',
+            color: TriplTheme.primaryMint,
+            icon: Icons.camera_front_rounded,
+          );
+        });
+        return;
+      }
+
       if (eventName == 'tap') {
         // ── TRIPLE TAP FULLY DETECTED ──
         final rawForce = (event['recommendedForce'] as num?)?.toDouble();

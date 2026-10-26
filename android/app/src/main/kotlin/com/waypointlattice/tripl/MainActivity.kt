@@ -16,6 +16,7 @@ import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import com.waypointlattice.tripl.ui.PopupActivity
 import com.waypointlattice.tripl.utils.BackTapService
+import com.waypointlattice.tripl.utils.CameraTapService
 
 class MainActivity : FlutterFragmentActivity() {
     private val CHANNEL = "com.waypointlattice.tripl/popup"
@@ -51,6 +52,18 @@ class MainActivity : FlutterFragmentActivity() {
                     } else {
                         android.util.Log.w("TriplCalib", "Sink is null! Flutter has not subscribed to the event channel yet.")
                     }
+                }
+            }
+        }
+
+        fun onCameraTapDetected() {
+            android.util.Log.d("Tripl", "onCameraTapDetected in MainActivity: calibrationMode=$calibrationMode")
+            if (calibrationMode && backTapEventSink != null) {
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    backTapEventSink?.success(mapOf(
+                        "event" to "camera_tap",
+                        "message" to "Camera triple tap confirmed!"
+                    ))
                 }
             }
         }
@@ -153,9 +166,34 @@ class MainActivity : FlutterFragmentActivity() {
                     val enabled = call.argument<Boolean>("enabled") ?: true
                     // Update the running service immediately
                     BackTapService.updateHapticsEnabled(enabled)
+                    CameraTapService.updateHapticsEnabled(enabled)
                     // Also persist so next service start picks it up
                     val prefs = getSharedPreferences("FlutterSharedPreferences", android.content.Context.MODE_PRIVATE)
                     prefs.edit().putBoolean("flutter.haptics_enabled", enabled).apply()
+                    result.success(null)
+                }
+                "setCameraTapEnabled" -> {
+                    val enabled = call.argument<Boolean>("enabled") ?: false
+                    toggleCameraTapService(enabled)
+                    val prefs = getSharedPreferences("FlutterSharedPreferences", android.content.Context.MODE_PRIVATE)
+                    prefs.edit().putBoolean("flutter.camera_tap_enabled", enabled).apply()
+                    result.success(null)
+                }
+                "isCameraTapEnabled" -> {
+                    val prefs = getSharedPreferences("FlutterSharedPreferences", android.content.Context.MODE_PRIVATE)
+                    val value = prefs.all["flutter.camera_tap_enabled"]
+                    val isEnabled = when (value) {
+                        is Boolean -> value
+                        is String -> value.toBoolean()
+                        else -> false
+                    }
+                    result.success(isEnabled)
+                }
+                "setCameraCutoutPosition" -> {
+                    val position = call.argument<String>("position") ?: "auto"
+                    CameraTapService.updatePosition(position)
+                    val prefs = getSharedPreferences("FlutterSharedPreferences", android.content.Context.MODE_PRIVATE)
+                    prefs.edit().putString("flutter.camera_cutout_position", position).apply()
                     result.success(null)
                 }
                 "sendEmail" -> {
@@ -190,6 +228,77 @@ class MainActivity : FlutterFragmentActivity() {
                     backTapEventSink = null
                 }
             })
+
+        // ── SMS Method Channel (reading inbox SMS and checking/requesting permissions) ──
+        val SMS_CHANNEL = "com.waypointlattice.tripl/sms"
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, SMS_CHANNEL).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "checkSmsPermission" -> {
+                    val granted = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_SMS) == PackageManager.PERMISSION_GRANTED
+                    result.success(granted)
+                }
+                "requestSmsPermission" -> {
+                    if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_SMS) == PackageManager.PERMISSION_GRANTED) {
+                        result.success(true)
+                    } else {
+                        smsPermissionResultCallback = { granted ->
+                            result.success(granted)
+                        }
+                        ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.READ_SMS), SMS_PERMISSION_CODE)
+                    }
+                }
+                "getInboxSms" -> {
+                    if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_SMS) != PackageManager.PERMISSION_GRANTED) {
+                        result.error("PERMISSION_DENIED", "READ_SMS permission not granted", null)
+                        return@setMethodCallHandler
+                    }
+                    val limit = call.argument<Int>("limit") ?: 100
+                    val since = call.argument<Long>("since") ?: 0L
+
+                    try {
+                        val messages = mutableListOf<Map<String, Any>>()
+                        val projection = arrayOf(
+                            android.provider.Telephony.Sms.ADDRESS,
+                            android.provider.Telephony.Sms.BODY,
+                            android.provider.Telephony.Sms.DATE
+                        )
+                        val selection = if (since > 0) "${android.provider.Telephony.Sms.DATE} >= ?" else null
+                        val selectionArgs = if (since > 0) arrayOf(since.toString()) else null
+                        val sortOrder = "${android.provider.Telephony.Sms.DATE} DESC"
+
+                        contentResolver.query(
+                            android.provider.Telephony.Sms.Inbox.CONTENT_URI,
+                            projection,
+                            selection,
+                            selectionArgs,
+                            sortOrder
+                        )?.use { cursor ->
+                            val addressCol = cursor.getColumnIndex(android.provider.Telephony.Sms.ADDRESS)
+                            val bodyCol = cursor.getColumnIndex(android.provider.Telephony.Sms.BODY)
+                            val dateCol = cursor.getColumnIndex(android.provider.Telephony.Sms.DATE)
+
+                            var count = 0
+                            while (cursor.moveToNext() && count < limit) {
+                                val address = if (addressCol >= 0) cursor.getString(addressCol) ?: "" else ""
+                                val body = if (bodyCol >= 0) cursor.getString(bodyCol) ?: "" else ""
+                                val date = if (dateCol >= 0) cursor.getLong(dateCol) else 0L
+
+                                messages.add(mapOf(
+                                    "address" to address,
+                                    "body" to body,
+                                    "date" to date
+                                ))
+                                count++
+                            }
+                        }
+                        result.success(messages)
+                    } catch (e: Exception) {
+                        result.error("SMS_QUERY_FAILED", e.localizedMessage, null)
+                    }
+                }
+                else -> result.notImplemented()
+            }
+        }
     }
 
     private fun startBackTapService() {
@@ -229,11 +338,52 @@ class MainActivity : FlutterFragmentActivity() {
         }
     }
 
+    private fun toggleCameraTapService(enabled: Boolean) {
+        if (enabled) {
+            checkAndRequestNotificationPermission()
+            
+            // Check for System Alert Window Overlay permission on Android M+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
+                Toast.makeText(
+                    this,
+                    "Please enable 'Display over other apps' to allow Camera Cutout Tap triggers",
+                    Toast.LENGTH_LONG
+                ).show()
+                val intent = Intent(
+                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:$packageName")
+                )
+                startActivity(intent)
+            }
+            
+            val serviceIntent = Intent(this, CameraTapService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(serviceIntent)
+            } else {
+                startService(serviceIntent)
+            }
+        } else {
+            stopService(Intent(this, CameraTapService::class.java))
+        }
+    }
+
     private fun checkAndRequestNotificationPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 101)
             }
+        }
+    }
+
+    private val SMS_PERMISSION_CODE = 102
+    private var smsPermissionResultCallback: ((Boolean) -> Unit)? = null
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == SMS_PERMISSION_CODE) {
+            val granted = grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED
+            smsPermissionResultCallback?.invoke(granted)
+            smsPermissionResultCallback = null
         }
     }
 }
